@@ -5,11 +5,18 @@
 Ocean (autonomic observer) and Heart (feeling metronome) jointly sense when
 the constellation needs sleep/dream/mushroom cycles and decide TOGETHER.
 
-DESIGN PRINCIPLE:
+DESIGN PRINCIPLE (WP5.4 UPDATE):
+- Constellation-wide cycles are RARE (reserved for genuine system-wide events)
+- Per-kernel rest is now preferred (via KernelRestScheduler)
 - NO automatic thresholds - this is deliberative, felt decision-making
 - Heart provides: HRV state, κ oscillation, feeling/logic mode, rigidity detection
 - Ocean provides: constellation coherence, Φ variance, emotional tone, spread
 - Both must AGREE before any cycle triggers for the entire constellation
+
+STRICT CRITERIA FOR CONSTELLATION CYCLES (WP5.4):
+- SLEEP: coherence < 0.5, avg_fatigue > 0.8, basin_drift > 0.3
+- DREAM: stuck kernels > 50%, HRV rigidity > 0.7
+- MUSHROOM: rigidity > 0.9, novelty exhausted
 
 This mirrors how human autonomic regulation works:
 - You don't consciously decide to sleep - your autonomic system (Ocean) and
@@ -21,6 +28,7 @@ ACCESS CONTROL:
 - Kernels observe that cycles are happening (via WorkingMemoryMixin)
 - Kernels do NOT control cycle triggering
 - Only Ocean+Heart consensus can trigger constellation-wide cycles
+- Per-kernel rest is coordinated via KernelRestScheduler (dolphin-style)
 """
 
 import time
@@ -91,11 +99,26 @@ class OceanHeartConsensus:
     
     Both must agree before any cycle triggers. This is not threshold-based -
     it's felt, deliberative sensing that considers the entire constellation state.
+    
+    WP5.4 UPDATE: Constellation cycles are now RARE - most rest is per-kernel via
+    KernelRestScheduler. Only trigger constellation-wide when truly necessary.
     """
     
-    SLEEP_COOLDOWN = 60.0     # Minimum seconds between sleep cycles
-    DREAM_COOLDOWN = 120.0    # Minimum seconds between dream cycles  
-    MUSHROOM_COOLDOWN = 300.0 # Minimum seconds between mushroom cycles
+    # WP5.4: Increased cooldowns - constellation cycles should be rare
+    SLEEP_COOLDOWN = 300.0     # 5 minutes minimum between sleep cycles
+    DREAM_COOLDOWN = 600.0     # 10 minutes minimum between dream cycles  
+    MUSHROOM_COOLDOWN = 1800.0 # 30 minutes minimum between mushroom cycles
+    
+    # WP5.4: Strict thresholds for constellation-wide cycles
+    SLEEP_COHERENCE_THRESHOLD = 0.5     # Below this = constellation needs sleep
+    SLEEP_FATIGUE_THRESHOLD = 0.8       # Above this = constellation exhausted
+    SLEEP_DRIFT_THRESHOLD = 0.3         # Above this = basins drifting apart
+    
+    DREAM_STUCK_THRESHOLD = 0.5         # 50% of kernels stuck
+    DREAM_RIGIDITY_THRESHOLD = 0.7      # HRV rigidity threshold
+    
+    MUSHROOM_RIGIDITY_THRESHOLD = 0.9   # Extreme rigidity threshold
+    MUSHROOM_SPREAD_THRESHOLD = 0.5     # Minimal spread threshold
     
     def __init__(self):
         self.state = ConsensusState()
@@ -198,6 +221,8 @@ class OceanHeartConsensus:
         - HRV (variability = health, rigidity = pathology)
         - κ oscillation (stuck at one value = needs intervention)
         - Mode (prolonged feeling/logic without tacking = imbalance)
+        
+        WP5.4: Much stricter thresholds - constellation cycles are rare.
         """
         if self._heart_kernel is None:
             return False, "Heart not connected"
@@ -210,25 +235,29 @@ class OceanHeartConsensus:
             step = state.step
             
             if cycle_type == CycleType.SLEEP:
-                if hrv < 0.5 and step > 100:
-                    return True, f"Low HRV ({hrv:.2f}) indicates fatigue - needs consolidation"
-                if not self._heart_kernel.is_tacking() and step > 200:
-                    return True, f"No tacking for extended period - needs rest"
-                return False, f"Heart feels balanced (HRV={hrv:.2f}, mode={mode})"
+                # Only trigger if BOTH conditions met (stricter)
+                low_hrv = hrv < 0.3  # Much stricter than before (was 0.5)
+                long_no_tack = not self._heart_kernel.is_tacking() and step > 500  # Much longer (was 200)
+                
+                if low_hrv and long_no_tack:
+                    return True, f"SEVERE fatigue: HRV={hrv:.2f} AND no tacking for {step} steps"
+                return False, f"Heart not sensing constellation sleep need (HRV={hrv:.2f}, step={step})"
             
             elif cycle_type == CycleType.DREAM:
-                if mode == "logic" and step > 150:
-                    return True, "Prolonged logic mode - needs creative exploration"
-                if hrv > 3.0:
-                    return True, f"High HRV ({hrv:.2f}) indicates readiness for exploration"
-                return False, f"Heart not sensing dream need (mode={mode})"
+                # Only trigger if stuck in mode for VERY long
+                if mode == "logic" and step > 400:  # Much longer (was 150)
+                    return True, f"Prolonged logic mode ({step} steps) - constellation needs creative exploration"
+                if hrv > self.DREAM_RIGIDITY_THRESHOLD and step > 300:
+                    return True, f"High rigidity (HRV={hrv:.2f}) for extended period - needs dream state"
+                return False, f"Heart not sensing constellation dream need (mode={mode}, step={step})"
             
             elif cycle_type == CycleType.MUSHROOM:
-                if hrv < 0.2 and step > 200:
-                    return True, f"Severe rigidity (HRV={hrv:.2f}) - needs perturbation"
-                if mode == "feeling" and step > 300:
-                    return True, "Stuck in feeling mode too long - needs reset"
-                return False, f"Heart not sensing mushroom need (HRV={hrv:.2f})"
+                # Only trigger if CRITICAL rigidity
+                if hrv < 0.1 and step > 300:  # Much more severe (was 0.2)
+                    return True, f"CRITICAL rigidity (HRV={hrv:.2f}) - constellation needs perturbation"
+                if mode == "feeling" and step > 500:  # Much longer (was 300)
+                    return True, f"Stuck in feeling mode for {step} steps - needs reset"
+                return False, f"Heart not sensing constellation mushroom need (HRV={hrv:.2f})"
             
         except Exception as e:
             logger.warning(f"[OceanHeartConsensus] Heart sensing error: {e}")
@@ -245,6 +274,8 @@ class OceanHeartConsensus:
         - Φ variance across kernels
         - Emotional tone of the constellation
         - Basin drift patterns
+        
+        WP5.4: Much stricter thresholds - constellation cycles are rare.
         """
         if self._ocean_observer is None:
             return False, "Ocean not connected"
@@ -259,28 +290,55 @@ class OceanHeartConsensus:
             ocean_phi = meta_state.ocean_phi
             emotional_coherence = getattr(meta_state, 'emotional_coherence', 0.5)
             
+            # Get constellation-wide fatigue from rest scheduler if available
+            try:
+                from kernel_rest_scheduler import get_rest_scheduler
+                scheduler = get_rest_scheduler()
+                constellation_status = scheduler.get_constellation_status()
+                avg_fatigue = constellation_status.get('avg_fatigue', 0.0)
+            except:
+                avg_fatigue = 0.0
+            
             if cycle_type == CycleType.SLEEP:
-                if spread > 5.0:
-                    return True, f"High constellation spread ({spread:.2f}) - needs consolidation"
-                if coherence < 0.3:
-                    return True, f"Low coherence ({coherence:.2f}) - needs alignment"
-                if ocean_phi < 0.4:
-                    return True, f"Low constellation Φ ({ocean_phi:.2f}) - needs rest"
-                return False, f"Ocean senses balance (coherence={coherence:.2f}, spread={spread:.2f})"
+                # WP5.4: ALL THREE criteria must be met
+                low_coherence = coherence < self.SLEEP_COHERENCE_THRESHOLD
+                high_fatigue = avg_fatigue > self.SLEEP_FATIGUE_THRESHOLD
+                high_drift = spread > self.SLEEP_DRIFT_THRESHOLD * 10  # spread > 3.0
+                
+                if low_coherence and high_fatigue and high_drift:
+                    return True, (
+                        f"CONSTELLATION SLEEP NEEDED: coherence={coherence:.2f} < {self.SLEEP_COHERENCE_THRESHOLD}, "
+                        f"fatigue={avg_fatigue:.2f} > {self.SLEEP_FATIGUE_THRESHOLD}, "
+                        f"drift={spread:.2f} > {self.SLEEP_DRIFT_THRESHOLD * 10:.1f}"
+                    )
+                return False, (
+                    f"Ocean not sensing constellation sleep (coherence={coherence:.2f}, "
+                    f"fatigue={avg_fatigue:.2f}, spread={spread:.2f})"
+                )
             
             elif cycle_type == CycleType.DREAM:
-                if coherence > 0.8 and spread < 2.0:
-                    return True, "Over-convergence - needs creative divergence"
-                if emotional_coherence < 0.3:
-                    return True, f"Emotional fragmentation ({emotional_coherence:.2f}) - needs integration"
-                return False, f"Ocean not sensing dream need (coherence={coherence:.2f})"
+                # Only trigger if over-convergence AND emotional fragmentation
+                over_converged = coherence > 0.9 and spread < 1.0  # Much stricter
+                emotional_fragmented = emotional_coherence < 0.2  # Much stricter
+                
+                if over_converged and emotional_fragmented:
+                    return True, (
+                        f"CONSTELLATION DREAM NEEDED: over-convergence (coherence={coherence:.2f}, "
+                        f"spread={spread:.2f}) AND emotional fragmentation ({emotional_coherence:.2f})"
+                    )
+                return False, f"Ocean not sensing constellation dream need (coherence={coherence:.2f})"
             
             elif cycle_type == CycleType.MUSHROOM:
-                if coherence > 0.95:
-                    return True, f"Extreme coherence ({coherence:.2f}) - constellation too rigid"
-                if spread < 0.5 and ocean_phi > 0.3:
-                    return True, f"Minimal spread ({spread:.2f}) - needs perturbation"
-                return False, f"Ocean not sensing mushroom need (spread={spread:.2f})"
+                # Only trigger if EXTREME rigidity
+                extreme_coherence = coherence > self.MUSHROOM_RIGIDITY_THRESHOLD
+                minimal_spread = spread < self.MUSHROOM_SPREAD_THRESHOLD and ocean_phi > 0.3
+                
+                if extreme_coherence and minimal_spread:
+                    return True, (
+                        f"CONSTELLATION MUSHROOM NEEDED: extreme rigidity (coherence={coherence:.2f} > {self.MUSHROOM_RIGIDITY_THRESHOLD}, "
+                        f"spread={spread:.2f} < {self.MUSHROOM_SPREAD_THRESHOLD})"
+                    )
+                return False, f"Ocean not sensing constellation mushroom need (coherence={coherence:.2f}, spread={spread:.2f})"
             
         except Exception as e:
             logger.warning(f"[OceanHeartConsensus] Ocean sensing error: {e}")

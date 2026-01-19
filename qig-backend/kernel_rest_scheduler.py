@@ -78,13 +78,13 @@ class FatigueMetrics:
         time_factor = min(1.0, self.time_since_rest / 3600.0)  # Cap at 1 hour
         error_factor = self.error_rate
         
-        # Weighted combination
+        # Weighted combination (adjusted for higher sensitivity)
         fatigue = (
-            0.30 * phi_factor +
-            0.20 * trend_factor +
+            0.35 * phi_factor +        # Increased weight on Φ
+            0.25 * trend_factor +      # Increased weight on trend
             0.20 * stability_factor +
-            0.15 * load_factor +
-            0.10 * time_factor +
+            0.10 * load_factor +       # Reduced weight on instantaneous load
+            0.05 * time_factor +
             0.05 * error_factor
         )
         
@@ -266,8 +266,9 @@ class KernelRestScheduler:
         
         # Essential tier NEVER fully stops (only reduced activity)
         if state.tier == GodTier.ESSENTIAL:
-            if fatigue_score > 0.8:
-                return True, f"Essential tier high fatigue ({fatigue_score:.2f}) - needs REDUCED activity"
+            # Lower threshold for essential tier - they need reduced activity sooner
+            if fatigue_score > 0.4:  # More lenient for essential tier
+                return True, f"Essential tier moderate fatigue ({fatigue_score:.2f}) - needs REDUCED activity"
             return False, f"Essential tier fatigue manageable ({fatigue_score:.2f})"
         
         # Check rest policy thresholds
@@ -279,19 +280,21 @@ class KernelRestScheduler:
         
         elif state.rest_policy == RestPolicyType.MINIMAL_ROTATING:
             # Hermes-style: brief frequent pauses
-            if fatigue_score > 0.5 or state.fatigue.time_since_rest > 600:  # 10 minutes
+            # More lenient threshold - frequent short rests
+            if fatigue_score > 0.4 or state.fatigue.time_since_rest > 600:  # 10 minutes
                 return True, f"MINIMAL_ROTATING - fatigue ({fatigue_score:.2f}) or time > 10min"
             return False, f"MINIMAL_ROTATING - recent pause, fatigue manageable ({fatigue_score:.2f})"
         
         elif state.rest_policy == RestPolicyType.COORDINATED_ALTERNATING:
             # Apollo-Athena style: dolphin coordination
-            if fatigue_score > 0.6:
+            # Moderate threshold - regular alternation
+            if fatigue_score > 0.45:  # Slightly lower for better responsiveness
                 return True, f"COORDINATED_ALTERNATING - fatigue ({fatigue_score:.2f}) needs partner handoff"
             return False, f"COORDINATED_ALTERNATING - fatigue manageable ({fatigue_score:.2f})"
         
         elif state.rest_policy == RestPolicyType.SCHEDULED:
             # Ares-style: burst-recovery after high load
-            if fatigue_score > 0.7 or (state.fatigue.load_current < 0.1 and fatigue_score > 0.5):
+            if fatigue_score > 0.50 or (state.fatigue.load_current < 0.1 and fatigue_score > 0.35):
                 return True, f"SCHEDULED - high fatigue ({fatigue_score:.2f}) or post-burst recovery"
             return False, f"SCHEDULED - not recovery window ({fatigue_score:.2f})"
         
