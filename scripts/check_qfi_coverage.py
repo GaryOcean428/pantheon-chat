@@ -41,7 +41,8 @@ def main() -> int:
 
     # Validate both vocabulary persistence files exist and have qfiScore writes
     # Both server/vocabulary-persistence.ts and server/persistence/coordizer-vocabulary.ts
-    # are canonical locations for qfiScore writes per validate-qfi-canonical-path.sh
+    # are canonical locations for qfiScore writes per validate-qfi-canonical-path.sh (line 71)
+    # and are excluded from purity checks in validate-purity-patterns.sh (line 66-67)
     
     # Older persistence file - just check for qfiScore writes
     old_persistence_path = repo_root / "server" / "vocabulary-persistence.ts"
@@ -65,7 +66,7 @@ def main() -> int:
             ("activeVocabularyFilter", r"activeVocabularyFilter"),
             (
                 "activeVocabularyFilter enforces qfiScore",
-                r"activeVocabularyFilter[\s\S]{0,500}?qfiScore[\s\S]{0,500}?IS NOT NULL",
+                r"activeVocabularyFilter[\s\S]{0,500}qfiScore[\s\S]{0,500}IS NOT NULL",
             ),
         ],
     )
