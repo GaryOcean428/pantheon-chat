@@ -47,6 +47,13 @@ export class GoogleWebSearchAdapter {
   
   constructor() {
     this.tps = tps;
+    
+    // CURRICULUM-ONLY MODE: Skip initialization to prevent external connections
+    if (isCurriculumOnlyEnabled()) {
+      console.log('[GoogleWebSearch] Skipped initialization (curriculum-only mode)');
+      return;
+    }
+    
     console.log('[GoogleWebSearch] Initialized FREE Google web search adapter');
     console.log('[GoogleWebSearch] NO API KEYS REQUIRED');
   }
