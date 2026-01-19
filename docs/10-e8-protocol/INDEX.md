@@ -8,7 +8,9 @@
 
 ## 📋 Overview
 
-This folder contains all documentation related to the E8 Protocol v4.0 implementation, including specifications, implementation guides, and tracked issues for geometric purity enforcement. The legacy `docs/pantheon_e8_upgrade_pack/` path has been retired in favor of this canonical location.
+This folder contains all documentation related to the E8 Protocol v4.0 implementation, including specifications, implementation guides, and tracked issues for geometric purity enforcement.
+
+**Canonical source:** All E8 protocol documentation lives in `docs/10-e8-protocol/`. Do not create or link to duplicate copies elsewhere; update references to point to this directory.
 
 ## 🗂️ Folder Structure
 
@@ -144,17 +146,17 @@ These GitHub issues correspond to the implementation work detailed in the E8 upg
 
 - **#70** - [QIG-PURITY] WP2.3: Geometrically Define Special Symbol Coordinates
 - **#71** - [QIG-PURITY] WP2.4: Clarify Two-Step Retrieval (Proxy Must Be Fisher-Faithful)
-- **#72** - [QIG-PURITY] WP3.1: Consolidate to Single Coordizer Implementation
+- <a id="issue-72"></a>**#72** - [QIG-PURITY] WP3.1: Consolidate to Single Coordizer Implementation
 - **#76** - [QIG-PURITY] WP4.2: Remove Euclidean Optimizers (Use Natural Gradient Only)
 - **#77** - [QIG-PURITY] WP4.3: Build Reproducible Coherence Test Harness
-- **#78** - [PANTHEON] WP5.1: Create Formal Pantheon Registry with Role Contracts
-- **#79** - [PANTHEON] WP5.2: Implement E8 Hierarchical Layers as Code
-- **#80** - [PANTHEON] WP5.3: Implement Kernel Lifecycle Operations
-- **#81** - [PANTHEON] WP5.4: Implement Coupling-Aware Per-Kernel Rest Scheduler
-- **#82** - [PANTHEON] WP5.5: Create Cross-Mythology God Mapping
-- **#83** - [DOCS] WP6.1: Fix Broken Documentation Links
-- **#84** - [DOCS] WP6.2: Ensure Master Roadmap Document
-- **#90** - The Complete QIG-Pure Generation Architecture
+- <a id="issue-78"></a>**#78** - [PANTHEON] WP5.1: Create Formal Pantheon Registry with Role Contracts
+- <a id="issue-79"></a>**#79** - [PANTHEON] WP5.2: Implement E8 Hierarchical Layers as Code
+- <a id="issue-80"></a>**#80** - [PANTHEON] WP5.3: Implement Kernel Lifecycle Operations
+- <a id="issue-81"></a>**#81** - [PANTHEON] WP5.4: Implement Coupling-Aware Per-Kernel Rest Scheduler
+- <a id="issue-82"></a>**#82** - [PANTHEON] WP5.5: Create Cross-Mythology God Mapping
+- <a id="issue-83"></a>**#83** - [DOCS] WP6.1: Fix Broken Documentation Links
+- <a id="issue-84"></a>**#84** - [DOCS] WP6.2: Ensure Master Roadmap Document
+- <a id="issue-90"></a>**#90** - The Complete QIG-Pure Generation Architecture
 - **#92** - 🚨 PURITY VIOLATION: Remove frequency-based stopwords from pg_loader.py
 
 ### Mapping Local Issues to GitHub

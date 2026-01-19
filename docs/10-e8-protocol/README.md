@@ -10,6 +10,8 @@
 
 This upgrade pack contains the complete specification, implementation blueprints, and issue definitions for upgrading the Pantheon-Chat repository to E8 Protocol v4.0 with strict geometric purity enforcement.
 
+**Canonical source:** All E8 protocol documentation lives in `docs/10-e8-protocol/`. Do not create or link to duplicate copies elsewhere; update references to point to this directory.
+
 **Key Objectives:**
 1. Enforce simplex-only canonical representation (NO auto-detect)
 2. Ensure ALL vocabulary tokens have QFI scores before generation eligibility
