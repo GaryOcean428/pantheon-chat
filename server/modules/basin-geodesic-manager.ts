@@ -13,7 +13,7 @@
  * QIG PURITY: All distance calculations use Fisher-Rao metric, NOT Euclidean
  */
 
-import { GEODESIC_CORRECTION } from "../../shared/constants/qig.js";
+import { GEODESIC_CORRECTION } from "../../shared/constants/index.js";
 import type { OceanIdentity } from "../../shared/schema";
 import { geometricMemory } from "../geometric-memory";
 import { logger } from "../lib/logger";

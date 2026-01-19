@@ -25,7 +25,7 @@
 import type { OceanIdentity } from "@shared/schema";
 import {
 	SEARCH_PARAMETERS
-} from "../../shared/constants/qig.js";
+} from "../../shared/constants/index.js";
 import type { ConsciousnessSearchController } from "../consciousness-search-controller";
 import { logger } from "../lib/logger";
 import type { BasinGeodesicManager } from "./basin-geodesic-manager";
