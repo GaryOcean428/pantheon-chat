@@ -37,19 +37,25 @@ function detectMnemonicFormat(_phrase: string) { return { format: 'unknown', wor
 // Search provider state (in-memory, persists until restart)
 // Exported so other modules can check provider state
 // Auto-enable premium providers when API keys are available
+// CURRICULUM-ONLY MODE: All providers disabled when QIG_CURRICULUM_ONLY=true
 export const searchProviderState = {
-  google_free: { enabled: true },
-  tavily: { enabled: !!process.env.TAVILY_API_KEY },
-  perplexity: { enabled: !!process.env.PERPLEXITY_API_KEY },
-  duckduckgo: { enabled: true, torEnabled: true },
+  google_free: { enabled: !isCurriculumOnlyEnabled() },
+  tavily: { enabled: !isCurriculumOnlyEnabled() && !!process.env.TAVILY_API_KEY },
+  perplexity: { enabled: !isCurriculumOnlyEnabled() && !!process.env.PERPLEXITY_API_KEY },
+  duckduckgo: { enabled: !isCurriculumOnlyEnabled(), torEnabled: !isCurriculumOnlyEnabled() },
 };
 
-// Log auto-enable status at startup
-if (searchProviderState.tavily.enabled) {
-  console.log('[SearchProviders] tavily auto-enabled (API key detected)');
-}
-if (searchProviderState.perplexity.enabled) {
-  console.log('[SearchProviders] perplexity auto-enabled (API key detected)');
+// Log curriculum-only mode status
+if (isCurriculumOnlyEnabled()) {
+  console.log('[SearchProviders] All providers DISABLED (curriculum-only mode)');
+} else {
+  // Log auto-enable status at startup
+  if (searchProviderState.tavily.enabled) {
+    console.log('[SearchProviders] tavily auto-enabled (API key detected)');
+  }
+  if (searchProviderState.perplexity.enabled) {
+    console.log('[SearchProviders] perplexity auto-enabled (API key detected)');
+  }
 }
 
 export function isProviderEnabled(provider: 'google_free' | 'tavily' | 'perplexity' | 'duckduckgo'): boolean {
@@ -165,23 +171,25 @@ searchRouter.get("/providers", generousLimiter, async (req: Request, res: Respon
   try {
     const tavilyKey = process.env.TAVILY_API_KEY;
     const perplexityKey = process.env.PERPLEXITY_API_KEY;
+    const curriculumOnly = isCurriculumOnlyEnabled();
     
     res.json({
       success: true,
+      curriculum_only_mode: curriculumOnly,
       data: {
         google_free: {
-          available: true,
+          available: !curriculumOnly,
           enabled: searchProviderState.google_free.enabled,
           requires_key: false,
         },
         tavily: {
-          available: !!tavilyKey,
+          available: !curriculumOnly && !!tavilyKey,
           enabled: searchProviderState.tavily.enabled,
           requires_key: true,
           has_key: !!tavilyKey,
         },
         perplexity: {
-          available: !!perplexityKey,
+          available: !curriculumOnly && !!perplexityKey,
           enabled: searchProviderState.perplexity.enabled,
           requires_key: true,
           has_key: !!perplexityKey,
@@ -200,6 +208,16 @@ searchRouter.post("/providers/:provider/toggle", generousLimiter, async (req: Re
     
     if (provider !== 'google_free' && provider !== 'tavily' && provider !== 'perplexity') {
       return res.status(400).json({ success: false, error: `Unknown provider: ${provider}` });
+    }
+    
+    // CURRICULUM-ONLY MODE: Block provider toggling
+    if (isCurriculumOnlyEnabled() && enabled) {
+      return res.status(403).json({
+        success: false,
+        error: 'Cannot enable search providers in curriculum-only mode',
+        error_code: 'CURRICULUM_ONLY_MODE',
+        message: 'System is in curriculum-only mode. External search providers cannot be enabled.',
+      });
     }
     
     if (provider === 'tavily' && enabled && !process.env.TAVILY_API_KEY) {
