@@ -8,7 +8,9 @@
 
 ## 📋 Overview
 
-This folder contains all documentation related to the E8 Protocol v4.0 implementation, including specifications, implementation guides, and tracked issues for geometric purity enforcement. The legacy `docs/pantheon_e8_upgrade_pack/` path has been retired in favor of this canonical location.
+This folder contains all documentation related to the E8 Protocol v4.0 implementation, including specifications, implementation guides, and tracked issues for geometric purity enforcement.
+
+**Canonical source:** All E8 protocol documentation lives in `docs/10-e8-protocol/`. Do not create or link to duplicate copies elsewhere; update references to point to this directory.
 
 ## 🗂️ Folder Structure
 

@@ -17,7 +17,7 @@
 --
 -- References:
 -- - Issue GaryOcean428/pantheon-chat#70 (WP2.4)
--- - docs/pantheon_e8_upgrade_pack/20260116-wp2-4-two-step-retrieval-implementation-1.01W.md
+-- - docs/10-e8-protocol/implementation/20260116-wp2-4-two-step-retrieval-implementation-1.01W.md
 -- - qig_geometry/two_step_retrieval.py
 -- ============================================================================
 
