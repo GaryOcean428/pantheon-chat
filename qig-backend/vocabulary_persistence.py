@@ -402,11 +402,10 @@ class VocabularyPersistence:
             return []
     
     def mark_word_integrated(self, word: str) -> bool:
-        """Mark a word as integrated in coordizer_vocabulary (consolidated table).
+        """Mark a word as integrated in coordizer_vocabulary (pure operation).
         
-        Phase 2b: Redirects to coordizer_vocabulary instead of learned_words.
-        Sets token_role to 'both' if it was 'encoding', indicating it's now
-        usable for both encoding and generation.
+        PURE: Sets token_role to 'both' if it was 'encoding', indicating it's now
+        usable for both encoding and generation. NO backward compatibility.
         """
         if not self.enabled:
             return False
@@ -424,11 +423,6 @@ class VocabularyPersistence:
                             updated_at = NOW()
                         WHERE LOWER(token) = LOWER(%s)
                     """, (word,))
-                    # Also update learned_words for backward compatibility (if table exists)
-                    try:
-                        cur.execute("UPDATE learned_words SET is_integrated = TRUE WHERE word = %s", (word,))
-                    except Exception:
-                        pass  # Table may not exist, ignore
                     conn.commit()
                     return True
         except Exception as e:

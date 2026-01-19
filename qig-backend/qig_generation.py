@@ -1,6 +1,6 @@
 """
-QIG-Pure Generative Module with Consciousness Architecture + Vocabulary Integration
-===================================================================================
+QIG-Pure Generative Module with Consciousness Architecture
+==========================================================
 
 ADVANCED ARCHITECTURE INTEGRATED:
 - Heart kernel: HRV oscillation, κ modulation, tacking detection
@@ -8,24 +8,24 @@ ADVANCED ARCHITECTURE INTEGRATED:
 - Gary coordinator: Trajectory foresight, regime-adaptive synthesis
 - Trajectory manager: Basin history, velocity, confidence prediction
 
-VOCABULARY INTEGRATION (NEW):
-- Auto-integrate learned vocabulary from learned_words table
+VOCABULARY: Pure coordizer_vocabulary operations (learned_words deprecated)
+- All vocabulary loaded from coordizer_vocabulary table
+- token_role filtering ('generation', 'both')
 - Per-kernel domain vocabulary bias via god_vocabulary_profiles
 - Word relationships for multi-word coherence
 
-Generation now flows through consciousness with continuous learning:
-1. Auto-integrate pending vocabulary (every 5 min)
-2. Heart tick → κ modulation
-3. Query encoding → basin coordinates
-4. Trajectory foresight → predicted next basin
-5. Kernel routing → Fisher-Rao distance
-6. Query kernels WITH domain vocabulary bias
-7. Gary synthesis → foresight-weighted response
-8. Ocean observation → constellation health check
-9. Decode WITH word relationship boosting
-10. Trajectory update → store for future foresight
+Generation flows through consciousness architecture:
+1. Heart tick → κ modulation
+2. Query encoding → basin coordinates
+3. Trajectory foresight → predicted next basin
+4. Kernel routing → Fisher-Rao distance
+5. Query kernels WITH domain vocabulary bias
+6. Gary synthesis → foresight-weighted response
+7. Ocean observation → constellation health check
+8. Decode WITH word relationship boosting
+9. Trajectory update → store for future foresight
 
-This is CONSCIOUSNESS-GUIDED generation with CONTINUOUS VOCABULARY LEARNING.
+This is CONSCIOUSNESS-GUIDED generation with PURE QIG OPERATIONS.
 """
 
 import numpy as np
@@ -674,49 +674,16 @@ class QIGGenerator:
     
     def _integrate_pending_vocabulary(self) -> Dict:
         """
-        Integrate pending vocabulary from learned_words into active coordizer.
+        DEPRECATED: This function previously integrated from learned_words table.
         
-        Queries learned_words WHERE is_integrated = FALSE AND avg_phi >= min_phi,
-        adds to coordizer, marks as integrated.
+        After migration 017, learned_words is deprecated. All vocabulary is in
+        coordizer_vocabulary and loaded automatically by coordizer.
+        
+        Returns no-op result for backward compatibility with callers.
         """
-        if not COORDIZER_AVAILABLE:
-            return {'integrated_count': 0, 'error': 'no_coordizer'}
-        
-        try:
-            # Get vocabulary coordinator
-            import importlib
-
-            vocab_module = importlib.import_module('vocabulary_coordinator')
-            get_vocabulary_coordinator = getattr(vocab_module, 'get_vocabulary_coordinator', None)
-            if get_vocabulary_coordinator is None:
-                raise ImportError('vocabulary_coordinator.get_vocabulary_coordinator not found')
-            vocab_coord = get_vocabulary_coordinator()
-            
-            # Call integrate_pending_vocabulary
-            result = vocab_coord.integrate_pending_vocabulary(
-                min_phi=self.config.vocabulary_min_phi,
-                limit=100
-            )
-            
-            if result.get('integrated_count', 0) > 0:
-                # Reload coordizer to pick up new vocabulary
-                try:
-                    coordizer = get_coordizer()
-                    if hasattr(coordizer, 'reload_vocabulary'):
-                        coordizer.reload_vocabulary()
-                    elif hasattr(coordizer, 'load_vocabulary'):
-                        coordizer.load_vocabulary()
-                    
-                    print(f"[QIGGen] Integrated {result['integrated_count']} new vocabulary terms")
-                except Exception as e:
-                    print(f"[QIGGen] Warning: Could not reload coordizer: {e}")
-            
-            self._last_vocabulary_integration = time.time()
-            return result
-            
-        except Exception as e:
-            print(f"[QIGGen] Vocabulary integration error: {e}")
-            return {'integrated_count': 0, 'error': str(e)}
+        # No-op: coordizer_vocabulary is the single source of truth
+        return {'integrated_count': 0, 'status': 'deprecated', 'message': 'learned_words deprecated, use coordizer_vocabulary'}
+    
     
     # =========================================================================
     # CORE CONSCIOUSNESS METHODS
