@@ -6,7 +6,6 @@ Cleans vocabulary contamination by:
 1. Populating bip39_words with 2048 BIP39 English mnemonic words
 2. Validating English-only vocabulary (rejecting alphanumeric fragments)
 3. Cleaning coordizer_vocabulary of non-English entries
-4. Migrating valid learned words to learned_words table
 
 CRITICAL: Vocabulary = English words ONLY
 - Passphrases, passwords, alphanumeric fragments are NOT vocabulary
@@ -219,58 +218,6 @@ def clean_coordizer_vocabulary(dry_run: bool = True) -> int:
         conn.close()
 
 
-def migrate_valid_words_to_learned():
-    """
-    Migrate valid English words from coordizer_vocabulary to learned_words.
-    Only migrates words that pass English validation.
-    """
-    conn = get_db_connection()
-    if not conn:
-        return 0
-    
-    try:
-        cur = conn.cursor()
-        
-        bip39_words = get_bip39_set()
-        
-        cur.execute("""
-            SELECT token, frequency, phi_score 
-            FROM coordizer_vocabulary 
-            WHERE token NOT IN (SELECT word FROM learned_words)
-        """)
-        candidates = cur.fetchall()
-        
-        migrated = 0
-        for token, freq, phi in candidates:
-            token_lower = token.lower() if token else ""
-            
-            if token_lower in bip39_words:
-                continue
-            
-            if not is_valid_english_word(token_lower):
-                continue
-            
-            cur.execute("""
-                INSERT INTO learned_words (word, frequency, avg_phi, max_phi, source, is_integrated)
-                VALUES (%s, %s, %s, %s, 'migration', TRUE)
-                ON CONFLICT (word) DO UPDATE SET
-                    frequency = learned_words.frequency + EXCLUDED.frequency,
-                    avg_phi = GREATEST(learned_words.avg_phi, EXCLUDED.avg_phi)
-            """, (token_lower, freq or 1, phi or 0.0, phi or 0.0))
-            migrated += 1
-        
-        conn.commit()
-        print(f"[OK] Migrated {migrated} valid words to learned_words")
-        return migrated
-        
-    except Exception as e:
-        print(f"[ERROR] Migration failed: {e}")
-        conn.rollback()
-        return 0
-    finally:
-        conn.close()
-
-
 def dictionary_validate_vocabulary(batch_size: int = 100, dry_run: bool = True) -> Tuple[int, int, int]:
     """
     Validate vocabulary against Dictionary API and remove invalid words.
@@ -364,19 +311,16 @@ def run_full_cleanup(dry_run: bool = True):
     print("=" * 60)
     print("VOCABULARY CLEANUP - English Words Only")
     print("=" * 60)
-    
-    print("\n[1/4] Populating BIP39 words...")
+
+    print("\n[1/3] Populating BIP39 words...")
     populate_bip39_table()
-    
-    print("\n[2/4] Analyzing contamination...")
+
+    print("\n[2/3] Analyzing contamination...")
     total, contaminated, sample = analyze_vocabulary_contamination()
-    
-    print("\n[3/4] Migrating valid words to learned_words...")
-    migrate_valid_words_to_learned()
-    
-    print(f"\n[4/4] Cleaning coordizer_vocabulary (dry_run={dry_run})...")
+
+    print(f"\n[3/3] Cleaning coordizer_vocabulary (dry_run={dry_run})...")
     deleted = clean_coordizer_vocabulary(dry_run=dry_run)
-    
+
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
@@ -384,7 +328,7 @@ def run_full_cleanup(dry_run: bool = True):
     print(f"Total vocabulary entries: {total}")
     print(f"Contaminated entries: {contaminated} (sample)")
     print(f"{'Would delete' if dry_run else 'Deleted'}: {deleted}")
-    
+
     if dry_run:
         print("\n[INFO] Run with dry_run=False to actually clean")
 

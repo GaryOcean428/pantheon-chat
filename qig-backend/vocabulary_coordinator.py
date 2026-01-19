@@ -212,8 +212,7 @@ class VocabularyCoordinator:
         This solves the critical issue where vocabulary was learned during sessions
         but lost on restart because it was never written back to the coordizer_vocabulary table.
         
-        Also updates learned_words.basin_coords so integrate_pending_vocabulary can
-        push vectors into coordizer_vocabulary and generation can use them.
+        Updates coordizer_vocabulary.basin_embedding so generation can use the basins.
         
         Args:
             observations: List of vocabulary observation dicts with word, phi, etc.
@@ -231,7 +230,7 @@ class VocabularyCoordinator:
             return 0
         
         persisted = 0
-        words_with_basins = []  # (word, basin_coords) tuples for learned_words update
+        words_with_basins = []  # (word, basin_coords) tuples for coordizer_vocabulary update
         
         for obs in observations:
             word = obs.get('word', '')
@@ -254,7 +253,7 @@ class VocabularyCoordinator:
                 if basin_coords is not None:
                     if self._unified_coordizer.save_learned_token(word, basin_coords, phi, freq):
                         persisted += 1
-                        # Track for learned_words update
+                        # Track for coordizer_vocabulary update
                         words_with_basins.append((word, basin_coords))
             except Exception as e:
                 print(f"[VocabularyCoordinator] Failed to persist '{word}': {e}")
@@ -485,10 +484,10 @@ class VocabularyCoordinator:
     def sync_to_typescript(self) -> Dict:
         if not self.vocab_db or not self.vocab_db.enabled:
             return {'words': [], 'merge_rules': [], 'stats': {}}
-        learned_words = self.vocab_db.get_learned_words(min_phi=0.6, limit=500)
+        generation_words = self.vocab_db.get_generation_vocabulary(min_phi=0.6, limit=500)
         merge_rules = self.vocab_db.get_merge_rules(min_phi=0.6, limit=200)
         stats = self.vocab_db.get_vocabulary_stats()
-        return {'words': learned_words, 'merge_rules': [{'token_a': a, 'token_b': b, 'merged': merged, 'phi_score': score} for a, b, merged, score in merge_rules], 'stats': stats, 'coordinator_metrics': {'observations_recorded': self.observations_recorded, 'words_learned': self.words_learned, 'merge_rules_learned': self.merge_rules_learned}}
+        return {'words': generation_words, 'merge_rules': [{'token_a': a, 'token_b': b, 'merged': merged, 'phi_score': score} for a, b, merged, score in merge_rules], 'stats': stats, 'coordinator_metrics': {'observations_recorded': self.observations_recorded, 'words_learned': self.words_learned, 'merge_rules_learned': self.merge_rules_learned}}
     
     def sync_from_typescript(self, data: Dict) -> Dict:
         observations = data.get('observations', [])
@@ -582,7 +581,7 @@ class VocabularyCoordinator:
         
         if self.vocab_db and self.vocab_db.enabled:
             try:
-                learned = self.vocab_db.get_learned_words(min_phi=min_phi, limit=300)
+                learned = self.vocab_db.get_generation_vocabulary(min_phi=min_phi, limit=300)
                 
                 for word_data in learned:
                     if isinstance(word_data, dict):
@@ -867,11 +866,11 @@ class VocabularyCoordinator:
         return self._transition_targets[:limit]
 
     def integrate_pending_vocabulary(self, min_phi: float = 0.65, limit: int = 100) -> Dict:
-        """Integrate pending vocabulary from learned_words into active coordizer.
+        """Integrate pending vocabulary from coordizer_vocabulary into active coordizer.
 
-        Queries learned_words where is_integrated = FALSE and avg_phi >= min_phi,
+        Queries coordizer_vocabulary where is_real_word = FALSE and phi_score >= min_phi,
         computes basin_coords for each word, adds them to the coordizer,
-        and marks them as integrated with their basin_coords stored.
+        and marks them as generation-ready with their basin_embedding stored.
 
         Returns:
             Dict with integrated_count, skipped_count, errors
@@ -910,7 +909,7 @@ class VocabularyCoordinator:
                     return {'integrated_count': 0, 'message': 'no_pending_words'}
 
                 words_to_integrate = []
-                words_with_basins = []  # (word, basin_coords) for updating learned_words
+                words_with_basins = []  # (word, basin_coords) for updating coordizer_vocabulary
                 
                 for row in rows:
                     word, avg_phi, max_phi, frequency, source = row
@@ -955,7 +954,6 @@ class VocabularyCoordinator:
 
                 # Phase 2b: Update coordizer_vocabulary with basin_embedding and mark as generation-ready
                 # P0 FIX: Also compute and insert QFI score to prevent incomplete records
-                # Also update learned_words for backward compatibility
                 for word, basin in words_with_basins:
                     try:
                         basin_list = basin.tolist() if hasattr(basin, 'tolist') else list(basin)

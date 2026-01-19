@@ -362,7 +362,21 @@ class VocabularyPersistence:
             print(f"[VocabularyPersistence] Batch record failed: {e}")
         return recorded
     
-    def get_learned_words(self, min_phi: float = 0.0, limit: int = 1000, source: Optional[str] = None) -> List[Dict]:
+    def get_generation_vocabulary(self, min_phi: float = 0.0, limit: int = 1000, source: Optional[str] = None) -> List[Dict]:
+        """
+        Get vocabulary from coordizer_vocabulary for generation.
+
+        Retrieves tokens with token_role='generation' or 'both' that meet
+        the minimum phi threshold.
+
+        Args:
+            min_phi: Minimum phi score threshold
+            limit: Maximum number of results
+            source: Optional filter by source_type
+
+        Returns:
+            List of dicts with word, avg_phi, max_phi, frequency, source
+        """
         if not self.enabled:
             return []
         try:
@@ -370,23 +384,23 @@ class VocabularyPersistence:
                 with conn.cursor() as cur:
                     if source:
                         cur.execute("""
-                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type 
-                            FROM coordizer_vocabulary 
+                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type
+                            FROM coordizer_vocabulary
                             WHERE phi_score >= %s AND source_type = %s
                               AND token_role IN ('generation', 'both')
                             ORDER BY phi_score DESC, frequency DESC LIMIT %s
                         """, (min_phi, source, limit))
                     else:
                         cur.execute("""
-                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type 
-                            FROM coordizer_vocabulary 
+                            SELECT token as word, phi_score as avg_phi, phi_score as max_phi, frequency, source_type
+                            FROM coordizer_vocabulary
                             WHERE phi_score >= %s
                               AND token_role IN ('generation', 'both')
                             ORDER BY phi_score DESC, frequency DESC LIMIT %s
                         """, (min_phi, limit))
                     return [{'word': row[0], 'avg_phi': float(row[1]), 'max_phi': float(row[2]), 'frequency': int(row[3] or 0), 'source': row[4] or 'unknown'} for row in cur.fetchall()]
         except Exception as e:
-            print(f"[VocabularyPersistence] Failed to get learned words: {e}")
+            print(f"[VocabularyPersistence] Failed to get generation vocabulary: {e}")
             return []
     
     def get_high_phi_vocabulary(self, min_phi: float = 0.7, limit: int = 100) -> List[Tuple[str, float]]:
@@ -402,14 +416,12 @@ class VocabularyPersistence:
             return []
     
     def mark_word_integrated(self, word: str) -> bool:
-        """Mark a word as integrated in coordizer_vocabulary (pure operation).
-        
-        PURE: Updates token_role in coordizer_vocabulary:
+        """Mark a word as integrated in coordizer_vocabulary.
+
+        Updates token_role in coordizer_vocabulary:
         - If token_role='encoding', changes to 'both' (now usable for generation too)
         - Otherwise, ensures token_role='generation' (or keeps existing value)
         - Sets is_real_word=TRUE to mark as validated English word
-        
-        NO backward compatibility with learned_words table.
         """
         if not self.enabled:
             return False

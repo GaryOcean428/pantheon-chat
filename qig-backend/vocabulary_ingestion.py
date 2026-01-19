@@ -394,8 +394,6 @@ class VocabularyIngestionService:
         
         Sets token_role='generation' for new vocabulary and updates to 'both' if the token
         already existed as 'encoding'. This is the vocabulary consolidation pattern.
-        
-        NOTE: learned_words table is DEPRECATED. All vocabulary writes go to coordizer_vocabulary.
         """
         try:
             with self.vp._connect() as conn:
@@ -430,7 +428,7 @@ class VocabularyIngestionService:
                     context_text = context if context else f"Ingested via {source}"
                     
                     # Upsert to coordizer_vocabulary (consolidated table) with token_role='generation'
-                    # This is the ONLY vocabulary table - learned_words is deprecated
+                    # coordizer_vocabulary is the single source of truth for all vocabulary
                     query = f"""
                         INSERT INTO coordizer_vocabulary (
                             token, {basin_column}, phi_score, frequency, source_type, source,
