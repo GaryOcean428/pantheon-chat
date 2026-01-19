@@ -19,6 +19,7 @@ import {
   type RawDiscovery,
   BITCOIN_ERA_DOMAINS
 } from './types';
+import { isCurriculumOnlyEnabled } from '../lib/curriculum-mode';
 
 const SEARXNG_INSTANCES = [
   'https://mr-search.up.railway.app',
@@ -132,6 +133,12 @@ export class SearXNGGeometricAdapter {
    * Search with geometric query
    */
   async search(query: GeometricQuery): Promise<RawDiscovery[]> {
+    // CURRICULUM-ONLY MODE: Block external web searches
+    if (isCurriculumOnlyEnabled()) {
+      console.log(`[SearXNG] Search blocked by curriculum-only mode`);
+      return [];
+    }
+    
     const searchQuery = this.buildSearchQuery(query);
     
     let attempts = 0;
