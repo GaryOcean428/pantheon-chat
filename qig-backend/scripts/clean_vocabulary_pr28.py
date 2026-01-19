@@ -47,7 +47,7 @@ def scan_vocabulary_table(table_name: str, word_column: str = 'word') -> Dict[st
         Dictionary with scan results
     """
     # Whitelist of allowed tables and columns for SQL safety
-    ALLOWED_TABLES = {'coordizer_vocabulary', 'learned_words', 'bip39_words', 'basin_relationships'}
+    ALLOWED_TABLES = {'coordizer_vocabulary', 'bip39_words', 'basin_relationships'}
     ALLOWED_COLUMNS = {'word', 'source_word', 'target_word'}
     
     if table_name not in ALLOWED_TABLES:
@@ -137,7 +137,7 @@ def clean_vocabulary_table(table_name: str, contaminated_words: List[str],
         Number of rows deleted
     """
     # Whitelist validation for SQL safety
-    ALLOWED_TABLES = {'coordizer_vocabulary', 'learned_words', 'bip39_words'}
+    ALLOWED_TABLES = {'coordizer_vocabulary', 'bip39_words'}
     ALLOWED_COLUMNS = {'word'}
     
     if table_name not in ALLOWED_TABLES:
@@ -346,7 +346,6 @@ def main(dry_run: bool = True):
     # Tables to scan
     tables_to_scan = [
         ('coordizer_vocabulary', 'word'),
-        ('learned_words', 'word'),
         ('bip39_words', 'word'),
     ]
     

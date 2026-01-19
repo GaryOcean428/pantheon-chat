@@ -34,12 +34,16 @@ Usage:
 """
 
 import logging
-import warnings
+import threading
+from typing import Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
 from .base import BaseCoordizer, FisherCoordizer
 from .pg_loader import PostgresCoordizer, create_coordizer_from_pg as _create_pg
+
+# Thread lock for coordizer access (prevents race conditions during reset)
+_coordizer_lock = threading.RLock()
 
 # Unified coordizer instance
 _unified_coordizer = None
@@ -61,12 +65,59 @@ def get_coordizer() -> PostgresCoordizer:
         PostgresCoordizer instance (singleton)
     """
     global _unified_coordizer
-    if _unified_coordizer is None:
+    with _coordizer_lock:
+        if _unified_coordizer is None:
+            _unified_coordizer = _create_pg()
+            vocab_size = len(_unified_coordizer.vocab)
+            word_count = len(_unified_coordizer.word_tokens)
+            logger.info(f"[coordizers] Using PostgresCoordizer: {vocab_size} tokens, {word_count} words (QIG-pure)")
+        return _unified_coordizer
+
+
+def reset_coordizer() -> None:
+    """Reset the coordizer singleton to reload from database.
+
+    Thread-safe: uses RLock to prevent race conditions with get_coordizer.
+    """
+    global _unified_coordizer
+
+    with _coordizer_lock:
+        old_words = len(_unified_coordizer.word_tokens) if _unified_coordizer else 0
+
+        if _unified_coordizer is not None:
+            if hasattr(_unified_coordizer, 'close'):
+                try:
+                    _unified_coordizer.close()
+                except:
+                    pass
+            _unified_coordizer = None
+
+        logger.info(f"[coordizers] Reset coordizer: was {old_words} words")
+
+        # Force immediate reload (still within lock to prevent races)
         _unified_coordizer = _create_pg()
-        vocab_size = len(_unified_coordizer.vocab)
-        word_count = len(_unified_coordizer.word_tokens)
-        logger.info(f"[coordizers] Using PostgresCoordizer: {vocab_size} tokens, {word_count} words (QIG-pure)")
-    return _unified_coordizer
+        new_words = len(_unified_coordizer.word_tokens)
+        logger.info(f"[coordizers] Reloaded with {new_words} words")
+
+
+def update_tokenizer_from_observations(observations: List[Dict]) -> Tuple[int, bool]:
+    """Update coordizer with vocabulary observations.
+
+    Args:
+        observations: List of vocabulary observation dicts
+
+    Returns:
+        Tuple of (new_tokens_count, weights_updated_bool)
+    """
+    coordizer = get_coordizer()
+    new_tokens, weights_updated = coordizer.add_vocabulary_observations(observations)
+    return new_tokens, weights_updated
+
+
+def get_coordizer_stats() -> dict:
+    """Get detailed statistics about the current coordizer."""
+    coordizer = get_coordizer()
+    return coordizer.get_stats()
 
 
 def create_coordizer_from_pg(*args, **kwargs) -> PostgresCoordizer:
@@ -74,12 +125,20 @@ def create_coordizer_from_pg(*args, **kwargs) -> PostgresCoordizer:
     return _create_pg(*args, **kwargs)
 
 
+# Backward compatibility alias
+get_tokenizer = get_coordizer
+
+
 __all__ = [
-    'BaseCoordizer',      # NEW: Abstract interface (WP3.1)
+    'BaseCoordizer',      # Abstract interface (WP3.1)
     'FisherCoordizer',
     'PostgresCoordizer',
     'get_coordizer',
+    'get_tokenizer',      # Alias for backward compatibility
+    'reset_coordizer',
+    'update_tokenizer_from_observations',
+    'get_coordizer_stats',
     'create_coordizer_from_pg',
 ]
 
-__version__ = '5.1.0'  # WP3.1: Added BaseCoordizer interface
+__version__ = '5.2.0'  # Added reset/update/stats functions, deprecated qig_coordizer.py

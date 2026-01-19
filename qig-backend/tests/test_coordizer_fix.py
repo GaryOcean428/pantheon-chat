@@ -43,17 +43,17 @@ def test_direct_pg_loader():
         return False
 
 
-def test_qig_coordizer():
-    """Test via qig_coordizer singleton."""
-    print("\n=== Test 2: QIG Coordizer Singleton ===")
+def test_coordizers_singleton():
+    """Test via coordizers singleton."""
+    print("\n=== Test 2: Coordizers Singleton ===")
     try:
-        import qig_coordizer
-        qig_coordizer._coordizer_instance = None  # Reset singleton
-        
-        coordizer = qig_coordizer.get_coordizer()
+        import coordizers
+        coordizers._unified_coordizer = None  # Reset singleton
+
+        coordizer = coordizers.get_coordizer()
         print(f"✓ Got coordizer: {type(coordizer).__name__}")
         print(f"  Vocab size: {len(coordizer.vocab) if hasattr(coordizer, 'vocab') else 'N/A'}")
-        
+
         print("✓ Singleton test PASSED")
         return True
     except Exception as e:
@@ -107,7 +107,7 @@ def main():
     
     results = []
     results.append(test_direct_pg_loader())
-    results.append(test_qig_coordizer())
+    results.append(test_coordizers_singleton())
     results.append(test_generation_service())
     
     print("\n" + "="*50)

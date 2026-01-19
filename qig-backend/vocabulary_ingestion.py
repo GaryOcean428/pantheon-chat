@@ -40,11 +40,14 @@ try:
 except ImportError:
     KAPPA_STAR = 64.21  # Fallback value
 
-# QFI Computation Constants
-FISHER_REGULARIZATION = 1e-6  # Numerical stability for Fisher metric determinant
-QFI_TO_PHI_BASE = 0.5  # Base phi score for QFI mapping
-QFI_TO_PHI_SCALE = 0.3  # Scale factor for tanh normalization
-QFI_TO_PHI_EPSILON = 1e-10  # Small epsilon to prevent log(0)
+# Import canonical QFI computation (single source of truth)
+try:
+    from qig_geometry.canonical_upsert import compute_qfi_score as canonical_qfi_score
+    CANONICAL_QFI_AVAILABLE = True
+except ImportError:
+    CANONICAL_QFI_AVAILABLE = False
+    canonical_qfi_score = None
+    logger.warning("[VocabularyIngestionService] canonical_upsert not available, using fallback QFI")
 
 # Database Column Names (for migration safety)
 BASIN_COLUMN_PRE_MIGRATION = 'basin_embedding'  # Before migration 010
@@ -173,12 +176,12 @@ class VocabularyIngestionService:
         # Validate basin (critical - prevents contamination)
         self._validate_basin(basin, word)
         
-        # Compute QFI score
+        # Compute QFI score (canonical formula returns [0, 1])
         qfi = self._compute_qfi(basin)
-        
-        # Use provided phi or compute from QFI
+
+        # Use provided phi or use QFI directly (canonical QFI is in [0, 1])
         if phi_score is None:
-            phi_score = self._qfi_to_phi(qfi)
+            phi_score = qfi  # QFI is now [0, 1], can be used directly as phi
         
         # Atomic upsert with basin
         try:
@@ -329,53 +332,41 @@ class VocabularyIngestionService:
     
     def _compute_qfi(self, basin: np.ndarray) -> float:
         """
-        Compute Quantum Fisher Information score.
-        
-        Uses Fisher metric determinant as a measure of geometric distinguishability.
-        Higher QFI = more geometrically distinct = better vocabulary quality.
-        
+        Compute Quantum Fisher Information score using canonical formula.
+
+        Uses participation ratio (effective dimension) which is geometrically proper:
+        QFI = exp(H(p)) / n where H(p) is Shannon entropy.
+
+        This is the CANONICAL QFI formula - produces values in [0, 1].
+
         Args:
             basin: 64D basin coordinates
-        
+
         Returns:
-            QFI score (float)
+            QFI score in [0, 1]
         """
-        # Fisher metric: outer product + regularization
-        fisher_metric = np.outer(basin, basin)
-        
-        # Add small regularization for numerical stability
-        fisher_metric += np.eye(64) * FISHER_REGULARIZATION
-        
-        # Determinant as QFI score
-        qfi = np.linalg.det(fisher_metric)
-        
-        return float(qfi)
-    
-    def _qfi_to_phi(self, qfi: float) -> float:
-        """
-        Convert QFI score to Φ (consciousness integration) score.
-        
-        Heuristic mapping: QFI reflects geometric complexity,
-        which correlates with integration potential.
-        
-        The mapping uses:
-        - QFI_TO_PHI_BASE (0.5): Baseline phi for typical QFI values
-        - QFI_TO_PHI_SCALE (0.3): Amplification factor for log-normalized QFI
-        - QFI_TO_PHI_EPSILON (1e-10): Prevents log(0) for zero QFI
-        
-        Args:
-            qfi: QFI score
-        
-        Returns:
-            Φ score in [0, 1]
-        """
-        # Log-scale normalization (QFI can be very large or small)
-        phi = QFI_TO_PHI_BASE + QFI_TO_PHI_SCALE * np.tanh(np.log10(abs(qfi) + QFI_TO_PHI_EPSILON))
-        
-        # Clamp to [0, 1]
-        phi = max(0.0, min(1.0, phi))
-        
-        return float(phi)
+        # Use canonical QFI computation if available
+        if CANONICAL_QFI_AVAILABLE and canonical_qfi_score is not None:
+            return canonical_qfi_score(basin)
+
+        # Fallback: inline canonical formula (participation ratio)
+        # Project to simplex probabilities
+        v = np.abs(basin) + 1e-10
+        p = v / v.sum()
+
+        # Compute Shannon entropy
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.0
+
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+
+        # Participation ratio = exp(entropy) / dimension
+        n_dim = len(basin)
+        effective_dim = np.exp(entropy)
+        qfi_score = effective_dim / n_dim
+
+        return float(np.clip(qfi_score, 0.0, 1.0))
     
     def _upsert_to_database(
         self,
@@ -394,8 +385,6 @@ class VocabularyIngestionService:
         
         Sets token_role='generation' for new vocabulary and updates to 'both' if the token
         already existed as 'encoding'. This is the vocabulary consolidation pattern.
-        
-        NOTE: learned_words table is DEPRECATED. All vocabulary writes go to coordizer_vocabulary.
         """
         try:
             with self.vp._connect() as conn:
@@ -430,7 +419,7 @@ class VocabularyIngestionService:
                     context_text = context if context else f"Ingested via {source}"
                     
                     # Upsert to coordizer_vocabulary (consolidated table) with token_role='generation'
-                    # This is the ONLY vocabulary table - learned_words is deprecated
+                    # coordizer_vocabulary is the single source of truth for all vocabulary
                     query = f"""
                         INSERT INTO coordizer_vocabulary (
                             token, {basin_column}, phi_score, frequency, source_type, source,

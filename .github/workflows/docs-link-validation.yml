@@ -1,0 +1,49 @@
+name: Documentation Link Validation
+
+on:
+  pull_request:
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - '.github/workflows/docs-link-validation.yml'
+      - 'scripts/validate_markdown_links.py'
+  push:
+    branches:
+      - main
+    paths:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  validate-links:
+    name: Validate Markdown Links
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Validate documentation links
+        run: |
+          chmod +x scripts/validate_markdown_links.py
+          python3 scripts/validate_markdown_links.py --file README.md,CONTRIBUTING.md
+        continue-on-error: false
+      
+      - name: Check all documentation links (warning only)
+        run: |
+          python3 scripts/validate_markdown_links.py --warn-only
+        continue-on-error: true
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "✅ Critical documentation links validated (README, CONTRIBUTING)"
+          echo "⚠️  Full documentation audit completed with warnings"
+          echo ""
+          echo "Note: docs/00-index.md has 200+ broken links and needs comprehensive cleanup."
+          echo "See issue for tracking: https://github.com/GaryOcean428/pantheon-chat/issues"

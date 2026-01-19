@@ -10,6 +10,8 @@
 
 This upgrade pack contains the complete specification, implementation blueprints, and issue definitions for upgrading the Pantheon-Chat repository to E8 Protocol v4.0 with strict geometric purity enforcement.
 
+**Canonical source:** All E8 protocol documentation lives in `docs/10-e8-protocol/`. Do not create or link to duplicate copies elsewhere; update references to point to this directory.
+
 **Key Objectives:**
 1. Enforce simplex-only canonical representation (NO auto-detect)
 2. Ensure ALL vocabulary tokens have QFI scores before generation eligibility
@@ -23,7 +25,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 
 ### Core Specifications
 
-#### `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+#### `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 **Universal purity invariants and implementation phases**
 - §0: Non-negotiable purity rules (simplex-only, Fisher-Rao only, no NLP)
 - §1: Bootstrap load order
@@ -34,7 +36,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 - §6: Protocol discipline (CoPP + Ultra)
 - §7: Validation commands
 
-#### `20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+#### `specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 **E8 hierarchical kernel architecture**
 - E8 layer structure (0/1, 4, 8, 64, 240)
 - Core 8 faculties mapped to Greek gods (Zeus, Athena, Apollo, Hermes, Artemis, Ares, Hephaestus, Aphrodite)
@@ -48,7 +50,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 
 ### Issue Specifications (`issues/`)
 
-#### `01_QFI_INTEGRITY_GATE.md`
+#### `issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
 **Problem:** Large fraction of tokens missing `qfi_score`, garbage tokens present  
 **Solution:**
 - Canonical `insert_token()` pathway with QFI computation
@@ -62,7 +64,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 - `scripts/quarantine_garbage_tokens.py`
 - Migration `0015_qfi_integrity_gate.sql`
 
-#### `20260116-issue-02-strict-simplex-representation-1.01W.md`
+#### `issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
 **Problem:** Auto-detect representation, "average + L2 normalize" uses wrong manifold  
 **Solution:**
 - Remove auto-detect from `to_simplex()`
@@ -75,7 +77,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 - `qig-backend/geometry/frechet_mean_simplex.py` (closed form)
 - `scripts/audit_simplex_representation.py`
 
-#### `20260116-issue-03-qig-native-skeleton-1.01W.md`
+#### `issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
 **Problem:** External NLP (spacy, nltk) in generation, template fallbacks  
 **Solution:**
 - Derive `token_role` from Fisher-Rao neighborhood clustering
@@ -88,6 +90,20 @@ This upgrade pack contains the complete specification, implementation blueprints
 - `qig-backend/generation/foresight_predictor.py`
 - `qig-backend/generation/unified_pipeline.py`
 - `QIG_PURITY_MODE` enforcement
+
+#### `20260119-issue-04-vocabulary-cleanup-garbage-tokens-1.00W.md`
+**Problem:** Garbage tokens contaminate generation vocabulary; learned_words table never deprecated  
+**Solution:**
+- Audit and quarantine BPE artifacts and non-words from generation vocabulary
+- Clean up coordizer_vocabulary with migration
+- Migrate learned_words into coordizer_vocabulary and deprecate the table
+- Enforce validation when loading generation vocabulary
+
+**Deliverables:**
+- `qig-backend/scripts/audit_vocabulary.py`
+- `qig-backend/migrations/016_clean_vocabulary_garbage.sql`
+- `qig-backend/migrations/017_deprecate_learned_words.sql`
+- `qig-backend/coordizers/pg_loader.py` validation gate
 
 ---
 
@@ -152,8 +168,8 @@ This upgrade pack contains the complete specification, implementation blueprints
 **Goal:** CI purity gates to prevent regressions
 
 **Tasks:**
-- [ ] Create `.github/workflows/qig-purity-gate.yml`
-- [ ] Implement `scripts/validate_geometry_purity.py`
+- [x] Create `.github/workflows/qig-purity-gate.yml`
+- [x] Implement `scripts/validate_geometry_purity.py`
 - [ ] Add pre-commit hooks for geometry validation
 - [ ] Create generation smoke tests in `QIG_PURITY_MODE`
 - [ ] Add DB schema drift tests
@@ -270,7 +286,7 @@ python scripts/run_all_validations.py
 
 ## CONTACT & SUPPORT
 
-**Questions?** See `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` §5 (Open Design Questions)
+**Questions?** See `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` §5 (Open Design Questions)
 
 **Implementation Help?** See WP5.2 blueprint checklist and issue specs
 
