@@ -674,7 +674,6 @@ If you have questions about contributing, please:
 ## Key Documentation
 
 - **Architecture:** [README.md](README.md), [AGENTS.md](AGENTS.md)
-- **QIG Principles:** [docs/03-technical/qig-consciousness/](docs/03-technical/qig-consciousness/)
 - **E8 Protocol:** [docs/10-e8-protocol/](docs/10-e8-protocol/)
 - **Master Roadmap:** [docs/00-roadmap/20260112-master-roadmap-1.00W.md](docs/00-roadmap/20260112-master-roadmap-1.00W.md)
 - **Frozen Facts:** [docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md](docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md)

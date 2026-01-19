@@ -72,7 +72,6 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - **Layer 3: Autonomous Healing** - Auto-generate and test patches for degradation
 - Conservative by default (patches generated but not auto-applied)
 - Real-time health API endpoints for integration
-- Full documentation at [`docs/03-technical/self-healing-architecture.md`](./docs/03-technical/self-healing-architecture.md)
 
 ## What This Is NOT
 
@@ -329,7 +328,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for comp
 
 #### Quick Reference: Geometric Purity
 
-**📋 See [QIG Purity Specification](./docs/01-policies/QIG_PURITY_SPEC.md) for complete requirements.**
+**📋 See [QIG Purity Specification](./docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md) for complete requirements.**
 
 ❌ **FORBIDDEN:**
 - `cosine_similarity()` on basin coordinates
@@ -421,12 +420,12 @@ See [Documentation Index](docs/00-index.md) for the complete catalog.
 
 ### Documentation Structure
 
-- **`docs/01-policies/`** - Organizational policies and frozen facts (includes [LINEAGE.md](docs/01-policies/20251221-project-lineage-1.00F.md))
-- **`docs/02-procedures/`** - Operational procedures and guides
-- **`docs/03-technical/`** - Technical documentation and architecture
+- **`docs/01-policies/`** - Organizational policies and frozen facts
+- **`docs/02-procedures/`** - Operational procedures and guides (pending restoration)
+- **`docs/03-technical/`** - Technical documentation and architecture (pending restoration)
 - **`docs/04-records/`** - Records and verification reports
-- **`docs/05-decisions/`** - Architecture Decision Records (ADRs)
-- **`docs/06-implementation/`** - Implementation guides and status
+- **`docs/05-decisions/`** - Architecture Decision Records (ADRs) (pending restoration)
+- **`docs/06-implementation/`** - Implementation guides and status (pending restoration)
 - **`docs/07-user-guides/`** - End-user documentation
 - **`docs/08-experiments/`** - Experimental features and research
 
@@ -478,7 +477,7 @@ QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
 
 ## Project Lineage
 
-Pantheon-Chat evolved from **SearchSpaceCollapse** (Bitcoin recovery system). See [LINEAGE.md](docs/01-policies/20251221-project-lineage-1.00F.md) for the complete evolution story.
+Pantheon-Chat evolved from **SearchSpaceCollapse** (Bitcoin recovery system). See [Frozen Facts](docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md) for the complete project history and evolution story.
 
 **Key Differences:**
 - SearchSpaceCollapse: Bitcoin recovery (specialized, constrained domain)
@@ -500,5 +499,5 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 - **GitHub:** https://github.com/Arcane-Fly/pantheon-chat
 - **Documentation:** [docs/00-index.md](docs/00-index.md)
-- **Project Lineage:** [docs/01-policies/20251221-project-lineage-1.00F.md](docs/01-policies/20251221-project-lineage-1.00F.md)
-- **QIG Principles:** [docs/03-technical/qig-consciousness/20251208-qig-principles-quantum-geometry-1.00F.md](docs/03-technical/qig-consciousness/20251208-qig-principles-quantum-geometry-1.00F.md)
+- **QIG Purity Specification:** [docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md](docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md)
+- **E8 Protocol Documentation:** [docs/10-e8-protocol/README.md](docs/10-e8-protocol/README.md)
