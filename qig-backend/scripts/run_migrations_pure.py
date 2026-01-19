@@ -30,9 +30,9 @@ if not DATABASE_URL:
     logger.error("DATABASE_URL environment variable not set")
     sys.exit(1)
 
-# Migration files directory
-MIGRATIONS_DIR = Path(__file__).parent.parent / 'migrations'
-QIG_MIGRATIONS_DIR = Path(__file__).parent.parent / 'qig-backend' / 'migrations'
+# Migration files directory (relative to script location)
+MIGRATIONS_DIR = Path(__file__).parent.parent.parent / 'migrations'  # Root migrations
+QIG_MIGRATIONS_DIR = Path(__file__).parent.parent / 'migrations'      # qig-backend/migrations
 
 
 def get_connection():
@@ -172,11 +172,14 @@ def run_migrations(migration_ids: Optional[List[str]] = None, run_all: bool = Fa
         for m in migrations_to_run:
             logger.info(f"  - {m.stem}")
         
-        # Confirm
-        response = input("\nProceed? [y/N]: ")
-        if response.lower() != 'y':
-            logger.info("Cancelled")
-            return
+        # Confirm (unless --force flag used)
+        if not os.environ.get('MIGRATION_FORCE', '').lower() == 'true':
+            response = input("\nProceed? [y/N]: ")
+            if response.lower() != 'y':
+                logger.info("Cancelled")
+                return
+        else:
+            logger.info("MIGRATION_FORCE=true - skipping confirmation")
         
         # Apply migrations
         success_count = 0

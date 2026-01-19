@@ -9,9 +9,33 @@
 -- Encoding vocabulary (token_role='encoding') untouched for backward compatibility
 -- 
 -- PURE OPERATIONS: No backward compatibility, no learned_words references
+--
+-- NOTE: Short token whitelist is duplicated in WHERE clauses for performance.
+-- If updating whitelist, update both occurrences (lines ~29 and ~57).
+-- Whitelist includes common articles, prepositions, pronouns (2 chars).
 -- ============================================================================
 
+-- Define short token whitelist as constants for consistency
+DO $$
+DECLARE
+    short_token_whitelist TEXT[] := ARRAY[
+        'a', 'i', 'to', 'of', 'in', 'on', 'at', 'by', 'or', 'an', 
+        'is', 'be', 'do', 'go', 'it', 'me', 'we', 'he', 'up', 'no',
+        'so', 'my', 'as', 'us', 'am', 'if', 'ok', 'oh', 'ah', 'uh'
+    ];
+BEGIN
+    -- Store in temp table for reference
+    CREATE TEMP TABLE IF NOT EXISTS short_token_whitelist (token TEXT);
+    TRUNCATE short_token_whitelist;
+    
+    INSERT INTO short_token_whitelist 
+    SELECT unnest(short_token_whitelist);
+    
+    RAISE NOTICE 'Short token whitelist: % entries', array_length(short_token_whitelist, 1);
+END $$;
+
 -- Step 1: Identify garbage tokens
+-- Step 2: Identify garbage tokens using whitelist
 CREATE TEMP TABLE garbage_tokens AS
 SELECT 
     token, 
@@ -23,11 +47,7 @@ SELECT
         WHEN token ~ '^##' THEN 'BPE_prefix'
         WHEN token ~ '^▁' THEN 'BPE_underscore'
         WHEN token ~ '^\d+$' THEN 'numeric_only'
-        WHEN LENGTH(token) < 3 AND token NOT IN (
-            'a', 'i', 'to', 'of', 'in', 'on', 'at', 'by', 'or', 'an', 
-            'is', 'be', 'do', 'go', 'it', 'me', 'we', 'he', 'up', 'no',
-            'so', 'my', 'as', 'us', 'am', 'if', 'ok', 'oh', 'ah', 'uh'
-        ) THEN 'too_short'
+        WHEN LENGTH(token) < 3 AND token NOT IN (SELECT token FROM short_token_whitelist) THEN 'too_short'
         WHEN token ~ 'obj$' THEN 'tech_suffix_obj'
         WHEN token ~ '^api' THEN 'tech_prefix_api'
         WHEN token ~ 'callback' THEN 'tech_callback'
@@ -50,12 +70,8 @@ WHERE token_role IN ('generation', 'both')
     token ~ '^▁' OR
     -- Numeric-only
     token ~ '^\d+$' OR
-    -- Too short (unless whitelisted)
-    (LENGTH(token) < 3 AND token NOT IN (
-        'a', 'i', 'to', 'of', 'in', 'on', 'at', 'by', 'or', 'an', 
-        'is', 'be', 'do', 'go', 'it', 'me', 'we', 'he', 'up', 'no',
-        'so', 'my', 'as', 'us', 'am', 'if', 'ok', 'oh', 'ah', 'uh'
-    )) OR
+    -- Too short (unless whitelisted) - uses temp table for consistency
+    (LENGTH(token) < 3 AND token NOT IN (SELECT token FROM short_token_whitelist)) OR
     -- Technical garbage patterns
     token ~ 'obj$' OR
     token ~ '^api' OR
@@ -71,7 +87,7 @@ WHERE token_role IN ('generation', 'both')
     token IN ('wjvq', 'xyzw', 'qwerty')
   );
 
--- Step 2: Log what we're removing
+-- Step 3: Log what we're removing
 DO $$
 DECLARE
     garbage_count INTEGER;

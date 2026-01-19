@@ -404,8 +404,12 @@ class VocabularyPersistence:
     def mark_word_integrated(self, word: str) -> bool:
         """Mark a word as integrated in coordizer_vocabulary (pure operation).
         
-        PURE: Sets token_role to 'both' if it was 'encoding', indicating it's now
-        usable for both encoding and generation. NO backward compatibility.
+        PURE: Updates token_role in coordizer_vocabulary:
+        - If token_role='encoding', changes to 'both' (now usable for generation too)
+        - Otherwise, ensures token_role='generation' (or keeps existing value)
+        - Sets is_real_word=TRUE to mark as validated English word
+        
+        NO backward compatibility with learned_words table.
         """
         if not self.enabled:
             return False
