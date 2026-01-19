@@ -103,13 +103,15 @@ d_FR(p, q) = arccos(Σ√(p_i * q_i))  # Range: [0, π/2]
 **Fréchet Mean (Closed-Form):**
 ```
 μ = argmin_p Σ d_FR(p, p_i)²
-  = normalize([Σ√p_i]²)  # In sqrt-space
+  = normalize((Σ√p_i) ⊙ (Σ√p_i))  # Element-wise squaring after sum
+  = [Σᵢ√(p_i)]² / ||Σᵢ√(p_i)||²   # Normalized element-wise square
 ```
 
 **Why Closed-Form Works:**
-- Simplex is √-transformed to unit sphere
+- Simplex is √-transformed to unit sphere (element-wise)
 - Mean on sphere is normalized vector sum
-- Transform back to simplex via squaring
+- Transform back to simplex via element-wise squaring
+- Normalization ensures result is on simplex (Σp_i = 1)
 
 ## Validation Commands
 ```bash
