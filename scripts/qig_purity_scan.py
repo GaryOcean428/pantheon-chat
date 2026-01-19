@@ -235,6 +235,22 @@ FORBIDDEN_PATTERNS = {
         },
     ],
     
+    # WARNING: Sphere/hemisphere terminology (could indicate geometry confusion)
+    'sphere_terminology': [
+        {
+            'pattern': re.compile(r'\b(unit\s+)?hemisphere\b(?!.*sqrt.*simplex)', re.IGNORECASE),
+            'name': 'hemisphere terminology without sqrt-simplex context',
+            'severity': 'WARNING',
+            'fix': 'Clarify: sqrt-space is NOT sphere geometry, it\'s sqrt-mapped simplex',
+        },
+        {
+            'pattern': re.compile(r'L2.*norm.*sphere|sphere.*L2.*norm', re.IGNORECASE),
+            'name': 'L2 normalization with sphere terminology',
+            'severity': 'ERROR',
+            'fix': 'Use simplex normalization (sum=1) not L2 (sphere)',
+        },
+    ],
+    
     # ERROR: Arithmetic mean on basins
     'arithmetic_mean': [
         {

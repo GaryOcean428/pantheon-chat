@@ -124,15 +124,16 @@ END $$;
 
 DO $$
 BEGIN
-    -- Constraint: sqrt-space vectors should be on unit hemisphere
-    -- ||x|| ≈ 1 where x = √p
-    -- Allow generous tolerance since some basins may not be perfectly normalized
-    -- The important property is that Bhattacharyya works correctly
+    -- Constraint: sqrt-space vectors should have reasonable magnitudes
+    -- x = √p where p is probability simplex (sum=1, non-negative)
+    -- Since p_i ∈ [0,1], we have x_i ∈ [0,1], so ||x|| ≤ √D
+    -- This is NOT sphere geometry - these are sqrt-mapped simplex coordinates
+    -- The important property is that Bhattacharyya coefficient ⟨x1,x2⟩ works correctly
     ALTER TABLE vocabulary_observations
     ADD CONSTRAINT check_sqrt_normalized
     CHECK (
         basin_coords_sqrt IS NULL OR
-        vector_norm(basin_coords_sqrt) < 10.0  -- Very loose constraint, just prevent extreme values
+        vector_norm(basin_coords_sqrt) < 10.0  -- Sanity check: prevent extreme values in sqrt-space
     );
     
     RAISE NOTICE '[WP2.4] ✓ Added normalization constraint for sqrt-space';
