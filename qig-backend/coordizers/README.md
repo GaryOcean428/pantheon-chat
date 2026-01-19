@@ -276,7 +276,60 @@ All special tokens have geometric meaning on the Fisher manifold:
 
 ## Vocabulary Structure
 
-### Encoding Vocabulary
+### Dual Vocabulary Architecture (PostgresCoordizer)
+
+PostgresCoordizer maintains **two separate vocabulary views** from the same `coordizer_vocabulary` table:
+
+#### 1. Encoding Vocabulary (Text → Basin)
+- **Source:** `coordizer_vocabulary WHERE source_type NOT IN ('special')`
+- **Purpose:** Convert input text to basin coordinates
+- **Includes:** ALL tokens (subwords, BPE, full words, learned tokens)
+- **Loaded by:** `_load_encoding_vocabulary()` in `pg_loader.py:207-252`
+- **Stored in:** `self.vocab`, `self.basin_coords`, `self.token_phi`
+- **Use case:** Processing user input, encoding curriculum content
+
+#### 2. Generation Vocabulary (Basin → Text)
+- **Source:** `coordizer_vocabulary WHERE token_role IN ('generation', 'both') AND qfi_score IS NOT NULL`
+- **Purpose:** Decode basin coordinates to human-readable words
+- **Includes:** ONLY real English words (no BPE garbage, validated tokens)
+- **Loaded by:** `_load_generation_vocabulary()` in `pg_loader.py:254-312`
+- **Stored in:** `self.generation_vocab`, `self.generation_phi`, `self.generation_words`
+- **Use case:** Plan→Realize→Repair generation, trajectory decoding
+
+#### 3. Domain Vocabulary (God-Specific Weighting)
+- **Source:** `god_vocabulary_profiles` table
+- **Purpose:** Boost relevance of domain-specific words per god
+- **Stored in:** `self._cache['god_domain_{god_name}']` (10-minute TTL)
+- **Use case:** God-aware generation with domain expertise
+
+### Why Two Vocabularies?
+
+**The Problem:**
+- Encoding needs comprehensive coverage (recognize all text patterns)
+- Generation needs quality control (only output real words)
+- BPE subwords are useful for encoding but garbage for generation
+
+**The Solution:**
+- **Encoding vocabulary** = maximal coverage (10K+ tokens)
+- **Generation vocabulary** = curated quality (~5K+ real words)
+- Shared storage via `token_role` column:
+  - `'encoding'` = encoding-only tokens (BPE subwords)
+  - `'generation'` = generation-only tokens (real words)
+  - `'both'` = tokens used in both (common words)
+
+### Synchronization Notes
+
+⚠️ **IMPORTANT:** The two vocabularies are loaded **independently** from the same table:
+- No transaction isolation between loads
+- Encoding load does NOT filter by `token_role` (for backward compatibility)
+- Generation load REQUIRES `token_role IN ('generation', 'both')`
+- Tokens without `token_role` set will ONLY be visible to encoding vocabulary
+
+**Migration Impact:**
+- Old tokens (pre-migration) may lack `token_role` column
+- Use `UPDATE coordizer_vocabulary SET token_role = 'both' WHERE token_role IS NULL AND qfi_score IS NOT NULL` to make them visible to generation
+
+### Encoding Vocabulary (Legacy Description)
 - Source: `coordizer_vocabulary` table (all tokens)
 - Purpose: Text → basin encoding
 - Includes: Subwords, BPE tokens, full words

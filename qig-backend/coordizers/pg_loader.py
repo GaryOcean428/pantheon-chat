@@ -166,6 +166,22 @@ class PostgresCoordizer(FisherCoordizer):
         Loads two separate vocabularies:
         1. ENCODING: From coordizer_vocabulary (all tokens for text-to-basin)
         2. GENERATION: From coordizer_vocabulary WHERE token_role IN ('generation', 'both')
+        
+        ⚠️ RACE CONDITION WARNING:
+        - These two loads happen SEQUENTIALLY without transaction isolation
+        - Concurrent writes to coordizer_vocabulary may create inconsistent state:
+          * Encoding load may see tokens without token_role set
+          * Generation load may miss tokens being transitioned to 'both'
+        - No atomicity guarantee between the two loads
+        
+        MITIGATION:
+        - token_role is set via ON CONFLICT upserts (vocabulary_persistence.py)
+        - CASE statement upgrades 'encoding' → 'both' when generation writes occur
+        - But: timing window exists where encoding has loaded, generation hasn't, and writes occur
+        
+        FUTURE FIX:
+        - Use single SELECT with CASE for dual loading
+        - Or: use PostgreSQL advisory locks for vocabulary refresh coordination
         """
         if not self.database_url:
             raise RuntimeError(
@@ -177,6 +193,7 @@ class PostgresCoordizer(FisherCoordizer):
             # Load encoding vocabulary from coordizer_vocabulary
             encoding_loaded = self._load_encoding_vocabulary()
             # Load generation vocabulary from coordizer_vocabulary (with token_role filter)
+            # ⚠️ TIMING WINDOW: Concurrent writes between these two loads may cause inconsistency
             generation_loaded = self._load_generation_vocabulary()
         except Exception as e:
             raise RuntimeError(
@@ -1067,6 +1084,33 @@ class PostgresCoordizer(FisherCoordizer):
             return False
 
         return True
+
+    def _check_token_role_column_exists(self, conn) -> bool:
+        """
+        Check if token_role column exists in coordizer_vocabulary table.
+        
+        This method checks the database schema to determine if the token_role
+        column has been added via migration. If not present, fallback logic
+        is used that doesn't filter by token_role.
+        
+        Args:
+            conn: Active database connection
+            
+        Returns:
+            True if token_role column exists, False otherwise
+        """
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'coordizer_vocabulary' 
+                      AND column_name = 'token_role'
+                """)
+                return cur.fetchone() is not None
+        except Exception as e:
+            logger.warning(f"Failed to check token_role column existence: {e}")
+            return False
 
     # =====================================================================
     # FORESIGHT TRAJECTORY PREDICTION METHODS

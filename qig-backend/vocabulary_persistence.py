@@ -130,6 +130,13 @@ class VocabularyPersistence:
                     # UPDATED 2026-01-16: Use QFI-computed phi_score from basin geometry, NOT raw training phi
                     # The phi_score column should match qfi_score (both derived from basin via QFI formula)
                     
+                    # ⚠️ SYNCHRONIZATION WARNING:
+                    # This UPSERT may race with concurrent reads by:
+                    # 1. PostgresCoordizer._load_encoding_vocabulary() - reads all tokens without token_role filter
+                    # 2. PostgresCoordizer._load_generation_vocabulary() - reads WHERE token_role IN ('generation', 'both')
+                    # RISK: token_role transition (encoding→both) may not be visible to concurrent generation vocab loads
+                    # MITIGATION: ON CONFLICT uses CASE statement to preserve existing values or upgrade to 'both'
+                    
                     # Compute QFI-based phi from basin if available
                     qfi_phi = None
                     if validation and validation.qfi_score is not None:
@@ -139,7 +146,8 @@ class VocabularyPersistence:
                             from qig_core.phi_computation import compute_phi_approximation
                             basin_array = np.array(basin_vector)
                             qfi_phi = compute_phi_approximation(basin_array)
-                        except Exception:
+                        except Exception as e:
+                            print(f"[VocabularyPersistence] QFI computation failed for '{word_val}': {e}")
                             qfi_phi = None
                     
                     if qfi_phi is not None:
