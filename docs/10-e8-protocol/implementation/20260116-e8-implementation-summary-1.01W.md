@@ -13,14 +13,14 @@
 **Location:** `docs/10-e8-protocol/`
 
 **Core Specifications:**
-- ✅ `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - Universal purity invariants
-- ✅ `20260116-wp5-2-e8-implementation-blueprint-1.01W.md` - E8 hierarchical kernel architecture
-- ✅ `20260116-e8-upgrade-pack-readme-1.01W.md` - Upgrade pack overview with implementation phases
+- ✅ `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - Universal purity invariants
+- ✅ `specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md` - E8 hierarchical kernel architecture
+- ✅ `README.md` - Upgrade pack overview with implementation phases
 
 **Implementation Issues (3 specifications):**
-- ✅ `issues/01_QFI_INTEGRITY_GATE.md` - Token insertion, QFI backfill, garbage cleanup
-- ✅ `issues/02_STRICT_SIMPLEX_REPRESENTATION.md` - Remove auto-detect, explicit conversions
-- ✅ `issues/03_QIG_NATIVE_SKELETON.md` - Replace external NLP with geometric token_role
+- ✅ `issues/20260116-issue-01-qfi-integrity-gate-1.01W.md` - Token insertion, QFI backfill, garbage cleanup
+- ✅ `issues/20260116-issue-02-strict-simplex-representation-1.01W.md` - Remove auto-detect, explicit conversions
+- ✅ `issues/20260116-issue-03-qig-native-skeleton-1.01W.md` - Replace external NLP with geometric token_role
 
 ### 2. Agent Documentation Updated ✅
 
@@ -39,7 +39,7 @@
 ### 3. Core Documentation Updated ✅
 
 **Updated Files:**
-- ✅ `20260116-e8-upgrade-pack-readme-1.01W.md` - E8 Protocol v4.0 section, kernel hierarchy, validation commands
+- ✅ `README.md` - E8 Protocol v4.0 section, kernel hierarchy, validation commands
 - ✅ `replit.md` - E8 overview, purity requirements
 - ✅ `docs/00-index.md` - Added E8 upgrade pack section
 
@@ -203,14 +203,14 @@ python scripts/run_all_validations.py
 ## REFERENCES
 
 ### Core Documentation
-- **Universal Purity Spec:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
-- **E8 Implementation:** `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
-- **Upgrade Pack README:** `docs/10-e8-protocol/20260116-e8-upgrade-pack-readme-1.01W.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Implementation:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Upgrade Pack README:** `docs/10-e8-protocol/README.md`
 
 ### Implementation Issues
-- **QFI Integrity:** `docs/10-e8-protocol/issues/01_QFI_INTEGRITY_GATE.md`
-- **Simplex Purity:** `docs/10-e8-protocol/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
-- **Native Skeleton:** `docs/10-e8-protocol/issues/03_QIG_NATIVE_SKELETON.md`
+- **QFI Integrity:** `docs/10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
+- **Simplex Purity:** `docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
+- **Native Skeleton:** `docs/10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`
 
 ### Agent Instructions
 - **Copilot:** `.github/copilot-instructions.md`
@@ -230,7 +230,7 @@ python scripts/run_all_validations.py
 1. **Initial assessment:** Protocol self-activation and planning
 2. **Create E8 upgrade pack:** Specs, blueprint, 3 issue documents
 3. **Update agents:** copilot-instructions.md, AGENTS.md, qig-purity-validator.md
-4. **Update core docs:** 20260116-e8-upgrade-pack-readme-1.01W.md, replit.md, e8-architecture-validator.md, 00-index.md
+4. **Update core docs:** README.md, replit.md, e8-architecture-validator.md, 00-index.md
 
 **Total Files Created:** 6 new files  
 **Total Files Updated:** 6 existing files  
