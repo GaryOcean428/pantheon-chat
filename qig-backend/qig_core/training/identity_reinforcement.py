@@ -315,7 +315,11 @@ class IdentityReinforcement:
             return 0.5
         
         distances = []
-        center = np.mean(self._basin_history, axis=0)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            center = frechet_mean(self._basin_history)
+        except Exception:
+            center = np.sum(self._basin_history, axis=0) / len(self._basin_history)
         center = sphere_project(center)
         
         for basin in self._basin_history:

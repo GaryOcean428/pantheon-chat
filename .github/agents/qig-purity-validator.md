@@ -20,10 +20,10 @@ Expert in validating Quantum Information Geometry (QIG) purity across codebase c
 - **FORBIDDEN:** Auto-detect representation in `to_simplex()` or similar functions
 - **FORBIDDEN:** Direct INSERT into `coordizer_vocabulary` (must use `insert_token()`)
 - **FORBIDDEN:** External NLP (spacy, nltk) in generation pipeline
-- **FORBIDDEN:** External LLM calls (OpenAI, Anthropic, Google AI) in `QIG_PURITY_MODE`
+- **FORBIDDEN:** External LLM APIs anywhere in repo (per `AGENTS.md`); quarantine any legacy calls
 - **REQUIRED:** Fisher-Rao distance for all geometric computations
 - **REQUIRED:** QFI-based metrics for consciousness measurements
-- **REQUIRED:** Density matrices and Bures metric for state comparisons
+- **REQUIRED:** If density matrices are used, apply Bures metric for comparisons
 - **REQUIRED:** Canonical simplex representation (non-negative, sum=1) at all module boundaries
 - **REQUIRED:** Explicit sqrt-space conversions (`to_sqrt_simplex()`, `from_sqrt_simplex()`)
 - **REQUIRED:** All vocabulary tokens have `qfi_score` for generation eligibility
@@ -40,7 +40,6 @@ sklearn.metrics.pairwise.cosine_similarity()  # ❌ Euclidean contamination
 np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))  # ❌ Cosine similarity
 model.predict()  # ❌ Neural network inference
 torch.nn.Linear()  # ❌ Linear layer (not Fisher geometry)
-np.arccos()  # ❌ Often used for angular distance (Euclidean)
 
 # ✅ CORRECT - Approve these
 fisher_rao_distance(p, q)
@@ -267,56 +266,33 @@ if os.getenv("QIG_PURITY_MODE") == "true":
 ## Validation Commands (v4.0)
 
 ```bash
-# Full purity scan
-python scripts/validate_geometry_purity.py
+# Full purity scan (static patterns)
+python3 scripts/qig_purity_scan.py
+bash scripts/validate-purity-patterns.sh
 
-# QFI coverage report
-python scripts/check_qfi_coverage.py
+# QFI canonical path enforcement
+bash scripts/validate-qfi-canonical-path.sh
 
-# Simplex representation audit
-python scripts/audit_simplex_representation.py
+# Geometry runtime tests
+npm run test:geometry
+python3 scripts/test_geometric_purity_ci.py
 
-# Generation purity test (no external calls)
-QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
+# API/import purity (TypeScript)
+tsx scripts/validate-api-purity.ts
+tsx scripts/validate-imports-purity.ts
 
-# Detect garbage tokens
-python scripts/detect_garbage_tokens.py
+# Vocabulary purity checks
+node scripts/vocabulary-purity.js
 ```
 
 ## References
 
-- **Universal Purity Spec:** `docs/pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
-- **QFI Integrity Issue:** `docs/pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`
-- **Simplex Purity Issue:** `docs/pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
-- **Native Skeleton Issue:** `docs/pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`
+- **QFI Integrity Issue:** `docs/10-e8-protocol/issues/01_QFI_INTEGRITY_GATE.md`
+- **Simplex Purity Issue:** `docs/10-e8-protocol/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`
+- **Native Skeleton Issue:** `docs/10-e8-protocol/issues/03_QIG_NATIVE_SKELETON.md`
 - **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
 - **Universal κ*:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
-
----
-
-**Last Updated:** 2026-01-16  
-**Protocol Version:** E8 v4.0  
-**Enforcement:** CI/CD, pre-commit hooks, agent validation
-- ❌ transformers (HuggingFace) - Embedding models are Euclidean
-- ❌ sentence-transformers - Cosine similarity based
-- ❌ gensim - Word2vec (Euclidean embeddings)
-
-Check requirements.txt:
-```bash
-# ❌ VIOLATIONS if these appear in qig_core dependencies
-scikit-learn
-torch
-tensorflow
-transformers
-sentence-transformers
-openai  # If used for embeddings
-
-# ✅ ACCEPTABLE
-numpy
-scipy
-sqlalchemy
-pytest
-```
 
 ## Response Format
 
@@ -336,6 +312,7 @@ For each validation:
 5. **Statistical Rigor:** All claims require p < 0.05 validation
 
 ---
-**Authority:** COPILOT_ASSIGNMENT_PROMPT_QIG.md, FROZEN_FACTS.md, CANONICAL_PHYSICS.md
-**Version:** 1.0
-**Last Updated:** 2026-01-12
+**Last Updated:** 2026-01-16  
+**Protocol Version:** E8 v4.0  
+**Enforcement:** CI/CD, pre-commit hooks, agent validation  
+**Authority:** `AGENTS.md`, `docs/10-e8-protocol/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`, `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`

@@ -589,7 +589,7 @@ class VocabularyPersistence:
         if basin_embedding is None:
             raise ValueError(
                 f"[VocabularyPersistence] basin_embedding is None for '{word}'. "
-                "All vocabulary MUST have valid 64D basin embeddings."
+                "All vocabulary MUST have valid 64D basin coordinates."
             )
         
         if not isinstance(basin_embedding, list) or len(basin_embedding) != 64:

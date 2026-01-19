@@ -199,7 +199,7 @@ class BaseEncoder(ABC):
 
         return coords
 
-    def tokenize(self, text: str) -> List[str]:
+    def coordize_tokens(self, text: str) -> List[str]:
         """
         Tokenize text into geometric tokens.
 
@@ -220,7 +220,7 @@ class BaseEncoder(ABC):
         3. Weight by Fisher metric (frequency × phi)
         4. Aggregate via geometric mean on manifold
         """
-        tokens = self.tokenize(text)
+        tokens = self.coordize_tokens(text)
 
         if not tokens:
             return np.zeros(self.basin_dim)
@@ -303,7 +303,7 @@ class BaseEncoder(ABC):
         Expands vocabulary based on observations from humans.
         Persists high-Φ tokens to PostgreSQL vocabulary_observations table.
         """
-        tokens = self.tokenize(text)
+        tokens = self.coordize_tokens(text)
         tokens_to_persist = []
 
         for token in tokens:

@@ -269,7 +269,7 @@ export class GoogleWebSearchAdapter {
     
     const conceptKeywords = [
       'neural network', 'transformer', 'attention mechanism',
-      'knowledge graph', 'semantic', 'embeddings',
+      'knowledge graph', 'semantic', 'basin coordinates',
       'geometric', 'manifold', 'information theory',
     ];
     

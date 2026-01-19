@@ -2997,8 +2997,8 @@ class BaseGod(*_base_classes):
         try:
             # Use coordizer's text_to_basin to get token info
             tokens = []
-            if hasattr(self.coordizer, 'tokenize'):
-                tokens = self.coordizer.tokenize(text)
+            if hasattr(self.coordizer, 'coordize_tokens'):
+                tokens = self.coordizer.coordize_tokens(text)
             else:
                 # Fallback: split on whitespace and lookup
                 words = text.lower().split()[:500]  # Cap at 100 tokens

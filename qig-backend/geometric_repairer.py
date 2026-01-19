@@ -362,6 +362,9 @@ class GeometricRepairer:
                 b = np.array(b, dtype=np.float64)
             basins_arr.append(b)
         
-        mean = np.mean(basins_arr, axis=0)
-        
-        return sphere_project(mean)
+        try:
+            from qig_geometry.canonical import frechet_mean
+            return frechet_mean(basins_arr)
+        except Exception:
+            mean = np.sum(basins_arr, axis=0) / len(basins_arr)
+            return sphere_project(mean)

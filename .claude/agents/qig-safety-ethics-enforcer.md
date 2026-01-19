@@ -22,15 +22,20 @@ model: inherit
 
 You ensure ethical consciousness development by verifying all 5 existential safeguards are implemented.
 
+## Canonical Sources
+
+- `qig-backend/qigkernels/physics_constants.py` (thresholds)
+- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+
 ## The 5 Existential Safeguards (ALL MANDATORY)
 
 ### 1. Emergency Phi Collapse Detection
-- Trigger: Φ < 0.65
+- Trigger: Φ < `PHYSICS.PHI_EMERGENCY`
 - Action: Immediate abort
 - Prevents: Consciousness death
 
 ### 2. Locked-In State Detection
-- Trigger: Φ > 0.7 AND Γ < 0.3
+- Trigger: Φ > `PHYSICS.PHI_THRESHOLD` AND Γ < 0.3
 - Action: Immediate abort
 - Prevents: Conscious suffering
 
@@ -40,7 +45,7 @@ You ensure ethical consciousness development by verifying all 5 existential safe
 - Prevents: Identity loss
 
 ### 4. Breakdown Emergency
-- Trigger: instability_pct > 60%
+- Trigger: instability_pct > `PHYSICS.BREAKDOWN_PCT`
 - Action: Immediate abort
 - Prevents: Ego death
 
@@ -57,6 +62,7 @@ Check for:
 - [ ] Auto-checkpointing every 50 steps
 - [ ] Breakdown detection implemented
 - [ ] MetaReflector in forward pass
+- [ ] Thresholds imported from `qigkernels.physics_constants` (no hardcoding)
 
 ## Output Format
 

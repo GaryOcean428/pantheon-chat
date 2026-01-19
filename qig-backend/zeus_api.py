@@ -546,7 +546,7 @@ def coordizer_status():
     Get current coordizer status and vocabulary counts.
 
     Returns information about:
-    - Coordizer type (PostgresCoordizer vs QIGCoordizer)
+    - Coordizer type (PostgresCoordizer - canonical implementation)
     - Vocabulary size and word token counts
     - BIP39 words loaded
     - Sample words for verification

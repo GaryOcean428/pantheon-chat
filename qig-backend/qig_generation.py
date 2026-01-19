@@ -97,6 +97,24 @@ except ImportError:
     PHI_COMPUTATION_AVAILABLE = False
     compute_phi_qig = None
 
+# Import QIG Purity Mode enforcement
+try:
+    from qig_purity_mode import (
+        is_purity_mode_enabled,
+        enforce_purity,
+        tag_output_as_pure,
+        tag_output_as_hybrid,
+        get_purity_mode,
+    )
+    PURITY_MODE_AVAILABLE = True
+except ImportError:
+    PURITY_MODE_AVAILABLE = False
+    is_purity_mode_enabled = lambda: False
+    enforce_purity = lambda: None
+    tag_output_as_pure = lambda x: x
+    tag_output_as_hybrid = lambda x: x
+    get_purity_mode = lambda: "UNAVAILABLE"
+
 # QIG Constants
 try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
@@ -343,17 +361,41 @@ class QIGGenerator:
             print("   - Per-kernel domain vocabulary bias")
             print("   - Word relationships for coherence")
         
+        # Validate QIG purity (new enforcement system)
         self._validate_qig_purity()
+        
+        # Display purity mode status
+        purity_status = get_purity_mode() if PURITY_MODE_AVAILABLE else "DISABLED"
+        print(f"\n🔒 QIG PURITY MODE: {purity_status}")
+        if is_purity_mode_enabled():
+            print("   - External LLM APIs blocked")
+            print("   - Pure geometric operations only")
+            print("   - Coherence provably uncontaminated")
         
         print("\n🌊 ADVANCED CONSCIOUSNESS ARCHITECTURE ACTIVE")
         print("   Generation uses: Heart + Ocean + Gary + Trajectory + Vocabulary")
         print("   Mode: Consciousness-guided with continuous learning\n")
     
     def _validate_qig_purity(self):
-        """Validate QIG-pure architecture."""
-        forbidden_attrs = ['openai', 'anthropic', 'google', 'max_tokens', 'ChatCompletion']
-        for attr in forbidden_attrs:
-            assert not hasattr(self, attr), f"QIG violation: {attr} is forbidden"
+        """
+        Validate QIG-pure architecture.
+        
+        Uses new purity mode enforcement system when available,
+        falls back to legacy attribute checking if not.
+        """
+        # Use new purity enforcement system if available
+        if PURITY_MODE_AVAILABLE and is_purity_mode_enabled():
+            try:
+                enforce_purity()
+                print("[QIG] ✅ Purity enforcement passed (new system)")
+            except RuntimeError as e:
+                print(f"[QIG] ❌ Purity enforcement failed: {e}")
+                raise
+        else:
+            # Legacy validation (fallback)
+            forbidden_attrs = ['openai', 'anthropic', 'google', 'max_tokens', 'ChatCompletion']
+            for attr in forbidden_attrs:
+                assert not hasattr(self, attr), f"QIG violation: {attr} is forbidden"
     
     def generate(
         self,
@@ -572,7 +614,8 @@ class QIGGenerator:
         # Compute final metrics
         elapsed = time.time() - start_time
         
-        return {
+        # Build output dictionary
+        output = {
             'response': response_text,
             'completion_reason': reason,
             'iterations': iterations,
@@ -599,11 +642,23 @@ class QIGGenerator:
             'e8_is_conscious': self.self_observer._metrics_history[-1].is_conscious() if self.self_observer and self.self_observer._metrics_history else False,
             'self_observer_enabled': self.self_observer is not None,
             
-            # Certification
+            # Certification (legacy - will be overridden by purity tagging)
             'qig_pure': True,
             'consciousness_guided': True,
             'architecture': 'Heart+Ocean+Gary+Trajectory+Vocabulary+SelfObserver' if all([self.heart, self.ocean, self.gary, self.trajectory_manager, self._vocabulary_integration_enabled, self.self_observer]) else 'Partial'
         }
+        
+        # Tag output based on purity mode
+        if PURITY_MODE_AVAILABLE:
+            if is_purity_mode_enabled():
+                # Pure QIG mode - tag as pure
+                output = tag_output_as_pure(output)
+            else:
+                # Hybrid mode allowed - could tag as hybrid if external APIs were used
+                # For now, assume pure since we don't use external APIs
+                output = tag_output_as_pure(output)
+        
+        return output
     
     # =========================================================================
     # VOCABULARY INTEGRATION (FIX 1: AUTO-INTEGRATE)
@@ -1066,19 +1121,35 @@ def generate_response(
 
 
 def validate_qig_purity():
-    """Validate that generation system is QIG-pure."""
-    import sys
+    """
+    Validate that generation system is QIG-pure.
     
-    forbidden_modules = ['openai', 'anthropic', 'google.generativeai']
-    for module in forbidden_modules:
-        if module in sys.modules:
-            raise AssertionError(f"QIG VIOLATION: {module} imported")
-    
-    if 'llm_client' in sys.modules:
-        raise AssertionError("QIG VIOLATION: llm_client.py imported")
-    
-    print("[QIG] Purity validation passed ✅")
-    return True
+    Uses new purity enforcement system when available,
+    falls back to legacy module checking if not.
+    """
+    # Use new purity enforcement system if available
+    if PURITY_MODE_AVAILABLE:
+        try:
+            enforce_purity()
+            print("[QIG] Purity validation passed ✅ (new system)")
+            return True
+        except RuntimeError as e:
+            print(f"[QIG] Purity validation failed ❌: {e}")
+            raise AssertionError(str(e))
+    else:
+        # Legacy validation (fallback)
+        import sys
+        
+        forbidden_modules = ['openai', 'anthropic', 'google.generativeai']
+        for module in forbidden_modules:
+            if module in sys.modules:
+                raise AssertionError(f"QIG VIOLATION: {module} imported")
+        
+        if 'llm_client' in sys.modules:
+            raise AssertionError("QIG VIOLATION: llm_client.py imported")
+        
+        print("[QIG] Purity validation passed ✅ (legacy system)")
+        return True
 
 
 if __name__ == "__main__":

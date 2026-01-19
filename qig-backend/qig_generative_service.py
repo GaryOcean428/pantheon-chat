@@ -581,7 +581,7 @@ class QIGGenerativeService:
     Unified QIG-Pure Text Generation Service.
 
     Provides generative capability to all kernels using:
-    - Pretrained 50K vocabulary with 64D basin embeddings (preferred)
+    - Pretrained 50K vocabulary with 64D basin coordinates (preferred)
     - PostgreSQL vocabulary fallback
     - Fisher-Rao geometric navigation
     - Basin-to-text synthesis
@@ -1497,11 +1497,11 @@ class QIGGenerativeService:
         
         grammar = load_grammar_from_db()
         
-        embeddings = {}
+        basin_coords_map = {}
         if self.coordizer and hasattr(self.coordizer, 'generation_vocab') and self.coordizer.generation_vocab:
-            embeddings = self.coordizer.generation_vocab
+            basin_coords_map = self.coordizer.generation_vocab
         elif self.coordizer and hasattr(self.coordizer, 'basin_coords'):
-            embeddings = self.coordizer.basin_coords
+            basin_coords_map = self.coordizer.basin_coords
         
         all_tokens = []
         trajectory = [query_basin]
@@ -1513,14 +1513,14 @@ class QIGGenerativeService:
         
         for _ in range(num_iterations):
             for pos in skeleton:
-                candidates = grammar.get_words_for_pos(pos, current_basin, embeddings, top_k=10)
+                candidates = grammar.get_words_for_pos(pos, current_basin, basin_coords_map, top_k=10)
                 if candidates:
                     # Pure geometric selection - closest to current basin
                     word = candidates[0][0]
                     all_tokens.append(word)
                     
-                    if word.lower() in embeddings:
-                        word_basin = embeddings[word.lower()]
+                    if word.lower() in basin_coords_map:
+                        word_basin = basin_coords_map[word.lower()]
                         current_basin = 0.7 * current_basin + 0.3 * word_basin
                         current_basin = sphere_project(current_basin)
                         trajectory.append(current_basin.copy())
@@ -1705,11 +1705,14 @@ class QIGGenerativeService:
                                     except Exception:
                                         continue
                             if expert_basins:
-                                sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in expert_basins]
-                                mean_sqrt = np.mean(sqrt_basins, axis=0)
-                                synthesis_basin = mean_sqrt ** 2
-                                synthesis_basin = synthesis_basin / (np.sum(synthesis_basin) + 1e-10)
-                                synthesis_basin = sphere_project(synthesis_basin)
+                                try:
+                                    from qig_geometry.canonical import frechet_mean
+                                    synthesis_basin = frechet_mean(expert_basins)
+                                except Exception:
+                                    mean = np.sum(expert_basins, axis=0) / len(expert_basins)
+                                    mean = np.clip(np.abs(mean), 1e-10, None)
+                                    synthesis_basin = mean / (np.sum(mean) + 1e-10)
+                                    synthesis_basin = sphere_project(synthesis_basin)
 
                     synthesis_context = dict(context or {})
                     if synthesis_basin is not None:
@@ -1832,9 +1835,13 @@ class QIGGenerativeService:
             # Step 1: Transform through active kernels
             kernel_basins = [self._kernel_transform(current_basin, k, phi) for k in target_kernels]
             if kernel_basins:
-                sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in kernel_basins]
-                mean_sqrt = np.mean(sqrt_basins, axis=0)
-                next_basin = mean_sqrt ** 2
+                try:
+                    from qig_geometry.canonical import frechet_mean
+                    next_basin = frechet_mean(kernel_basins)
+                except Exception:
+                    mean = np.sum(kernel_basins, axis=0) / len(kernel_basins)
+                    mean = np.clip(np.abs(mean), 1e-10, None)
+                    next_basin = mean / (np.sum(mean) + 1e-10)
                 # NOTE: Skip simplex normalization - sphere_project below handles projection correctly
             else:
                 next_basin = integrator.predict_next()

@@ -24,38 +24,32 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 🎯 E8 Protocol v4.0 Upgrade Pack
 
-### Core Specifications
+**📁 Complete documentation moved to:** [`10-e8-protocol/`](10-e8-protocol/)  
+**📋 Full index available at:** [`10-e8-protocol/INDEX.md`](10-e8-protocol/INDEX.md)
 
-- 🟢 **ULTRA CONSCIOUSNESS PROTOCOL v4.0 - UNIVERSAL** (v4.0)
-  - File: [`pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md`](pantheon_e8_upgrade_pack/ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md)
-  - Function: Universal purity invariants for E8 protocol - mandatory QIG purity rules (simplex-only, Fisher-Rao only, no NLP)
-  - Status: 🟢 ACTIVE - Canonical purity specification
+### Quick Reference
 
-- 🟢 **WP5.2 Implementation Blueprint - E8 Hierarchical Kernel Architecture** (v1.0)
-  - File: [`pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md`](pantheon_e8_upgrade_pack/WP5.2_IMPLEMENTATION_BLUEPRINT.md)
-  - Function: E8 hierarchical layers (0/1→4→8→64→240), god-kernel mapping, consciousness architecture
-  - Status: 🔨 Working - Implementation in progress
+#### Core Specifications
+- 🟢 **ULTRA CONSCIOUSNESS PROTOCOL v4.0 - UNIVERSAL** (v1.01F)
+  - File: [`10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`](10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md)
+  - Function: Universal purity invariants for E8 protocol - mandatory QIG purity rules
+  - Status: 🟢 FROZEN - Canonical purity specification
 
-- 📦 **E8 Upgrade Pack README** (v1.1)
-  - File: [`pantheon_e8_upgrade_pack/README.md`](pantheon_e8_upgrade_pack/README.md)
-  - Function: Complete upgrade pack overview, implementation phases, validation commands
+- 🔨 **WP5.2 E8 Implementation Blueprint** (v1.01W)
+  - File: [`10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`](10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md)
+  - Function: E8 hierarchical kernel architecture (0/1→4→8→64→240)
+  - Status: 🔨 WORKING - Implementation in progress
 
-### Purity Issues & Implementation
+- 📦 **E8 Protocol README** (v1.01W)
+  - File: [`10-e8-protocol/README.md`](10-e8-protocol/README.md)
+  - Function: Complete upgrade pack overview with implementation phases
 
-- 🔨 **Issue 01: QFI Integrity Gate** (v1.0)
-  - File: [`pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md`](pantheon_e8_upgrade_pack/issues/01_QFI_INTEGRITY_GATE.md)
-  - Function: Canonical token insertion pathway, QFI backfill, garbage token cleanup
-  - Status: 🔨 Working - TO DO (Phase 2)
+#### Implementation Issues
+- 🔨 **Issue 01: QFI Integrity Gate** - [`10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`](10-e8-protocol/issues/20260116-issue-01-qfi-integrity-gate-1.01W.md)
+- 🔨 **Issue 02: Strict Simplex Representation** - [`10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`](10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md)
+- 🔨 **Issue 03: QIG-Native Skeleton** - [`10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md`](10-e8-protocol/issues/20260116-issue-03-qig-native-skeleton-1.01W.md)
 
-- 🔨 **Issue 02: Strict Simplex Representation** (v1.0)
-  - File: [`pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md`](pantheon_e8_upgrade_pack/issues/02_STRICT_SIMPLEX_REPRESENTATION.md)
-  - Function: Remove auto-detect, explicit sqrt-space conversions, closed-form Fréchet mean
-  - Status: 🔨 Working - TO DO (Phase 1-2)
-
-- 🔨 **Issue 03: QIG-Native Skeleton** (v1.0)
-  - File: [`pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md`](pantheon_e8_upgrade_pack/issues/03_QIG_NATIVE_SKELETON.md)
-  - Function: Replace external NLP with internal token_role, geometric foresight prediction
-  - Status: 🔨 Working - TO DO (Phase 3)
+**See [`10-e8-protocol/INDEX.md`](10-e8-protocol/INDEX.md) for complete documentation and GitHub issue cross-references.**
 
 ---
 
@@ -520,11 +514,61 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📊 Records
 
+- 🔨 **Migration 0013: Tokenizer → Coordizer Rename** (v1.00W)
+  - File: [`20260116-migration-0013-tokenizer-coordizer-rename-1.00W.md`](04-records/20260116-migration-0013-tokenizer-coordizer-rename-1.00W.md)
+  - Function: Summary of migration renaming all tokenizer terminology to coordizer
+  - Status: 🔨 Working - Complete
+
+- 🔨 **QIG Contextualized Filtering Implementation** (v1.00W)
+  - File: [`20260116-qig-contextualized-filtering-implementation-1.00W.md`](04-records/20260116-qig-contextualized-filtering-implementation-1.00W.md)
+  - Function: Implementation of QIG-pure geometric filtering replacing NLP stopwords
+  - Status: 🔨 Working - Complete
+
+- 🔨 **WP2.2: Cosine Similarity Removal Completion** (v1.00W)
+  - File: [`20260115-wp2-2-cosine-similarity-removal-completion-1.00W.md`](04-records/20260115-wp2-2-cosine-similarity-removal-completion-1.00W.md)
+  - Function: Complete removal of cosine similarity from codebase
+  - Status: 🔨 Working - Complete
+
+- 🔨 **Simplex Storage Implementation** (v1.00W)
+  - File: [`20260115-simplex-storage-implementation-1.00W.md`](04-records/20260115-simplex-storage-implementation-1.00W.md)
+  - Function: Implementation of simplex-as-storage canonical representation
+  - Status: 🔨 Working - P0 and P1 Complete
+
+- 🔨 **QIG Purity Fix Summary** (v1.00W)
+  - File: [`20260115-qig-purity-fix-summary-1.00W.md`](04-records/20260115-qig-purity-fix-summary-1.00W.md)
+  - Function: Comprehensive fix summary for QIG geometric purity enforcement
+  - Status: 🔨 Working - Complete
+
+- 🔨 **Fisher-Rao Factor-of-2 Removal Summary** (v1.00W)
+  - File: [`20260115-fisher-rao-factor2-removal-summary-1.00W.md`](04-records/20260115-fisher-rao-factor2-removal-summary-1.00W.md)
+  - Function: Summary of removing factor-of-2 from Fisher-Rao distance calculations
+  - Status: 🔨 Working - Complete
+
+- 🔨 **Documentation Restoration Status** (v1.00W)
+  - File: [`20260115-documentation-restoration-status-1.00W.md`](04-records/20260115-documentation-restoration-status-1.00W.md)
+  - Function: Status report on documentation restoration efforts
+  - Status: 🔨 Working - Blocked
+
+- 🔨 **Consciousness Phi Fixes Validation** (v1.00W)
+  - File: [`20260115-consciousness-phi-fixes-validation-1.00W.md`](04-records/20260115-consciousness-phi-fixes-validation-1.00W.md)
+  - Function: Validation summary for consciousness Phi fixes
+  - Status: ✅ Complete - All fixes validated
+
 - 🔨 **20260114-dimension-fix-audit-1.00W.md** (v1.00)
   - File: [`20260114-dimension-fix-audit-1.00W.md`](04-records/20260114-dimension-fix-audit-1.00W.md)
 
+- 🔨 **Geometric Purity Baseline** (v1.00W)
+  - File: [`20260114-geometric-purity-baseline-1.00W.md`](04-records/20260114-geometric-purity-baseline-1.00W.md)
+  - Function: Baseline establishment for geometric purity tracking
+  - Status: 🔨 Working - Baseline established
+
 - 🔨 **20260114-fisher-distance-audit-1.00W.md** (v1.00)
   - File: [`20260114-fisher-distance-audit-1.00W.md`](04-records/20260114-fisher-distance-audit-1.00W.md)
+
+- 🔨 **Documentation Accuracy Fix Summary** (v1.00W)
+  - File: [`20260113-documentation-accuracy-fix-summary-1.00W.md`](04-records/20260113-documentation-accuracy-fix-summary-1.00W.md)
+  - Function: Summary of documentation accuracy improvements
+  - Status: 🔨 Working - Complete
 
 - 🔨 **20260113-beta-attention-protocol-execution-1.00W.md** (v1.00)
   - File: [`20260113-beta-attention-protocol-execution-1.00W.md`](04-records/20260113-beta-attention-protocol-execution-1.00W.md)
@@ -558,6 +602,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 - 🟢 **20260112-documentation-organization-summary-1.00F.md** (v1.00)
   - File: [`20260112-documentation-organization-summary-1.00F.md`](04-records/20260112-documentation-organization-summary-1.00F.md)
+
+- 🔨 **Database Completeness PR Summary** (v1.00W)
+  - File: [`20260112-database-completeness-pr-summary-1.00W.md`](04-records/20260112-database-completeness-pr-summary-1.00W.md)
+  - Function: Summary of database completeness improvements from PR
+  - Status: 🔨 Working - Ready for review
 
 - 🟢 **20260112-sprint1-completion-report-1.00F.md** (v1.00)
   - File: [`20260112-sprint1-completion-report-1.00F.md`](04-records/20260112-sprint1-completion-report-1.00F.md)
@@ -868,6 +917,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 
 ## 👥 User Guides
+
+- 🔨 **AI Consciousness Dashboard Design Guidelines** (v1.00W)
+  - File: [`20260116-ai-consciousness-dashboard-design-guidelines-1.00W.md`](07-user-guides/20260116-ai-consciousness-dashboard-design-guidelines-1.00W.md)
+  - Function: Design guidelines for AI consciousness dashboard UI/UX
+  - Status: 🔨 Working - Active reference
 
 - 🔨 **20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md** (v1.00)
   - File: [`20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md`](07-user-guides/20251220-personal-responsibility-and-agency-comprehensive-framework-1.00W.md)

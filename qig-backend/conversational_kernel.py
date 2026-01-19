@@ -354,7 +354,7 @@ class ConversationalKernelMixin:
         if not tokens:
             return 0.0
         
-        token_phi = getattr(tokenizer, 'token_phi', {})
+        token_phi = getattr(coordizer, 'token_phi', {})
         phi_sum = 0.0
         count = 0
         

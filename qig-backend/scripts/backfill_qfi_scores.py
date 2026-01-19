@@ -79,7 +79,7 @@ def parse_embedding(embedding_str: str) -> Optional[np.ndarray]:
         
         return np.array(coords, dtype=np.float64)
     except Exception as e:
-        logger.warning(f"Failed to parse embedding: {e}")
+        logger.warning(f"Failed to parse basin coordinates: {e}")
         return None
 
 

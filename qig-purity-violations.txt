@@ -1,0 +1,116 @@
+CRITICAL	sqrt(sum((a-b)**2))	qig-backend/trained_kernel_integration.py:42	return float(np.sqrt(np.sum(basin ** 2)))
+ERROR	tokenizer (in core)	qig-backend/trained_kernel_integration.py:78	QIG_TOKENIZER_ROOT = Path(__file__).parent.parent.parent / "qig-tokenizer"
+CRITICAL	np.linalg.norm(a - b)	qig-backend/geometric_vocabulary_filter.py:60	distances = [np.linalg.norm(basin - state) for state in trajectory]
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:778	print("[INFO] QIGGraph blueprint registered (fallback mode - qig-tokenizer not installed)")
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4036	@app.route('/tokenizer/update', methods=['POST'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4086	@app.route('/tokenizer/encode', methods=['POST'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4131	@app.route('/tokenizer/decode', methods=['POST'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4174	@app.route('/tokenizer/basin', methods=['POST'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4219	@app.route('/tokenizer/high-phi', methods=['GET'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4259	@app.route('/tokenizer/export', methods=['GET'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4295	@app.route('/tokenizer/status', methods=['GET'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:4334	@app.route('/tokenizer/merges', methods=['GET'])
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:7750	print(f"[CycleComplete] ✓ Tokenizer training complete")
+ERROR	tokenizer (in core)	qig-backend/ocean_qig_core.py:7757	print(f"[CycleComplete] ✗ Tokenizer training failed: {e}")
+ERROR	np.mean on basins	qig-backend/autonomous_debate_service.py:1257	avg_prev = np.mean(prev_basins, axis=0)
+ERROR	tokenizer (in core)	qig-backend/autonomous_debate_service.py:1297	logger.warning(f"Tokenizer generation failed for {god_name}: {e}")
+ERROR	tokenizer (in core)	qig-backend/conversational_kernel.py:357	token_phi = getattr(tokenizer, 'token_phi', {})
+ERROR	np.mean on basins	qig-backend/contextualized_filter.py:261	context_basin = np.mean(context_basins, axis=0)
+ERROR	np.mean on basins	qig-backend/contextualized_filter.py:349	context_basin = np.mean(context_basins, axis=0)
+ERROR	np.mean on basins	qig-backend/contextualized_filter.py:382	context_basin = np.mean(context_basins, axis=0)
+ERROR	np.mean on basins	qig-backend/autonomic_kernel.py:1771	basin_variance = np.mean(np.var(basin_array, axis=0))
+ERROR	embeddings (identifier)	qig-backend/qig_generative_service.py:1500	embeddings = {}
+ERROR	embeddings (identifier)	qig-backend/qig_generative_service.py:1502	embeddings = self.coordizer.generation_vocab
+ERROR	embeddings (identifier)	qig-backend/qig_generative_service.py:1504	embeddings = self.coordizer.basin_coords
+ERROR	embeddings (identifier)	qig-backend/qig_generative_service.py:1516	candidates = grammar.get_words_for_pos(pos, current_basin, embeddings, top_k=10)
+ERROR	embeddings (identifier)	qig-backend/qig_generative_service.py:1522	if word.lower() in embeddings:
+ERROR	embeddings (identifier)	qig-backend/qig_generative_service.py:1523	word_basin = embeddings[word.lower()]
+ERROR	np.mean on basins	qig-backend/qig_generative_service.py:1709	mean_sqrt = np.mean(sqrt_basins, axis=0)
+ERROR	np.mean on basins	qig-backend/qig_generative_service.py:1836	mean_sqrt = np.mean(sqrt_basins, axis=0)
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:116	def load_vocabulary(self, words: List[str], embeddings: Optional[Dict[str, np.ndarray]] = None):
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:130	if embeddings:
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:134	if w in embeddings:
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:135	pos_embeddings.append(embeddings[w])
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:198	embeddings: Optional[Dict[str, np.ndarray]] = None,
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:206	if basin is None or embeddings is None:
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:214	if word in embeddings:
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:215	word_basin = embeddings[word]
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:274	embeddings = {}
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:284	embeddings[token.lower()] = coords / (norm + 1e-10) if norm > 0 else coords
+ERROR	embeddings (identifier)	qig-backend/pos_grammar.py:288	grammar.load_vocabulary(words, embeddings)
+ERROR	embeddings (identifier)	qig-backend/vocabulary_persistence.py:592	"All vocabulary MUST have valid 64D basin embeddings."
+ERROR	np.mean on basins	qig-backend/qig_phrase_classifier.py:84	self._category_basins[category] = np.mean(basins, axis=0)
+ERROR	np.mean on basins	qig-backend/geometric_repairer.py:365	mean = np.mean(basins_arr, axis=0)
+ERROR	tokenizer (in core)	qig-backend/vocabulary_validator.py:49	def __init__(self, vocab_basins: np.ndarray, coordizer, tokenizer):
+ERROR	tokenizer (in core)	qig-backend/vocabulary_validator.py:60	self.tokenizer = tokenizer
+ERROR	tokenizer (in core)	qig-backend/vocabulary_validator.py:242	tokens = self.tokenizer.encode(word)
+ERROR	tokenizer (in core)	qig-backend/vocabulary_validator.py:288	def get_validator(vocab_basins: np.ndarray, coordizer, tokenizer) -> GeometricVocabFilter:
+ERROR	tokenizer (in core)	qig-backend/vocabulary_validator.py:292	_validator = GeometricVocabFilter(vocab_basins, coordizer, tokenizer)
+CRITICAL	Re-implementing frechet_mean	qig-backend/geometric_waypoint_planner.py:291	def frechet_mean(self, basins: List[np.ndarray]) -> np.ndarray:
+ERROR	tokenizer (in core)	qig-backend/vocabulary_schema.sql:40	is_integrated BOOLEAN DEFAULT FALSE  -- Whether word is integrated into tokenizer
+ERROR	tokenizer (in core)	qig-backend/vocabulary_schema.sql:72	is_integrated BOOLEAN DEFAULT FALSE,  -- Whether integrated into tokenizer
+ERROR	embedding (identifier)	qig-backend/autonomous_curiosity.py:164	embedding = np.zeros(64)
+ERROR	embedding (identifier)	qig-backend/autonomous_curiosity.py:167	embedding[idx] += 1.0 / (i + 1)
+ERROR	embedding (identifier)	qig-backend/autonomous_curiosity.py:168	norm = np.linalg.norm(embedding)
+ERROR	embedding (identifier)	qig-backend/autonomous_curiosity.py:169	return embedding / norm if norm > 0 else embedding
+ERROR	np.mean on basins	qig-backend/search/search_synthesis.py:63	return np.mean(basins, axis=0)
+ERROR	np.mean on basins	qig-backend/search/search_synthesis.py:81	return np.mean(basins, axis=0)
+ERROR	np.mean on basins	qig-backend/qigchain/__init__.py:267	avg_basin: np.ndarray = np.mean(result_basins, axis=0)
+ERROR	embeddings (identifier)	qig-backend/coordizers/pg_loader.py:225	"Database must contain valid 64D basin embeddings."
+ERROR	embedding (identifier)	qig-backend/qig_geometry/__init__.py:452	embedding = np.zeros(dimension)
+ERROR	embedding (identifier)	qig-backend/qig_geometry/__init__.py:458	embedding[i] = r + np.sin(char_prod * phi_golden * (i + 1) / dimension) * _UNKNOWN_BASIN_PERTURBATIO
+ERROR	np.mean on basins	qig-backend/qig_core/kernel_basin_attractors.py:164	new_attractor = np.mean(high_curvature_basins, axis=0)
+ERROR	np.mean on basins	qig-backend/qig_core/kernel_basin_attractors.py:208	centroid = np.mean(basins, axis=0)
+CRITICAL	np.linalg.norm(a - b)	qig-backend/qig_core/geometric_primitives/geometry_ladder.py:284	radius = np.linalg.norm(reduced - center, axis=1).mean()
+ERROR	embedding (identifier)	qig-backend/qig_core/geometric_primitives/geometry_ladder.py:374	'embedding': Vt[:n_comp],
+ERROR	np.mean on basins	qig-backend/qig_core/training/identity_reinforcement.py:318	center = np.mean(self._basin_history, axis=0)
+ERROR	embedding (identifier)	qig-backend/scripts/test_geometric_learning.py:203	print("This demonstrates geometric embedding!")
+ERROR	tokenizer (in core)	qig-backend/scripts/test_geometric_learning.py:211	print("QIG TOKENIZER: GEOMETRIC VS FREQUENCY-BASED LEARNING")
+ERROR	embedding (identifier)	qig-backend/scripts/populate_coordizer_null_columns.py:152	print(f"  With embedding: {stats[1]}")
+ERROR	tokenizer (in core)	qig-backend/scripts/gather_training_corpus.py:249	print("QIG TOKENIZER CORPUS GATHERING")
+ERROR	tokenizer (in core)	qig-backend/scripts/vocabulary_purity.py:242	print(f"  Tokenizer vocabulary:  {stats['tokenizer_total']:,}")
+ERROR	tokenizer (in core)	qig-backend/scripts/audit_vocabulary.py:92	print("Initializing tokenizer...")
+ERROR	tokenizer (in core)	qig-backend/scripts/audit_vocabulary.py:94	tokenizer = QIGTokenizer()
+ERROR	tokenizer (in core)	qig-backend/scripts/audit_vocabulary.py:100	validator = GeometricVocabFilter(vocab_basins, coordizer, tokenizer)
+ERROR	embedding (identifier)	qig-backend/scripts/add_essential_vocabulary.py:107	print(f"  SKIP {word}: Invalid basin embedding")
+ERROR	embedding (identifier)	qig-backend/scripts/backfill_basin_embeddings.py:291	print("Ready to proceed with migration 010 (remove legacy embedding column)")
+ERROR	embeddings (identifier)	qig-backend/scripts/backfill_basin_embeddings.py:304	description='Backfill missing basin embeddings in coordizer_vocabulary',
+ERROR	embedding (identifier)	qig-backend/scripts/backfill_qfi_scores.py:82	logger.warning(f"Failed to parse embedding: {e}")
+ERROR	tokenizer (in core)	qig-backend/olympus/tokenizer_training.py:415	basin_coords = tokenizer.get_basin_coord(word)
+ERROR	tokenizer (in core)	qig-backend/olympus/tokenizer_training.py:417	idx = tokenizer.vocab.get(word, 0)
+ERROR	tokenizer (in core)	qig-backend/olympus/tokenizer_training.py:418	basin_coords = tokenizer._compute_basin_coord(word, idx)
+ERROR	tokenizer (in core)	qig-backend/olympus/tokenizer_training.py:491	print("QIG TOKENIZER TRAINING FROM SEARCHSPACECOLLAPSE DATA")
+ERROR	tokenize (in core)	qig-backend/olympus/base_god.py:3000	if hasattr(self.coordizer, 'tokenize'):
+ERROR	tokenize (in core)	qig-backend/olympus/base_god.py:3001	tokens = self.coordizer.tokenize(text)
+ERROR	np.mean on basins	qig-backend/olympus/tool_factory.py:1734	cluster_basin = np.mean([o['request_basin'] for o in cluster], axis=0)
+ERROR	tokenizer (in core)	qig-backend/olympus/response_guardrails.py:503	warnings.append('Response used fallback generation - tokenizer unavailable')
+ERROR	np.mean on basins	qig-backend/olympus/ocean_meta_observer.py:124	centroid = basins.mean(dim=0) if hasattr(basins, 'mean') else np.mean(basins, axis=0)
+ERROR	tokenizer (in core)	qig-backend/olympus/zeus_chat.py:379	print(f"[QIG-PURE] Tokenizer generation failed: {e}")
+ERROR	tokenizer (in core)	qig-backend/olympus/zeus_chat.py:1479	print("[ZeusChat] Tokenizer switched to conversation mode for observation response")
+ERROR	tokenizer (in core)	qig-backend/olympus/zeus_chat.py:1851	reason="tokenizer generation failed or unavailable"
+ERROR	tokenizer (in core)	qig-backend/olympus/zeus_chat.py:3076	print(f"[ZeusChat] Tokenizer generation failed: {e}")
+ERROR	tokenizer (in core)	qig-backend/olympus/zeus_chat.py:3232	print(f"[ZeusChat] Tokenizer generation failed: {e}")
+ERROR	tokenize (in core)	qig-backend/olympus/base_encoder.py:202	def tokenize(self, text: str) -> List[str]:
+ERROR	tokenize (in core)	qig-backend/olympus/base_encoder.py:223	tokens = self.tokenize(text)
+ERROR	tokenize (in core)	qig-backend/olympus/base_encoder.py:306	tokens = self.tokenize(text)
+ERROR	np.mean on basins	qig-backend/olympus/lightning_kernel.py:1652	basin_centroid = np.mean(basin_stack, axis=0).tolist()
+ERROR	tokenizer (in core)	qig-backend/olympus/hermes_coordinator.py:222	print(f"[HermesCoordinator] Tokenizer generation failed: {e}")
+ERROR	tokenizer (in core)	qig-backend/olympus/hermes_coordinator.py:225	self._log_template_fallback(category, context, reason="tokenizer unavailable or failed")
+ERROR	np.mean on basins	qig-backend/olympus/autonomous/geometric_memory_bank.py:67	mean_sqrt = np.mean(sqrt_basins, axis=0)
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:171	function computeConceptConnectivity(embeddings: number[][]): number {
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:172	if (embeddings.length < 2) return 0;
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:178	const limit = Math.min(embeddings.length, 20); // Limit for performance
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:256	function computeWordCenter(embeddings: number[][]): number[] {
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:257	if (embeddings.length === 0) return [];
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:259	const dims = embeddings[0].length;
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:262	for (const emb of embeddings) {
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:269	center[i] /= embeddings.length;
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:314	function computeContextDiversity(embeddings: number[][]): number {
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:315	if (embeddings.length < 2) return 0;
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:318	const connectivity = computeConceptConnectivity(embeddings);
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:353	function computeCoordinateSpread(embeddings: number[][]): number {
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:354	if (embeddings.length < 2) return 0;
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:356	const dims = embeddings[0]?.length || 0;
+ERROR	embeddings (identifier)	server/vocabulary-decision.ts:363	const values = embeddings.map(e => e[d] || 0);
+ERROR	embeddings (identifier)	server/geometric-discovery/google-web-search-adapter.ts:272	'knowledge graph', 'semantic', 'embeddings',
+ERROR	embedding (identifier)	shared/schema.ts:2585	embedding: vector("embedding", { dimensions: 64 }),

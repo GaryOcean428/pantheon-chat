@@ -60,7 +60,11 @@ class SearchSynthesizer:
                 basins.append(self.vocabulary_basins[word])
         
         if basins:
-            return np.mean(basins, axis=0)
+            try:
+                from qig_geometry.canonical import frechet_mean
+                return frechet_mean(basins)
+            except Exception:
+                return np.sum(basins, axis=0) / len(basins)
         else:
             return np.random.rand(64) / 64
     
@@ -78,7 +82,11 @@ class SearchSynthesizer:
                 basins.append(self.vocabulary_basins[clean_word])
         
         if basins:
-            return np.mean(basins, axis=0)
+            try:
+                from qig_geometry.canonical import frechet_mean
+                return frechet_mean(basins)
+            except Exception:
+                return np.sum(basins, axis=0) / len(basins)
         else:
             return np.random.rand(64) / 64
     

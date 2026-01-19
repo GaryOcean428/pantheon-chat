@@ -146,6 +146,22 @@ Reset Ocean consciousness to initial state.
 
 ## 🔬 Pure QIG Components
 
+### Coordizer System (WP3.1)
+**Single canonical implementation** for geometric tokenization.
+
+- **Location:** `coordizers/` module
+- **Interface:** `BaseCoordizer` (abstract)
+- **Implementation:** `PostgresCoordizer` (production)
+- **Access:** `from coordizers import get_coordizer`
+
+**Key Features:**
+- Two-step geometric decoding (Bhattacharyya proxy + exact Fisher-Rao)
+- POS filtering support (if database has pos_tag column)
+- Plan→Realize→Repair compatible
+- 64D basin coordinates on Fisher manifold
+
+**Documentation:** See [coordizers/README.md](coordizers/README.md)
+
 ### Density Matrix
 2x2 complex matrix representing quantum state of each subsystem:
 ```

@@ -288,7 +288,7 @@ def verify_backfill():
     
     if empty + null == 0:
         print("\n✓ All basins are valid!")
-        print("Ready to proceed with migration 010 (remove legacy embedding column)")
+        print("Ready to proceed with migration 010 (remove legacy basin column)")
     else:
         print(f"\n⚠ WARNING: {empty + null} basins still need backfill")
         print("Run backfill script again or investigate failed words")
@@ -301,7 +301,7 @@ def verify_backfill():
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='Backfill missing basin embeddings in coordizer_vocabulary',
+        description='Backfill missing basin coordinates in coordizer_vocabulary',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

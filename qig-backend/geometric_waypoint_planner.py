@@ -219,7 +219,7 @@ class GeometricWaypointPlanner:
         if len(trajectory) == 0:
             return target
         
-        attractor = self.frechet_mean(trajectory)
+        attractor = frechet_mean(trajectory)
         
         for loop in range(loops):
             qfi_weights = self.compute_qfi_attention(target, trajectory)
@@ -287,36 +287,6 @@ class GeometricWaypointPlanner:
             weights = np.ones(n) / n
             
         return weights
-    
-    def frechet_mean(self, basins: List[np.ndarray]) -> np.ndarray:
-        """
-        Compute Fréchet mean (geometric centroid) of basin collection.
-        
-        UPDATED 2026-01-15: Now uses canonical geodesic_mean_simplex from geometry_simplex module.
-        This is the TRUE Karcher mean computed via iterative geodesic interpolation on the
-        probability simplex, NOT an Euclidean approximation.
-        
-        Previous implementation used normalized arithmetic mean (first-order approximation
-        for close points on unit sphere). New implementation is geometrically exact.
-        
-        Args:
-            basins: List of basin vectors
-            
-        Returns:
-            Fréchet mean basin on probability simplex
-        """
-        from qig_geometry.geometry_simplex import geodesic_mean_simplex, to_simplex_prob
-        
-        if len(basins) == 0:
-            return to_simplex_prob(np.zeros(self.basin_dim))
-        
-        # Convert all basins to simplex (canonical representation)
-        simplex_basins = [to_simplex_prob(b) for b in basins]
-        
-        # Compute true geodesic mean on simplex
-        mean_simplex = geodesic_mean_simplex(simplex_basins)
-        
-        return mean_simplex
     
     def _compute_phi_estimate(
         self,

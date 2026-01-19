@@ -222,7 +222,7 @@ class PostgresCoordizer(FisherCoordizer):
         if not rows:
             raise RuntimeError(
                 "[QIG-PURE VIOLATION] No vocabulary found in coordizer_vocabulary table. "
-                "Database must contain valid 64D basin embeddings."
+                "Database must contain valid 64D basin coordinates."
             )
 
         tokens_loaded = 0
@@ -594,6 +594,145 @@ class PostgresCoordizer(FisherCoordizer):
             logger.warning(f"Failed to load domain weights for {god_name}: {e}")
         
         return domain_weights
+    
+    # =====================================================================
+    # BaseCoordizer Interface Implementation (WP3.1)
+    # =====================================================================
+    
+    def decode_geometric(
+        self,
+        target_basin: np.ndarray,
+        top_k: int = 100,
+        allowed_pos: Optional[str] = None
+    ) -> List[Tuple[str, float]]:
+        """
+        Two-step geometric decoding with POS filtering (PostgreSQL-optimized).
+        
+        Step 1: Bhattacharyya proxy filtering using pgvector inner product
+        Step 2: Exact Fisher-Rao distance on filtered candidates
+        
+        This implementation uses PostgreSQL with pgvector for fast approximate
+        nearest neighbor search, then refines with exact Fisher-Rao distance.
+        
+        Args:
+            target_basin: 64D basin coordinates to decode
+            top_k: Number of top candidates to return
+            allowed_pos: Optional POS tag filter (e.g., "NOUN", "VERB", "ADJ")
+        
+        Returns:
+            List of (word, fisher_rao_distance) tuples, sorted by distance ascending
+        """
+        # Normalize basin
+        norm = np.linalg.norm(target_basin)
+        if norm > 1e-10:
+            target_basin = target_basin / norm
+        
+        # Use generation vocabulary for decoding
+        conn = self._get_connection()
+        
+        try:
+            with conn.cursor() as cur:
+                # Step 1: Proxy filter using Bhattacharyya (sqrt-space inner product)
+                # Convert basin to sqrt-space for Bhattacharyya coefficient
+                sqrt_target = np.sqrt(target_basin + 1e-10)
+                sqrt_str = '[' + ','.join(f'{x:.8f}' for x in sqrt_target) + ']'
+                
+                # Build SQL query with optional POS filter
+                if allowed_pos:
+                    # Check if pos_tag column exists
+                    cur.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'coordizer_vocabulary' 
+                          AND column_name = 'pos_tag'
+                    """)
+                    has_pos_column = cur.fetchone() is not None
+                    
+                    if has_pos_column:
+                        query = """
+                            SELECT token, basin_embedding
+                            FROM coordizer_vocabulary
+                            WHERE basin_embedding IS NOT NULL
+                              AND token_role IN ('generation', 'both')
+                              AND pos_tag = %s
+                            ORDER BY (basin_sqrt <#> %s::vector)
+                            LIMIT %s
+                        """
+                        params = (allowed_pos, sqrt_str, top_k * 2)
+                    else:
+                        logger.warning(f"POS filtering requested but pos_tag column doesn't exist")
+                        # Fall back to no POS filter
+                        query = """
+                            SELECT token, basin_embedding
+                            FROM coordizer_vocabulary
+                            WHERE basin_embedding IS NOT NULL
+                              AND token_role IN ('generation', 'both')
+                            ORDER BY (basin_sqrt <#> %s::vector)
+                            LIMIT %s
+                        """
+                        params = (sqrt_str, top_k * 2)
+                else:
+                    query = """
+                        SELECT token, basin_embedding
+                        FROM coordizer_vocabulary
+                        WHERE basin_embedding IS NOT NULL
+                          AND token_role IN ('generation', 'both')
+                        ORDER BY (basin_sqrt <#> %s::vector)
+                        LIMIT %s
+                    """
+                    params = (sqrt_str, top_k * 2)
+                
+                cur.execute(query, params)
+                candidates = cur.fetchall()
+        
+        except Exception as e:
+            logger.error(f"Database query failed in decode_geometric: {e}")
+            # Fall back to in-memory implementation
+            return super().decode_geometric(target_basin, top_k, allowed_pos)
+        
+        # Step 2: Exact Fisher-Rao distance on filtered candidates
+        results = []
+        for token, basin_embedding in candidates:
+            # Parse basin embedding
+            coords = self._parse_embedding(basin_embedding)
+            if coords is None:
+                continue
+            
+            # Compute exact Fisher-Rao distance
+            # Fisher-Rao distance = arccos(Bhattacharyya coefficient)
+            sqrt_coords = np.sqrt(coords + 1e-10)
+            bhattacharyya = np.clip(np.dot(sqrt_target, sqrt_coords), 0, 1)
+            fisher_distance = np.arccos(bhattacharyya)
+            
+            results.append((token, fisher_distance))
+        
+        # Sort by exact Fisher-Rao distance and return top_k
+        results.sort(key=lambda x: x[1])
+        return results[:top_k]
+    
+    def supports_pos_filtering(self) -> bool:
+        """
+        Check if POS filtering is supported (requires pos_tag column).
+        
+        Returns:
+            True if pos_tag column exists in coordizer_vocabulary
+        """
+        try:
+            conn = self._get_connection()
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'coordizer_vocabulary' 
+                      AND column_name = 'pos_tag'
+                """)
+                return cur.fetchone() is not None
+        except Exception:
+            return False
+    
+    # =====================================================================
+    # Legacy Methods (maintained for backward compatibility)
+    # =====================================================================
 
     def get_random_words(self, count: int = 12) -> List[str]:
         if not self.word_tokens:

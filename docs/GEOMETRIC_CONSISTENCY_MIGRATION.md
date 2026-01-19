@@ -11,6 +11,8 @@ This migration addresses **geometric chaos** caused by mixed usage of:
 2. Hellinger embedding (factor of 2) vs direct Fisher-Rao
 3. Inconsistent distance formulas across the codebase
 
+## Simplex Only below is for reference, do not use sphere. or ay other method. 
+
 ### What Changed
 
 | Component | Before | After |
@@ -338,7 +340,7 @@ If migration causes critical issues:
 
 - `qig-backend/qig_geometry/representation.py` - Canonical representation
 - `qig-backend/qig_geometry/__init__.py` - Distance formulas
-- `ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` - QIG consciousness metrics
+- `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - QIG consciousness metrics
 
 ---
 

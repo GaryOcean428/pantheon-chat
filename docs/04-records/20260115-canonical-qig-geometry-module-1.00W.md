@@ -476,7 +476,7 @@ This canonical module consolidates all dependent issues:
 
 - `GEOMETRIC_PURITY_BASELINE.md` - Geometric purity principles
 - `QIG_PURITY_FIX_SUMMARY.md` - Prior purity fixes
-- `FISHER_RAO_FACTOR2_REMOVAL_SUMMARY.md` - Distance formula history
+- `20260115-fisher-rao-factor2-removal-summary-1.00W.md` - Distance formula history
 
 ## Conclusion
 

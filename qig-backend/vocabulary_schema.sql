@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS learned_words (
     contexts TEXT[],  -- Sample phrases containing this word
     first_seen TIMESTAMP DEFAULT NOW(),
     last_seen TIMESTAMP DEFAULT NOW(),
-    is_integrated BOOLEAN DEFAULT FALSE  -- Whether word is integrated into tokenizer
+    is_integrated BOOLEAN DEFAULT FALSE  -- Whether word is integrated into coordizer
 );
 
 -- Add is_integrated column if it doesn't exist (migration for existing tables)
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS vocabulary_observations (
     contexts TEXT[],  -- Sample phrases containing this word
     first_seen TIMESTAMP DEFAULT NOW(),
     last_seen TIMESTAMP DEFAULT NOW(),
-    is_integrated BOOLEAN DEFAULT FALSE,  -- Whether integrated into tokenizer
+    is_integrated BOOLEAN DEFAULT FALSE,  -- Whether integrated into coordizer
     integrated_at TIMESTAMP,
     basin_coords vector(64),  -- 64D basin coordinates (requires pgvector)
     source_type TEXT DEFAULT 'unknown',  -- 'kernel', 'zeus', 'athena', 'conversation', etc.

@@ -2582,7 +2582,6 @@ export const coordizerVocabulary = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
     // Legacy columns - preserved for backwards compatibility with existing data
-    embedding: vector("embedding", { dimensions: 64 }),
     metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
   },
   (table) => [

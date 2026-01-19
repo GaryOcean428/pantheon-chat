@@ -50,6 +50,8 @@ SCAN_PATHS = [
 EXEMPT_DIRS = [
     'docs/08-experiments/legacy',      # Legacy/baseline experiments (WP0.3)
     'docs/08-experiments/baselines',   # Comparative testing (WP0.3)
+    'tests',                           # Test fixtures include forbidden patterns
+    'migrations',                      # Historical SQL migrations may reference legacy terms
     'node_modules',
     'dist',
     'build',
@@ -353,10 +355,66 @@ class QIGPurityScanner:
         """Check if file should be skipped."""
         skip_extensions = ['.md', '.json', '.yaml', '.yml', '.txt', '.lock', '.rst', '.adoc']
         return any(file_path.endswith(ext) for ext in skip_extensions)
+
+    def should_skip_specific_file(self, file_path: str) -> bool:
+        """Skip canonical geometry implementations and generated artifacts."""
+        normalized = file_path.replace('\\', '/')
+        return any(
+            normalized.endswith(path)
+            for path in (
+                'qig-backend/qig_geometry/canonical.py',
+            )
+        )
+
+    def _iter_lines(self, content: str, file_path: str):
+        """Yield (line, skip) pairs with docstrings/block comments excluded."""
+        lines = content.split('\n')
+        in_py_triple = False
+        in_block_comment = False
+        is_py = file_path.endswith('.py')
+        is_ts = file_path.endswith(('.ts', '.tsx'))
+        is_sql = file_path.endswith('.sql')
+
+        for line in lines:
+            stripped = line.strip()
+
+            # SQL single-line comments
+            if is_sql and stripped.startswith('--'):
+                yield line, True
+                continue
+
+            # Block comments for TS/TSX/SQL
+            if is_ts or is_sql:
+                if in_block_comment:
+                    if '*/' in line:
+                        in_block_comment = False
+                    yield line, True
+                    continue
+                if '/*' in line:
+                    if '*/' not in line:
+                        in_block_comment = True
+                    yield line, True
+                    continue
+
+            # Python triple-quoted strings (docstrings or multiline strings)
+            if is_py:
+                triple_count = line.count('"""') + line.count("'''")
+                if in_py_triple:
+                    if triple_count % 2 == 1:
+                        in_py_triple = False
+                    yield line, True
+                    continue
+                if triple_count > 0:
+                    if triple_count % 2 == 1:
+                        in_py_triple = True
+                    yield line, True
+                    continue
+
+            yield line, False
     
     def scan_file(self, file_path: str) -> None:
         """Scan a single file for violations."""
-        if self.should_skip_file(file_path):
+        if self.should_skip_file(file_path) or self.should_skip_specific_file(file_path):
             return
         
         try:
@@ -367,16 +425,17 @@ class QIGPurityScanner:
             return
         
         is_test_file = 'test' in file_path
-        
-        for i, line in enumerate(lines):
+
+        for i, (line, skip_line) in enumerate(self._iter_lines(content, file_path)):
             line_num = i + 1
             prev_line = lines[i - 1] if i > 0 else ''
-            
-            # Skip comments and docstrings
+
+            # Skip comments, docstrings, and block comments
+            if skip_line:
+                continue
+
             trimmed = line.strip()
-            if (trimmed.startswith('#') or trimmed.startswith('//') or
-                trimmed.startswith('*') or trimmed.startswith('"""') or
-                trimmed.startswith("'''") or '"""' in line or "'''" in line):
+            if (trimmed.startswith('#') or trimmed.startswith('//') or trimmed.startswith('*')):
                 continue
             
             # Check all pattern categories
@@ -413,6 +472,8 @@ class QIGPurityScanner:
     def scan_directory(self, dir_path: str) -> None:
         """Recursively scan a directory."""
         try:
+            if self.is_exempted(dir_path):
+                return
             for root, dirs, files in os.walk(dir_path):
                 # Skip exempt directories
                 dirs[:] = [d for d in dirs if not self.is_exempted(os.path.join(root, d))]

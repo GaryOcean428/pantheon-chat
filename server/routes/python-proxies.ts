@@ -255,32 +255,32 @@ router.post('/memory/record', (req, res) =>
   proxyPost(req, res, '/memory/record', 'Failed to record memory'));
 
 // ============================================================================
-// TOKENIZER ENDPOINTS - Vocabulary/Tokenizer
+// COORDIZER ENDPOINTS - Vocabulary/Coordizer
 // ============================================================================
 
-router.post('/tokenizer/update', (req, res) => 
-  proxyPost(req, res, '/tokenizer/update', 'Failed to update tokenizer'));
+router.post('/coordizer/update', (req, res) => 
+  proxyPost(req, res, '/coordizer/update', 'Failed to update coordizer'));
 
-router.post('/tokenizer/encode', (req, res) => 
-  proxyPost(req, res, '/tokenizer/encode', 'Failed to encode tokens'));
+router.post('/coordizer/encode', (req, res) => 
+  proxyPost(req, res, '/coordizer/encode', 'Failed to encode tokens'));
 
-router.post('/tokenizer/decode', (req, res) => 
-  proxyPost(req, res, '/tokenizer/decode', 'Failed to decode tokens'));
+router.post('/coordizer/decode', (req, res) => 
+  proxyPost(req, res, '/coordizer/decode', 'Failed to decode tokens'));
 
-router.post('/tokenizer/basin', (req, res) => 
-  proxyPost(req, res, '/tokenizer/basin', 'Failed to get token basin'));
+router.post('/coordizer/basin', (req, res) => 
+  proxyPost(req, res, '/coordizer/basin', 'Failed to get token basin'));
 
-router.get('/tokenizer/high-phi', (req, res) => 
-  proxyGet(req, res, '/tokenizer/high-phi', 'Failed to get high-phi tokens'));
+router.get('/coordizer/high-phi', (req, res) => 
+  proxyGet(req, res, '/coordizer/high-phi', 'Failed to get high-phi tokens'));
 
-router.get('/tokenizer/export', (req, res) => 
-  proxyGet(req, res, '/tokenizer/export', 'Failed to export tokenizer'));
+router.get('/coordizer/export', (req, res) => 
+  proxyGet(req, res, '/coordizer/export', 'Failed to export coordizer'));
 
-router.get('/tokenizer/status', (req, res) => 
-  proxyGet(req, res, '/tokenizer/status', 'Failed to get tokenizer status'));
+router.get('/coordizer/status', (req, res) => 
+  proxyGet(req, res, '/coordizer/status', 'Failed to get coordizer status'));
 
-router.get('/tokenizer/merges', (req, res) => 
-  proxyGet(req, res, '/tokenizer/merges', 'Failed to get merge rules'));
+router.get('/coordizer/merges', (req, res) => 
+  proxyGet(req, res, '/coordizer/merges', 'Failed to get merge rules'));
 
 // ============================================================================
 // GENERATE ENDPOINTS - Text generation

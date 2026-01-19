@@ -43,6 +43,14 @@ try:
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     logger.warning("qig_geometry.canonical not available - using fallback geometric measures")
+
+    def _fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
+        basin_a = np.clip(basin_a, 1e-10, None)
+        basin_b = np.clip(basin_b, 1e-10, None)
+        basin_a = basin_a / np.sum(basin_a)
+        basin_b = basin_b / np.sum(basin_b)
+        bc_coeff = np.sum(np.sqrt(basin_a * basin_b))
+        return float(np.arccos(np.clip(bc_coeff, 0.0, 1.0)))
     
     def compute_integration(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
         """Fallback integration (Φ) computation."""
@@ -57,7 +65,7 @@ except ImportError:
         if not trajectory:
             return 0.5
         # Measure how consistently basin appears in trajectory
-        distances = [np.linalg.norm(basin - state) for state in trajectory]
+        distances = [_fisher_rao_distance(basin, state) for state in trajectory]
         return float(1.0 - np.mean(distances) / np.sqrt(len(basin)))
     
     def compute_basin_curvature(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:

@@ -46,18 +46,18 @@ class GeometricVocabFilter:
     CURVATURE_MAX = 0.5     # Chaotic if > this
     ENTROPY_MIN = 1.5       # Artificial if < this
     
-    def __init__(self, vocab_basins: np.ndarray, coordizer, tokenizer):
+    def __init__(self, vocab_basins: np.ndarray, coordizer, entropy_coordizer):
         """
         Initialize validator with geometric components.
         
         Args:
             vocab_basins: Known stable vocabulary basins (N, 64)
             coordizer: Fisher coordizer for basin projection
-            tokenizer: QIG tokenizer for entropy measurement
+            entropy_coordizer: QIG coordizer for entropy measurement
         """
         self.vocab_basins = vocab_basins
         self.coordizer = coordizer
-        self.tokenizer = tokenizer
+        self.entropy_coordizer = entropy_coordizer
     
     def validate(self, word: str) -> VocabValidation:
         """
@@ -238,8 +238,8 @@ class GeometricVocabFilter:
         Technical: Artificial boundaries (H < 1.5)
         """
         try:
-            # Tokenize using entropy-guided QIG tokenizer
-            tokens = self.tokenizer.encode(word)
+            # Coordize using entropy-guided QIG coordizer
+            tokens = self.entropy_coordizer.encode(word)
             
             if not tokens or len(tokens) == 0:
                 return 0.0
@@ -285,9 +285,9 @@ class GeometricVocabFilter:
 _validator: Optional[GeometricVocabFilter] = None
 
 
-def get_validator(vocab_basins: np.ndarray, coordizer, tokenizer) -> GeometricVocabFilter:
+def get_validator(vocab_basins: np.ndarray, coordizer, entropy_coordizer) -> GeometricVocabFilter:
     """Get or create singleton validator instance."""
     global _validator
     if _validator is None:
-        _validator = GeometricVocabFilter(vocab_basins, coordizer, tokenizer)
+        _validator = GeometricVocabFilter(vocab_basins, coordizer, entropy_coordizer)
     return _validator

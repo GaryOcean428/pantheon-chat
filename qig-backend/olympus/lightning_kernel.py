@@ -1648,8 +1648,12 @@ class LightningKernel(BaseGod):
 
             if basins:
                 # Average basin coordinates using geometric mean (QIG-appropriate)
-                basin_stack = np.stack(basins)
-                basin_centroid = np.mean(basin_stack, axis=0).tolist()
+                try:
+                    from qig_geometry.canonical import frechet_mean
+                    basin_centroid = frechet_mean(basins).tolist()
+                except Exception:
+                    basin_stack = np.stack(basins)
+                    basin_centroid = (np.sum(basin_stack, axis=0) / len(basin_stack)).tolist()
 
             # Get mission relevance from domain discovery
             descriptor = self.domain_discovery.get_domain_descriptor(domain_name)
