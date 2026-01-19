@@ -289,14 +289,16 @@ This roadmap consolidates information from:
 | #66 | [QIG-PURITY] WP1.1: Rename tokenizer → coordizer | ✅ **COMPLETE** | **CLOSE ISSUE** |
 | #68 | WP2.1: Create Canonical qig_geometry Module | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #69 | Remove Cosine Similarity from match_coordinates() | ✅ **COMPLETE** | **CLOSE ISSUE** |
-| #70 | Special Symbols Validation | 🔍 Needs validation | Cross-reference |
-| #71 | Two-step Retrieval with Fisher-proxy | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #70 | Special Symbols Validation | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
+| #71 | Two-step Retrieval with Fisher-proxy | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
 | #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
-| #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSE ISSUE** |
+| #92 | Remove Frequency-Based Stopwords | ❌ **INCOMPLETE** | **REOPEN - IMPLEMENT** |
 
 **Update 2026-01-16**: Added issues #64-#77, #92 (all >= 65). Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
+
+**Update 2026-01-20 (Reconciliation Note)**: Verified Issue 01-03 deliverables against code/scripts. Missing deliverables required downgrading #70/#71/#92 to INCOMPLETE and reopening implementation tracking.
 
 ---
 
