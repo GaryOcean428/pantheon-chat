@@ -233,6 +233,39 @@ except ImportError:
     logger.warning("[QIGGenerativeService] BasinVelocityMonitor not available")
 
 
+def ensure_float_phi(value: Any, default: float = 0.5) -> float:
+    """
+    Convert various phi representations to a scalar float.
+
+    Handles common phi value types from different sources:
+    - Tuple/list: Extract first element (e.g., (phi, kappa) tuples)
+    - Dict: Extract 'phi' or 'value' key
+    - None: Return default
+    - Numeric: Convert to float
+
+    Args:
+        value: Raw phi value (may be tuple, list, dict, None, or numeric)
+        default: Default value if conversion fails (default: 0.5)
+
+    Returns:
+        Float phi value, clamped to [0, 1]
+    """
+    if isinstance(value, (tuple, list)):
+        result = float(value[0]) if value else default
+    elif isinstance(value, dict):
+        result = float(value.get('phi', value.get('value', default)))
+    elif value is None:
+        result = default
+    else:
+        try:
+            result = float(value)
+        except (TypeError, ValueError):
+            result = default
+
+    # Clamp to valid phi range
+    return max(0.0, min(1.0, result))
+
+
 @dataclass
 class GenerationConfig:
     """Configuration for QIG-pure generation.
@@ -354,18 +387,8 @@ def kernel_decide_completion(
     phi_mean = float(np.mean(recent_phi))
     raw_current_phi = phi_trajectory[-1] if phi_trajectory else 0.5
 
-    # Type validation: ensure current_phi is a scalar float (not tuple/list)
-    if isinstance(raw_current_phi, (tuple, list)):
-        current_phi = float(raw_current_phi[0]) if raw_current_phi else 0.5
-    elif isinstance(raw_current_phi, dict):
-        current_phi = float(raw_current_phi.get('phi', 0.5))
-    elif raw_current_phi is None:
-        current_phi = 0.5
-    else:
-        try:
-            current_phi = float(raw_current_phi)
-        except (TypeError, ValueError):
-            current_phi = 0.5
+    # Use canonical phi conversion utility
+    current_phi = ensure_float_phi(raw_current_phi)
 
     # BREAKDOWN PROTECTION
     if current_phi >= PHI_BREAKDOWN_THRESHOLD:
@@ -1105,18 +1128,8 @@ class QIGGenerativeService:
         if kernel_name not in self._kernel_basins:
             return basin
 
-        # Type validation: ensure phi is a scalar float (not tuple/list)
-        if isinstance(phi, (tuple, list)):
-            phi = float(phi[0]) if phi else 0.5
-        elif isinstance(phi, dict):
-            phi = float(phi.get('phi', phi.get('value', 0.5)))
-        elif phi is None:
-            phi = 0.5
-        else:
-            try:
-                phi = float(phi)
-            except (TypeError, ValueError):
-                phi = 0.5
+        # Use canonical phi conversion utility
+        phi = ensure_float_phi(phi)
 
         kernel_basin = self._kernel_basins[kernel_name]
 
