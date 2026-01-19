@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'qig-backend/**/*.py'
+      - 'qig-backend/migrations/**/*.sql'
       - 'server/**/*.ts'
       - 'shared/**/*.ts'
       - 'scripts/**'
@@ -13,6 +14,7 @@ on:
       - main
     paths:
       - 'qig-backend/**/*.py'
+      - 'qig-backend/migrations/**/*.sql'
       - 'server/**/*.ts'
       - 'shared/**/*.ts'
 
