@@ -58,6 +58,13 @@ export class SearXNGGeometricAdapter {
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || process.env.SEARXNG_URL || SEARXNG_INSTANCES[0];
     this.tps = tps;
+    
+    // CURRICULUM-ONLY MODE: Skip initialization to prevent external connections
+    if (isCurriculumOnlyEnabled()) {
+      console.log('[SearXNG] Skipped initialization (curriculum-only mode)');
+      return;
+    }
+    
     console.log('[SearXNG] Initialized FREE geometric discovery interface');
     console.log(`[SearXNG] Using instance: ${this.baseUrl}`);
   }
