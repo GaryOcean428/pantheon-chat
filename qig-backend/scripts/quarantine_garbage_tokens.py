@@ -163,7 +163,7 @@ def classify_garbage(word: str, aggressive: bool = False) -> Tuple[bool, str]:
 def scan_garbage_tokens(
     db_conn: PgConnection,
     aggressive: bool = False
-) -> List[Dict[str, any]]:
+) -> List[Dict[str, Any]]:
     """
     Scan coordizer_vocabulary for garbage tokens.
     
@@ -199,7 +199,7 @@ def scan_garbage_tokens(
 
 def quarantine_tokens(
     db_conn: PgConnection,
-    garbage_tokens: List[Dict[str, any]],
+    garbage_tokens: List[Dict[str, Any]],
     dry_run: bool = False
 ) -> Dict[str, int]:
     """
@@ -249,7 +249,7 @@ def quarantine_tokens(
 
 
 def generate_report(
-    garbage_tokens: List[Dict[str, any]],
+    garbage_tokens: List[Dict[str, Any]],
     output_file: str = None
 ):
     """

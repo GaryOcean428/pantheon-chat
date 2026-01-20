@@ -129,7 +129,7 @@ def renormalize_to_simplex(basin: np.ndarray) -> np.ndarray:
 def audit_vocabulary_basins(
     db_conn: PgConnection,
     strict: bool = False
-) -> Dict[str, any]:
+) -> Dict[str, Any]:
     """
     Audit all basins in coordizer_vocabulary.
     
