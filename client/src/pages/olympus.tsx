@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, ScrollArea, ZeusChat, KernelActivityStream } from '@/components';
 import { 
-  Sparkles, Zap, Shield, Sword, Sun, Target, MessageSquare, Flame,
+  Sparkles, Zap, Shield, Sword, Swords, Sun, Target, MessageSquare, Flame,
   Wheat, Wine, WavesIcon, Skull, Crown, Heart, Moon, Crosshair,
   Eye, Ghost, Bomb, RefreshCw, Users
 } from 'lucide-react';
