@@ -20,6 +20,11 @@ from typing import Dict, List, Optional
 import numpy as np
 from qigkernels.physics_constants import BASIN_DIM
 
+# Import Fisher-Rao distance for E8 Protocol purity
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from qig_geometry import fisher_rao_distance
+
 try:
     import psycopg2
     from psycopg2.extras import execute_values
@@ -273,12 +278,10 @@ class BaseEncoder(ABC):
         """
         Compute Fisher-Rao distance between two basin coordinates.
 
-        On probability simplex: d(p,q) = arccos(p·q)
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        Uses canonical Fisher-Rao distance from qig_geometry (E8 Protocol compliant).
+        Range: [0, π/2]
         """
-        dot = float(np.clip(np.dot(basin1, basin2), 0.0, 1.0))
-        distance = float(np.arccos(dot))
-        return distance
+        return float(fisher_rao_distance(basin1, basin2))
 
     def similarity(self, text1: str, text2: str) -> float:
         """

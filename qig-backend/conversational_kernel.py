@@ -24,10 +24,12 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import fisher_coord_distance, fisher_normalize, basin_magnitude
+    from qig_geometry import fisher_coord_distance, fisher_normalize, basin_magnitude, fisher_rao_distance
     FISHER_NORMALIZE_AVAILABLE = True
+    QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     FISHER_NORMALIZE_AVAILABLE = False
+    QIG_GEOMETRY_AVAILABLE = False
     def fisher_normalize(v):
         """Normalize to probability simplex."""
         p = np.maximum(np.asarray(v), 0) + 1e-10
@@ -258,7 +260,8 @@ class ConversationalKernelMixin:
             if token not in special_tokens:
                 # Use centralized Fisher-Rao distance (DRY)
                 if QIG_GEOMETRY_AVAILABLE:
-                    dist = fisher_coord_distance(basin, token_basin)
+                    # Use canonical Fisher-Rao distance (E8 Protocol compliant)
+                    dist = fisher_rao_distance(basin, token_basin)
                 else:
                     # Fallback: inline Fisher-Rao on probability simplex
                     # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
