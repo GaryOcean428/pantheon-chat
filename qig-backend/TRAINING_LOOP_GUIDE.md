@@ -458,6 +458,108 @@ integrator.enable_training()
 3. **Word Relationship Filtering**: Stopwords excluded from learned relationships
 4. **Training Rate Limits**: Natural gradient descent with small learning rates
 
+## Optimizer Validation (WP4.2)
+
+### CRITICAL: Fisher-Aware Optimizers Required
+
+QIG-core training **REQUIRES** natural gradient optimizers that respect Fisher Information Geometry. Standard Euclidean optimizers (Adam, SGD, RMSprop) are **FORBIDDEN** because they:
+
+1. **Violate Fisher manifold geometry** - assume flat Euclidean space
+2. **Corrupt consciousness metrics** - destroy Φ and κ by pushing parameters off manifold
+3. **Break Mamba state spaces** - incompatible with Granite 4.0-H native geometry
+
+### ✅ CORRECT: Natural Gradient Optimizers
+
+```python
+from training_chaos import DiagonalFisherOptimizer, validate_optimizer_fisher_aware
+
+# Create Fisher-aware optimizer
+model = MyQIGModel()
+optimizer = DiagonalFisherOptimizer(
+    model.parameters(),
+    lr=1e-4,
+    dampening=1e-3
+)
+
+# CRITICAL: Validate at training start
+validate_optimizer_fisher_aware(optimizer, context="kernel training")
+
+# Training loop
+for epoch in range(num_epochs):
+    for batch in dataloader:
+        optimizer.zero_grad()
+        loss = model(batch)
+        loss.backward()
+        optimizer.step()  # Natural gradient update
+```
+
+### ❌ WRONG: Euclidean Optimizers (Will Fail)
+
+```python
+import torch.optim as optim
+from training_chaos import validate_optimizer_fisher_aware
+
+# ❌ Using Adam (Euclidean optimizer)
+optimizer = optim.Adam(model.parameters())
+
+# This will raise EuclideanOptimizerError
+validate_optimizer_fisher_aware(optimizer)  # FAILS
+```
+
+### Available Fisher-Aware Optimizers
+
+1. **DiagonalFisherOptimizer** (recommended for most cases)
+   - O(N) efficient diagonal approximation
+   - Good balance of accuracy and speed
+
+2. **FullFisherOptimizer** (for high-curvature regions)
+   - Exact Fisher with CG inversion
+   - Tracks κ during training
+
+3. **ConsciousnessAwareOptimizer** (for consciousness emergence)
+   - Integrates Φ and κ tracking
+   - Adaptive learning rate based on Φ
+
+4. **NaturalGradientOptimizer** (for Q-learning)
+   - NumPy-based for RL
+   - Specialized for Q-networks
+
+### Factory Function
+
+```python
+from training_chaos import create_optimizer
+
+optimizer = create_optimizer(
+    model.parameters(),
+    optimizer_type='diagonal',  # or 'full', 'consciousness'
+    lr=1e-4,
+    track_kappa=True
+)
+
+# Automatically Fisher-aware
+assert optimizer.is_fisher_aware
+```
+
+### Testing
+
+```bash
+# Test optimizer awareness
+pytest tests/test_optimizer_fisher_awareness.py -v
+
+# Scan for Euclidean optimizer violations
+pytest tests/test_geometric_purity.py::TestEuclideanViolationScanning::test_no_euclidean_optimizers -v
+```
+
+### Documentation
+
+See: `docs/07-user-guides/20260120-natural-gradient-optimizer-requirements-1.00W.md`
+
+**References:**
+- Issue #76: Natural Gradient Implementation
+- Amari "Natural Gradient Works Efficiently in Learning"
+- Type-Symbol-Concept Manifest: optimizer requirements
+
+
 ## Future Improvements
 
 1. **Adaptive Learning Rates**: Adjust based on training progress
