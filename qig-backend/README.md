@@ -48,6 +48,25 @@ Backend will start on http://localhost:5001
 python3 test_qig.py
 ```
 
+### QFI Integrity Gate Scripts
+
+Manage vocabulary quality via QFI (Quantum Fisher Information) scores:
+
+```bash
+# Backfill QFI scores for existing tokens
+python3 scripts/backfill_qfi_scores.py
+
+# Quarantine low-quality tokens (dry run first)
+python3 scripts/quarantine_low_qfi_tokens.py --dry-run
+python3 scripts/quarantine_low_qfi_tokens.py
+
+# Apply migrations for QFI constraints
+psql $DATABASE_URL < migrations/0015_special_symbols_qfi.sql
+psql $DATABASE_URL < migrations/0016_qfi_generation_view.sql
+```
+
+See `docs/QFI_INTEGRITY_GATE.md` for detailed usage.
+
 ## 📡 API Endpoints
 
 ### `GET /health`
