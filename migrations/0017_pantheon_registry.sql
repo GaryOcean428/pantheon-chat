@@ -234,7 +234,6 @@ CREATE OR REPLACE VIEW active_kernels_with_contracts AS
 SELECT
     kg.kernel_id,
     kg.god_name,
-    kg.kernel_name,
     gc.tier,
     gc.domain,
     gc.epithets,

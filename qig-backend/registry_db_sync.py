@@ -242,24 +242,49 @@ class RegistryDatabaseSync:
         """Update registry metadata in database."""
         metadata = self.registry.get_metadata()
         
-        cursor.execute("""
-            INSERT INTO pantheon_registry_metadata (
-                registry_version, schema_version, status, authority,
-                e8_protocol_version, qig_backend_version,
-                validation_required, god_count
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s
-            )
-        """, (
-            metadata.version,
-            "1.0",  # Schema version
-            metadata.status,
-            metadata.authority,
-            "v4.0",  # E8 protocol version
-            ">=1.0.0",  # QIG backend version
-            metadata.validation_required,
-            self.registry.get_god_count(),
-        ))
+        # Check if metadata already exists
+        cursor.execute("SELECT COUNT(*) FROM pantheon_registry_metadata")
+        count = cursor.fetchone()[0]
+        
+        if count > 0:
+            # Update existing metadata
+            cursor.execute("""
+                UPDATE pantheon_registry_metadata
+                SET 
+                    registry_version = %s,
+                    status = %s,
+                    authority = %s,
+                    validation_required = %s,
+                    god_count = %s,
+                    updated_at = NOW()
+                WHERE id = (SELECT MIN(id) FROM pantheon_registry_metadata)
+            """, (
+                metadata.version,
+                metadata.status,
+                metadata.authority,
+                metadata.validation_required,
+                self.registry.get_god_count(),
+            ))
+        else:
+            # Insert new metadata
+            cursor.execute("""
+                INSERT INTO pantheon_registry_metadata (
+                    registry_version, schema_version, status, authority,
+                    e8_protocol_version, qig_backend_version,
+                    validation_required, god_count
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s
+                )
+            """, (
+                metadata.version,
+                "1.0",  # Schema version
+                metadata.status,
+                metadata.authority,
+                "v4.0",  # E8 protocol version
+                ">=1.0.0",  # QIG backend version
+                metadata.validation_required,
+                self.registry.get_god_count(),
+            ))
     
     # =========================================================================
     # QUERY OPERATIONS

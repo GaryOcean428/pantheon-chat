@@ -44,8 +44,11 @@ export class PantheonRegistryService {
 
   private constructor(registryPath?: string) {
     // Default to pantheon/registry.yaml relative to project root
+    // Use __dirname to get reliable path relative to this module
     this.registryPath = registryPath || path.join(
-      process.cwd(),
+      __dirname,
+      '..',
+      '..',
       'pantheon',
       'registry.yaml'
     );
@@ -344,8 +347,15 @@ export class KernelSpawnerService {
       // Availability bonus
       if (candidate.contract.rest_policy.type === 'never') {
         score += 10; // Essential gods
-      } else if ('duty_cycle' in candidate.contract.rest_policy) {
-        score += (candidate.contract.rest_policy as any).duty_cycle * 2;
+      } else {
+        // Type-safe access to duty_cycle for policies that have it
+        const policy = candidate.contract.rest_policy;
+        if (policy.type === 'minimal_rotating' || 
+            policy.type === 'coordinated_alternating' || 
+            policy.type === 'scheduled' ||
+            policy.type === 'seasonal') {
+          score += policy.duty_cycle * 2;
+        }
       }
 
       return { ...candidate, score };

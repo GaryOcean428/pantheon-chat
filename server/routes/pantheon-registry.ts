@@ -10,6 +10,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 import { getRegistryService, createSpawnerService } from '../services/pantheon-registry';
 import type { RoleSpec } from '@/shared/pantheon-registry-schema';
 
@@ -218,25 +219,26 @@ router.post('/spawner/select', async (req: Request, res: Response) => {
     await service.load();
     
     const spawner = createSpawnerService();
-    const role: RoleSpec = req.body;
     
-    // Validate role spec
-    if (!role.domain || !Array.isArray(role.domain) || role.domain.length === 0) {
+    // Validate role spec using Zod schema (imported from shared)
+    const roleSchema = z.object({
+      domain: z.array(z.string()).min(1),
+      required_capabilities: z.array(z.string()),
+      preferred_god: z.string().optional(),
+      allow_chaos_spawn: z.boolean().optional(),
+    });
+    
+    const parseResult = roleSchema.safeParse(req.body);
+    if (!parseResult.success) {
       res.status(400).json({
         success: false,
-        error: 'Invalid role spec - domain array required',
+        error: 'Invalid role spec',
+        details: parseResult.error.errors,
       });
       return;
     }
     
-    if (!role.required_capabilities || !Array.isArray(role.required_capabilities)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid role spec - required_capabilities array required',
-      });
-      return;
-    }
-    
+    const role: RoleSpec = parseResult.data;
     const selection = spawner.selectGod(role);
     
     res.json({
