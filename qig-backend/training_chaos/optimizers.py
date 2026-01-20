@@ -816,6 +816,9 @@ class ChaosOptimizer(DiagonalFisherOptimizer):
     CHAOS MODE optimizer with random perturbations.
 
     Sometimes adds random noise to gradients for exploration!
+    
+    Note: Inherits is_fisher_aware property from DiagonalFisherOptimizer.
+    No additional implementation needed - the property is inherited automatically.
     """
 
     def __init__(
@@ -829,8 +832,6 @@ class ChaosOptimizer(DiagonalFisherOptimizer):
         super().__init__(params, lr=lr, **kwargs)
         self.chaos_rate = chaos_rate
         self.chaos_strength = chaos_strength
-    
-    # Inherits is_fisher_aware from DiagonalFisherOptimizer
 
     def step(self, closure=None):
         """

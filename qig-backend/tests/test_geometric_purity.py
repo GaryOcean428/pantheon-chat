@@ -99,8 +99,8 @@ ALLOWED_FILES = {
     'tests/',
     'examples/',
     'experimental/',
-    'baselines/',  # Euclidean optimizers OK for comparison studies
-    'legacy/',     # Old code (not in production)
+    'baselines/',  # Euclidean optimizers allowed for comparison studies.
+    'legacy/',     # Legacy code not in production.
     '__pycache__/',
 }
 
