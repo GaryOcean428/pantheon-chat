@@ -12,8 +12,6 @@ Created: 2026-01-20
 
 import logging
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime
-import json
 
 try:
     import psycopg2
@@ -26,7 +24,6 @@ except ImportError:
     DictCursor = None
 
 from pantheon_registry import (
-    PantheonRegistry,
     GodContract,
     get_registry,
 )

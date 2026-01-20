@@ -179,11 +179,21 @@ export class PantheonRegistryService {
   }
 
   /**
-   * Check if name is a valid chaos kernel
+   * Check if name is a valid chaos kernel (async - calls Python backend)
    */
-  public isValidChaosKernelName(name: string): boolean {
-    // Simple client-side validation (no backend call needed)
-    return /^chaos_[a-z_]+_\d+$/.test(name);
+  public async isValidChaosKernelName(name: string): Promise<boolean> {
+    try {
+      const response = await this.client.get(`/api/pantheon/spawner/validate/chaos/${name}`);
+      if (!response.data.success) {
+        return false;
+      }
+      return response.data.data.valid;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 400) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   /**

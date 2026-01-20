@@ -102,19 +102,15 @@ logger = logging.getLogger(__name__)
 
 # Import QIG geometry functions if available
 try:
-    from qig_geometry import fisher_coord_distance, fisher_normalize
+    from qig_geometry import fisher_rao_distance as fisher_coord_distance, fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     logger.debug("qig_geometry not available - using fallback distance")
-
-    def fisher_coord_distance(a, b) -> float:
-        """
-        Fisher-Rao distance for probability simplex (fallback).
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        """
-        dot = np.clip(np.dot(a, b), 0.0, 1.0)
-        return float(np.arccos(dot))
+    
+    # Import canonical fisher_rao_distance from qig_geometry for fallback
+    from qig_geometry import fisher_rao_distance
+    fisher_coord_distance = fisher_rao_distance
 
     def fisher_normalize(v):
         """Normalize to probability simplex."""

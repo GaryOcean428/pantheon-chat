@@ -11,22 +11,19 @@ Created: 2026-01-20
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Dict
 from flask import Blueprint, jsonify, request
 
 from pantheon_registry import (
     get_registry,
     get_god,
     find_gods_by_domain,
-    is_god_name,
-    is_chaos_kernel,
-    PantheonRegistry,
 )
 from kernel_spawner import (
     KernelSpawner,
     RoleSpec,
-    create_role_spec,
 )
+from pantheon_registry_helpers import god_to_dict, is_valid_chaos_kernel_name
 
 logger = logging.getLogger(__name__)
 
@@ -151,7 +148,7 @@ def get_all_gods():
         gods_dict = {}
         
         for name, god in registry.get_all_gods().items():
-            gods_dict[name] = _god_to_dict(god)
+            gods_dict[name] = god_to_dict(god)
         
         return jsonify({
             'success': True,
@@ -183,7 +180,7 @@ def get_god_by_name(name: str):
         
         return jsonify({
             'success': True,
-            'data': _god_to_dict(god)
+            'data': god_to_dict(god)
         })
     except Exception as e:
         logger.error(f"Error getting god {name}: {e}")
@@ -211,7 +208,7 @@ def get_gods_by_tier(tier: str):
         tier_enum = GodTier.ESSENTIAL if tier == 'essential' else GodTier.SPECIALIZED
         
         gods = registry.get_gods_by_tier(tier_enum)
-        gods_list = [_god_to_dict(god) for god in gods]
+        gods_list = [god_to_dict(god) for god in gods]
         
         return jsonify({
             'success': True,
@@ -234,7 +231,7 @@ def get_gods_by_domain(domain: str):
     """
     try:
         gods = find_gods_by_domain(domain)
-        gods_list = [{'name': god.name, 'contract': _god_to_dict(god)} for god in gods]
+        gods_list = [{'name': god.name, 'contract': god_to_dict(god)} for god in gods]
         
         return jsonify({
             'success': True,
@@ -445,6 +442,29 @@ def get_spawner_status():
         }), 500
 
 
+@pantheon_registry_api.route('/spawner/validate/chaos/<name>', methods=['GET'])
+def validate_chaos_kernel_name(name: str):
+    """
+    GET /api/pantheon/spawner/validate/chaos/<name>
+    Validate chaos kernel name format.
+    """
+    try:
+        is_valid = is_valid_chaos_kernel_name(name)
+        return jsonify({
+            'success': True,
+            'data': {
+                'valid': is_valid,
+                'name': name
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error validating chaos kernel name {name}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # =============================================================================
 # HEALTH CHECK
 # =============================================================================
@@ -479,42 +499,6 @@ def health_check():
                 'status': 'unhealthy'
             }
         }), 500
-
-
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
-
-def _god_to_dict(god) -> Dict:
-    """Convert GodContract to dict for JSON serialization."""
-    return {
-        'name': god.name,
-        'tier': god.tier.value,
-        'domain': god.domain,
-        'description': god.description,
-        'octant': god.octant,
-        'epithets': god.epithets,
-        'coupling_affinity': god.coupling_affinity,
-        'rest_policy': {
-            'type': god.rest_policy.type.value,
-            'reason': god.rest_policy.reason,
-            'partner': god.rest_policy.partner,
-            'duty_cycle': god.rest_policy.duty_cycle,
-            'rest_duration': god.rest_policy.rest_duration,
-            'active_season': god.rest_policy.active_season,
-            'rest_season': god.rest_policy.rest_season,
-        },
-        'spawn_constraints': {
-            'max_instances': god.spawn_constraints.max_instances,
-            'when_allowed': god.spawn_constraints.when_allowed,
-            'rationale': god.spawn_constraints.rationale,
-        },
-        'promotion_from': god.promotion_from,
-        'e8_alignment': {
-            'simple_root': god.e8_alignment.simple_root,
-            'layer': god.e8_alignment.layer,
-        },
-    }
 
 
 # =============================================================================
