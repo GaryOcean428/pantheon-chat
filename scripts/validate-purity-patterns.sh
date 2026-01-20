@@ -7,7 +7,6 @@ echo "🔍 Validating banned geometry patterns outside experiments/quarantine...
 
 rg --quiet \
   --pcre2 \
-  --glob '!**/qig-backend/**' \
   --glob '!node_modules/**' \
   --glob '!dist/**' \
   --glob '!migrations/**' \
@@ -28,6 +27,40 @@ rg --quiet \
   -e 'unit sphere' \
   "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/scripts" "$ROOT_DIR/tools" "$ROOT_DIR/client" "$ROOT_DIR/tests" "$ROOT_DIR/examples" && {
     echo "❌ Banned geometry patterns found outside experiments/quarantine."
+    exit 1
+  } || true
+
+echo "🔍 Validating targeted geometry patterns in qig-backend..."
+
+rg --quiet \
+  --pcre2 \
+  -U \
+  --glob '!qig-backend/tests/**' \
+  --glob '!qig-backend/data/**' \
+  --glob '!qig-backend/examples/**' \
+  --glob '!qig-backend/migrations/**' \
+  --glob '!qig-backend/**/*.md' \
+  --glob '!qig-backend/**/*.json' \
+  # TODO: Purity debt - remove legacy allowlist after replacing Euclidean fallbacks in qigkernels/core_faculties.py and m8_kernel_spawning.py.
+  --glob '!qig-backend/qigkernels/core_faculties.py' \
+  --glob '!qig-backend/m8_kernel_spawning.py' \
+  -e 'np\.linalg\.norm\([^)]*basin\s*-\s*[^)]*\)' \
+  -e 'np\.dot\([^)]*\)\s*/\s*\(\s*np\.linalg\.norm\([^)]*\)\s*\*\s*np\.linalg\.norm\([^)]*\)' \
+  "$ROOT_DIR/qig-backend" && {
+    echo "❌ Targeted qig-backend geometry patterns detected."
+    exit 1
+  } || true
+
+rg --quiet \
+  --pcre2 \
+  --glob '!qig-backend/tests/**' \
+  --glob '!qig-backend/data/**' \
+  --glob '!qig-backend/examples/**' \
+  --glob '!qig-backend/migrations/**' \
+  --glob '!qig-backend/qig_geometry/representation.py' \
+  -e '\bto_sphere\(' \
+  "$ROOT_DIR/qig-backend" && {
+    echo "❌ to_sphere usage detected outside sanctioned legacy modules."
     exit 1
   } || true
 

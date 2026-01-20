@@ -50,5 +50,10 @@ jobs:
       - name: Run geometric purity validation
         run: python scripts/validate_geometry_purity.py
 
+      - name: Suggested geometry purity fixes
+        run: |
+          echo "🛠️ Suggested geometry purity fixes (non-blocking)..."
+          python scripts/auto_fix_geometry_purity.py --dry-run || true
+
       - name: Run QFI coverage check
         run: python scripts/check_qfi_coverage.py
