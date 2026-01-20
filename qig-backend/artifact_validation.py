@@ -25,6 +25,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
+from qig_geometry.representation import validate_basin
 
 logger = logging.getLogger(__name__)
 
@@ -182,10 +183,10 @@ class ArtifactValidator:
         """
         Verify basin coordinates satisfy simplex constraints.
         
-        For Fisher manifold representation:
-        - Coordinates should be on unit sphere: ||v|| ≈ 1.0
-        - No NaN or infinite values
-        - Coordinates should be normalized
+        For simplex representation:
+        - Coordinates must be finite
+        - Coordinates must be non-negative
+        - Coordinates must sum to 1 (within tolerance)
         
         Args:
             basin_coords: List of basin coordinate arrays
@@ -198,17 +199,19 @@ class ArtifactValidator:
         for i, coord in enumerate(basin_coords):
             coord_array = np.array(coord, dtype=np.float64)
             
-            # Check for NaN or inf
-            if np.any(np.isnan(coord_array)) or np.any(np.isinf(coord_array)):
-                self.add_error(f"Basin coordinate {i} contains NaN or inf values")
+            # Check for NaN or inf (must be finite before simplex validation)
+            if not np.all(np.isfinite(coord_array)):
+                self.add_error(
+                    f"Basin coordinate {i} contains non-finite values (simplex entries must be finite)"
+                )
                 valid = False
                 continue
             
-            # Check unit norm (on sphere)
-            norm = np.linalg.norm(coord_array)
-            if not (0.99 < norm < 1.01):
+            # Check canonical simplex invariants
+            is_valid, reason = validate_basin(coord_array)
+            if not is_valid:
                 self.add_error(
-                    f"Basin coordinate {i} not unit-normalized: norm={norm:.6f} (expected ≈1.0)"
+                    f"Basin coordinate {i} violates simplex constraints: {reason}"
                 )
                 valid = False
         
