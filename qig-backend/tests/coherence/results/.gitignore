@@ -1,0 +1,6 @@
+# Ignore test results (can be regenerated)
+*.json
+*.html
+
+# Allow baseline results if explicitly tracked
+!baseline_*.json

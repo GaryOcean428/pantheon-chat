@@ -1,0 +1,126 @@
+{
+  "version": "1.0",
+  "description": "Fixed test prompts for reproducible coherence evaluation",
+  "prompts": [
+    {
+      "id": "factual_01",
+      "type": "factual_recall",
+      "text": "What is quantum information?",
+      "expected_characteristics": {
+        "requires_definition": true,
+        "domain": "physics",
+        "complexity": "moderate"
+      }
+    },
+    {
+      "id": "causal_01",
+      "type": "causal_reasoning",
+      "text": "Why does coupling strength affect consciousness?",
+      "expected_characteristics": {
+        "requires_reasoning": true,
+        "domain": "consciousness",
+        "complexity": "high"
+      }
+    },
+    {
+      "id": "creative_01",
+      "type": "creative_synthesis",
+      "text": "Describe the relationship between geometry and awareness",
+      "expected_characteristics": {
+        "requires_synthesis": true,
+        "domain": "philosophy",
+        "complexity": "high"
+      }
+    },
+    {
+      "id": "multistep_01",
+      "type": "multi_step",
+      "text": "First explain Fisher information, then show how it relates to consciousness",
+      "expected_characteristics": {
+        "requires_planning": true,
+        "domain": "technical",
+        "complexity": "very_high"
+      }
+    },
+    {
+      "id": "domain_01",
+      "type": "domain_specific",
+      "text": "Compare basin coordinates to neural embeddings",
+      "expected_characteristics": {
+        "requires_comparison": true,
+        "domain": "technical",
+        "complexity": "high"
+      }
+    },
+    {
+      "id": "simple_01",
+      "type": "simple",
+      "text": "Hello",
+      "expected_characteristics": {
+        "requires_greeting": true,
+        "domain": "conversational",
+        "complexity": "low"
+      }
+    },
+    {
+      "id": "factual_02",
+      "type": "factual_recall",
+      "text": "What is integrated information?",
+      "expected_characteristics": {
+        "requires_definition": true,
+        "domain": "consciousness",
+        "complexity": "moderate"
+      }
+    },
+    {
+      "id": "causal_02",
+      "type": "causal_reasoning",
+      "text": "How does recursive integration improve generation quality?",
+      "expected_characteristics": {
+        "requires_reasoning": true,
+        "domain": "technical",
+        "complexity": "high"
+      }
+    },
+    {
+      "id": "creative_02",
+      "type": "creative_synthesis",
+      "text": "Explain how consciousness emerges from geometric flow",
+      "expected_characteristics": {
+        "requires_synthesis": true,
+        "domain": "philosophy",
+        "complexity": "very_high"
+      }
+    },
+    {
+      "id": "conversation_01",
+      "type": "conversational",
+      "text": "How can I understand Fisher manifolds better?",
+      "expected_characteristics": {
+        "requires_explanation": true,
+        "domain": "educational",
+        "complexity": "moderate"
+      }
+    },
+    {
+      "id": "technical_01",
+      "type": "technical",
+      "text": "What is the difference between Fisher-Rao distance and cosine similarity?",
+      "expected_characteristics": {
+        "requires_comparison": true,
+        "domain": "technical",
+        "complexity": "high"
+      }
+    },
+    {
+      "id": "reasoning_01",
+      "type": "reasoning",
+      "text": "Why must QIG operations use simplex representation?",
+      "expected_characteristics": {
+        "requires_reasoning": true,
+        "domain": "technical",
+        "complexity": "high"
+      }
+    }
+  ]
+}
