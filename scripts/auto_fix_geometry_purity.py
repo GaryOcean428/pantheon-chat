@@ -29,21 +29,32 @@ EXCLUDED_DIRS = {
 }
 
 
+# Issue #8: Expanded patterns to allow spaces and nested expressions
 NORM_DISTANCE_RE = re.compile(
-    r"np\.linalg\.norm\(\s*(?P<a>[A-Za-z0-9_\.\[\]()]+)\s*-\s*(?P<b>[A-Za-z0-9_\.\[\]()]+)\s*\)"
+    r"np\.linalg\.norm\(\s*(?P<a>[\w\.\[\]\(\)\s]+)\s*-\s*(?P<b>[\w\.\[\]\(\)\s]+)\s*\)"
 )
 
+# Issue #3: Fixed to properly capture epsilon terms within denominator parentheses
 DOT_SIMILARITY_RE = re.compile(
-    r"np\.dot\(\s*(?P<a>[A-Za-z0-9_\.\[\]()]+)\s*,\s*(?P<b>[A-Za-z0-9_\.\[\]()]+)\s*\)"
+    r"np\.dot\(\s*(?P<a>[\w\.\[\]\(\)\s]+)\s*,\s*(?P<b>[\w\.\[\]\(\)\s]+)\s*\)"
     r"\s*/\s*\(\s*np\.linalg\.norm\(\s*(?P=a)\s*\)\s*\*\s*np\.linalg\.norm\(\s*(?P=b)\s*\)"
-    r"(?:\s*\+\s*[^)]+)?\)"
+    r"(?:\s*\+\s*[^)]+)?\s*\)"
 )
 
+# Issue #9: Restrict to basin-named variables to reduce false positives
 GEODESIC_INTERPOLATION_RE = re.compile(
-    r"(?P<a>[A-Za-z0-9_\.\[\]()]+)\s*\*\s*\(1\s*-\s*(?P<t>[A-Za-z0-9_]+)\)\s*\+\s*(?P<b>[A-Za-z0-9_\.\[\]()]+)\s*\*\s*(?P=t)"
+    r"(?P<a>[A-Za-z0-9_\.\[\]()]*basin[A-Za-z0-9_\.\[\]()]*)\s*\*\s*\(1\s*-\s*(?P<t>[A-Za-z0-9_]+)\)\s*\+\s*"
+    r"(?P<b>[A-Za-z0-9_\.\[\]()]*basin[A-Za-z0-9_\.\[\]()]*)\s*\*\s*(?P=t)"
 )
 
-TO_SPHERE_CALL_RE = re.compile(r"(?<!def\s)(?<!class\s)\bto_sphere\((?P<args>[^)]*)\)")
+# Issue #10: Improved detection to exclude function definitions, imports, and comments
+TO_SPHERE_CALL_RE = re.compile(
+    r"(?m)"
+    r"^(?![ \t]*(?:def|async\s+def|class)\s)"  # skip function/class definitions
+    r"(?![ \t]*from\s+[A-Za-z0-9_\.]+\s+import\b.*\bto_sphere\b)"  # skip imports of to_sphere
+    r"(?![ \t]*#)"  # skip full-line comments
+    r".*\bto_sphere\((?P<args>[^)]*)\)"
+)
 
 
 def iter_python_files(paths: Iterable[Path]) -> Iterable[Path]:
@@ -58,29 +69,121 @@ def iter_python_files(paths: Iterable[Path]) -> Iterable[Path]:
 
 
 def ensure_imports(content: str, required: set[str]) -> str:
+    """Inject required imports into content, handling multiple existing imports.
+    
+    Issue #1: Consolidates multiple 'from qig_geometry import' statements.
+    Issue #4: Robust insertion after shebang/docstring, before first statement.
+    """
     if not required:
         return content
 
-    import_line_re = re.compile(r"^from qig_geometry import (?P<names>.+)$", re.MULTILINE)
-    match = import_line_re.search(content)
+    # Check for imports from qig_geometry (including submodules)
+    # Use DOTALL to handle multi-line imports with parentheses
+    import_line_re = re.compile(
+        r"^from qig_geometry(?:\.[A-Za-z0-9_\.]+)? import ([^;]+?)(?=\n(?:from|import|class|def|@|$))",
+        re.MULTILINE | re.DOTALL
+    )
+    matches = list(import_line_re.finditer(content))
 
-    if match:
-        existing = {name.strip() for name in match.group("names").split(",") if name.strip()}
-        combined = sorted(existing | required)
-        new_line = f"from qig_geometry import {', '.join(combined)}"
-        return content[: match.start()] + new_line + content[match.end() :]
+    if matches:
+        # Check what's already imported (from any qig_geometry submodule)
+        existing: set[str] = set()
+        for m in matches:
+            names_part = m.group(1)
+            # Remove parentheses and split by comma
+            names_part = names_part.replace("(", "").replace(")", "").replace("\n", " ")
+            for name in names_part.split(","):
+                name = name.strip()
+                if name and not name.startswith("#"):  # Ignore comments
+                    existing.add(name)
+        
+        # Only add imports that aren't already available
+        still_needed = required - existing
+        if not still_needed:
+            return content
+        
+        # Find direct 'from qig_geometry import' line to extend (not from submodule)
+        direct_import_re = re.compile(
+            r"^from qig_geometry import ([^;]+?)(?=\n(?:from|import|class|def|@|$))",
+            re.MULTILINE | re.DOTALL
+        )
+        direct_match = direct_import_re.search(content)
+        
+        if direct_match:
+            # Extend existing direct import
+            names_part = direct_match.group(1).replace("(", "").replace(")", "").replace("\n", " ")
+            direct_existing = {name.strip() for name in names_part.split(",") if name.strip()}
+            combined = sorted(direct_existing | still_needed)
+            new_line = f"from qig_geometry import {', '.join(combined)}"
+            return content[: direct_match.start()] + new_line + content[direct_match.end() :]
+        
+        # No direct import exists, but submodule imports exist - skip adding import
+        # since the symbols are already available from submodules
+        return content
 
-    lines = content.splitlines()
-    insert_idx = 0
-    for idx, line in enumerate(lines):
-        if line.startswith("import ") or line.startswith("from "):
-            insert_idx = idx + 1
-    new_line = f"from qig_geometry import {', '.join(sorted(required))}"
+    # No existing qig_geometry import - insert robustly
+    lines = content.splitlines(keepends=True)
+    idx = 0
+    n_lines = len(lines)
+
+    # Skip shebang if present
+    if idx < n_lines and lines[idx].startswith("#!"):
+        idx += 1
+
+    # Skip leading blank lines
+    while idx < n_lines and not lines[idx].strip():
+        idx += 1
+
+    # Skip module-level docstring if present
+    if idx < n_lines:
+        stripped = lines[idx].lstrip()
+        if stripped.startswith('"""') or stripped.startswith("'''"):
+            quote = stripped[:3]
+            # Single-line docstring
+            if stripped.count(quote) >= 2:
+                idx += 1
+            else:
+                # Multi-line docstring
+                idx += 1
+                while idx < n_lines and quote not in lines[idx]:
+                    idx += 1
+                if idx < n_lines:
+                    idx += 1
+
+    # Skip blank lines and comments after docstring
+    while idx < n_lines and (not lines[idx].strip() or lines[idx].lstrip().startswith("#")):
+        idx += 1
+
+    # Find end of first top-level import block
+    insert_idx = idx
+    last_import_idx: int | None = None
+    scan_idx = idx
+    while scan_idx < n_lines:
+        stripped = lines[scan_idx].lstrip()
+        if stripped.startswith("import ") or stripped.startswith("from "):
+            last_import_idx = scan_idx
+            scan_idx += 1
+            continue
+        if not stripped or stripped.startswith("#"):
+            scan_idx += 1
+            continue
+        break
+
+    if last_import_idx is not None:
+        insert_idx = last_import_idx + 1
+
+    new_line = f"from qig_geometry import {', '.join(sorted(required))}\n"
     lines.insert(insert_idx, new_line)
-    return "\n".join(lines)
+    return "".join(lines)
 
 
 def apply_replacements(content: str) -> tuple[str, set[str]]:
+    """Apply geometry purity replacements.
+    
+    NOTE: This tool is conservative and may not catch all cases.
+    Replacements in comments/docstrings are intentional - they serve as
+    examples that should also follow purity guidelines.
+    """
     required_imports: set[str] = set()
 
     def replace_norm(match: re.Match[str]) -> str:
@@ -101,15 +204,18 @@ def apply_replacements(content: str) -> tuple[str, set[str]]:
 
     content = GEODESIC_INTERPOLATION_RE.sub(replace_geodesic, content)
 
-    def replace_to_sphere(match: re.Match[str]) -> str:
-        args = match.group("args")
-        required_imports.add("to_simplex")
-        if "from_repr" not in args:
-            required_imports.add("BasinRepresentation")
-            args = f"{args}, from_repr=BasinRepresentation.SPHERE" if args.strip() else "from_repr=BasinRepresentation.SPHERE"
-        return f"to_simplex({args})"
-
-    content = TO_SPHERE_CALL_RE.sub(replace_to_sphere, content)
+    # NOTE: to_sphere replacement is commented out due to geometric ambiguity.
+    # Issue #2: to_sphere() converts TO sphere representation (output is sphere),
+    # while to_simplex(x, from_repr=SPHERE) converts FROM sphere TO simplex.
+    # These are inverse operations, so we cannot safely auto-replace without
+    # understanding the caller's intent. Manual review required for to_sphere calls.
+    #
+    # Uncomment only if you add logic to determine the basin's current representation:
+    # def replace_to_sphere(match: re.Match[str]) -> str:
+    #     args = match.group("args")
+    #     required_imports.add("to_simplex")
+    #     return f"to_simplex({args})"
+    # content = TO_SPHERE_CALL_RE.sub(replace_to_sphere, content)
 
     return content, required_imports
 

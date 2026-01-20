@@ -32,6 +32,7 @@ rg --quiet \
 
 echo "🔍 Validating targeted geometry patterns in qig-backend..."
 
+# TODO: Purity debt - remove legacy allowlist after replacing Euclidean fallbacks in qigkernels/core_faculties.py and m8_kernel_spawning.py.
 rg --quiet \
   --pcre2 \
   -U \
@@ -41,10 +42,9 @@ rg --quiet \
   --glob '!qig-backend/migrations/**' \
   --glob '!qig-backend/**/*.md' \
   --glob '!qig-backend/**/*.json' \
-  # TODO: Purity debt - remove legacy allowlist after replacing Euclidean fallbacks in qigkernels/core_faculties.py and m8_kernel_spawning.py.
   --glob '!qig-backend/qigkernels/core_faculties.py' \
   --glob '!qig-backend/m8_kernel_spawning.py' \
-  -e 'np\.linalg\.norm\([^)]*basin\s*-\s*[^)]*\)' \
+  -e 'np\.linalg\.norm\([^)]*-\s*[^)]*\)' \
   -e 'np\.dot\([^)]*\)\s*/\s*\(\s*np\.linalg\.norm\([^)]*\)\s*\*\s*np\.linalg\.norm\([^)]*\)' \
   "$ROOT_DIR/qig-backend" && {
     echo "❌ Targeted qig-backend geometry patterns detected."
