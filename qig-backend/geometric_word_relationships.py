@@ -42,10 +42,10 @@ except ImportError:
     def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
         """
         Fisher-Rao distance (fallback).
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
         """
-        dot = np.clip(np.dot(a, b), 0.0, 1.0)
-        return float(np.arccos(dot))
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+        return fisher_rao_distance(a, b)
 
     def fisher_normalize(v):
         """Normalize to probability simplex."""

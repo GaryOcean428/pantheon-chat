@@ -65,14 +65,11 @@ except ImportError:
         Fisher-Rao geodesic distance on probability simplex.
         UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
+        # FIXED: Use canonical Fisher-Rao distance (E8 Protocol v4.0)
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
         a_arr = np.array(a, dtype=np.float64)
         b_arr = np.array(b, dtype=np.float64)
-        # Normalize to probability simplex
-        a_norm = a_arr / (np.linalg.norm(a_arr) + 1e-10)
-        b_norm = b_arr / (np.linalg.norm(b_arr) + 1e-10)
-        # Fisher-Rao geodesic distance on simplex
-        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-        return float(np.arccos(dot))
+        return fisher_rao_distance(a_arr, b_arr)
     def _normalize_to_manifold(basin):
         # Use fisher_normalize from module-level import
         from qig_geometry import fisher_normalize

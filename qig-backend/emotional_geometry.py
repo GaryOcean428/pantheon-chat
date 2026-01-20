@@ -237,13 +237,8 @@ def measure_basin_approach(
     try:
         from qig_geometry import fisher_coord_distance
     except ImportError:
-        # Fallback: angular distance on probability simplex
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-            a_norm = a / (np.linalg.norm(a) + 1e-10)
-            b_norm = b / (np.linalg.norm(b) + 1e-10)
-            dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-            return float(np.arccos(dot))
+        # FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as fisher_coord_distance
     
     d_current = fisher_coord_distance(current, attractor)
     d_prev = fisher_coord_distance(prev, attractor)
@@ -270,12 +265,8 @@ def compute_surprise_magnitude(trajectory: List[np.ndarray]) -> float:
     try:
         from qig_geometry import fisher_coord_distance
     except ImportError:
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-            a_norm = a / (np.linalg.norm(a) + 1e-10)
-            b_norm = b / (np.linalg.norm(b) + 1e-10)
-            dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-            return float(np.arccos(dot))
+        # FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as fisher_coord_distance
     
     # Compute curvatures along trajectory
     curvatures = [compute_ricci_curvature(pt) for pt in trajectory]
@@ -351,12 +342,8 @@ class EmotionTracker:
         try:
             from qig_geometry import fisher_coord_distance
         except ImportError:
-            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-                a_norm = a / (np.linalg.norm(a) + 1e-10)
-                b_norm = b / (np.linalg.norm(b) + 1e-10)
-                dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-                return float(np.arccos(dot))
+            # FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
+            from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as fisher_coord_distance
         
         if attractor is not None:
             basin_distance = fisher_coord_distance(current_basin, attractor)
