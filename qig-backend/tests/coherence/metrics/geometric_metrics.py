@@ -33,6 +33,21 @@ try:
 except ImportError:
     logger.warning("qig_core not available - using fallback implementations")
     PHI_AVAILABLE = False
+    
+    # Fallback QFI matrix computation
+    def compute_qfi_matrix(basin_coords: np.ndarray) -> np.ndarray:
+        """Fallback QFI matrix computation."""
+        p = np.abs(basin_coords) ** 2 + 1e-10
+        p = p / p.sum()
+        n = len(basin_coords)
+        qfi = np.zeros((n, n))
+        for i in range(n):
+            if p[i] > 1e-10:
+                qfi[i, i] = 1.0 / p[i]
+            else:
+                qfi[i, i] = 1.0 / 1e-10
+        qfi += 1e-8 * np.eye(n)
+        return qfi
 
 
 @dataclass
