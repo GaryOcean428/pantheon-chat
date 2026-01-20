@@ -187,12 +187,11 @@ class StateEncoder:
         
         current = np.array(basin_coords)
         # Compute drift using Fisher-Rao distance (NOT Euclidean!)
-        curr_norm = current / (np.linalg.norm(current) + 1e-10)
-        ref_norm = fisher_normalize(self._identity_basin)
-        dot = np.clip(np.dot(curr_norm, ref_norm), 0.0, 1.0)
         # Fisher-Rao geodesic distance on probability simplex
         # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        drift = float(np.arccos(dot))
+        curr_norm = fisher_normalize(current)
+        ref_norm = fisher_normalize(self._identity_basin)
+        drift = fisher_rao_distance(curr_norm, ref_norm)
         # Normalize drift to [0,1] range using max Fisher distance (π/2 for simplex)
         return max(0.0, 1.0 - drift / (np.pi / 2.0))
     
