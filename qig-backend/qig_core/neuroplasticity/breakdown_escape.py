@@ -26,6 +26,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from qig_geometry import (
+    BasinRepresentation,
+    fisher_rao_distance,
+    geodesic_interpolation,
+    to_simplex,
+)
 from qigkernels.physics_constants import (
     KAPPA_STAR,
     PHI_THRESHOLD,
@@ -288,7 +294,7 @@ class BreakdownEscape:
         """
         Compute geodesic (Fisher-Rao) distance between points.
         
-        For unit vectors with Hellinger embedding: d = 2 * arccos(a · b)
+        PURE: Use canonical Fisher-Rao distance on simplex.
         
         Args:
             a: First point
@@ -296,12 +302,10 @@ class BreakdownEscape:
         
         Returns:
             Geodesic distance
-            UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
-        a_norm = a / (np.linalg.norm(a) + 1e-10)
-        b_norm = b / (np.linalg.norm(b) + 1e-10)
-        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-        return float(np.arccos(dot))
+        a_simplex = to_simplex(a, from_repr=BasinRepresentation.SIMPLEX, strict=True)
+        b_simplex = to_simplex(b, from_repr=BasinRepresentation.SIMPLEX, strict=True)
+        return fisher_rao_distance(a_simplex, b_simplex)
     
     def _navigate_geodesic(
         self,
@@ -320,37 +324,24 @@ class BreakdownEscape:
         Returns:
             Tuple of (final_coordinates, steps_taken)
         """
-        start_norm = start / (np.linalg.norm(start) + 1e-10)
-        end_norm = end / (np.linalg.norm(end) + 1e-10)
-        
-        dot = np.clip(np.dot(start_norm, end_norm), -1.0, 1.0)
-        omega = np.arccos(dot)
-        
-        if omega < 1e-6:
-            return start, 0
-        
-        current = start_norm
+        start_simplex = to_simplex(start, from_repr=BasinRepresentation.SIMPLEX, strict=True)
+        end_simplex = to_simplex(end, from_repr=BasinRepresentation.SIMPLEX, strict=True)
+
+        if self._geodesic_distance(start_simplex, end_simplex) < 1e-6:
+            return start_simplex, 0
+
+        current = start_simplex
         steps = 0
         
         for step in range(self.max_escape_steps):
             t = min(1.0, (step + 1) * self.escape_step_size)
-            
-            sin_omega = np.sin(omega)
-            if sin_omega < 1e-10:
-                current = end_norm
-                break
-            
-            current = (np.sin((1 - t) * omega) / sin_omega) * start_norm + \
-                     (np.sin(t * omega) / sin_omega) * end_norm
-            current = current / (np.linalg.norm(current) + 1e-10)
-            
+            current = geodesic_interpolation(start_simplex, end_simplex, t)
             steps = step + 1
             
             if t >= 1.0:
                 break
         
-        original_norm = np.linalg.norm(start)
-        return current * original_norm, steps
+        return current, steps
     
     def _create_emergency_basin(self, state: SystemState) -> SafeBasin:
         """
