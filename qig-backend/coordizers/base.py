@@ -394,6 +394,38 @@ class FisherCoordizer(BaseCoordizer):
         """POS filtering not supported in base FisherCoordizer."""
         return False
     
+    def encode(self, text: str) -> np.ndarray:
+        """
+        Encode text to basin coordinates.
+        
+        For single-token text, returns the token's basin coordinate.
+        For multi-token text, returns mean of token coordinates (centroid).
+        
+        Args:
+            text: Input text string
+        
+        Returns:
+            64D basin coordinates (simplex representation)
+        """
+        # Simple whitespace tokenization
+        tokens = text.lower().split()
+        
+        if not tokens:
+            # Empty text - return UNK coordinate
+            return self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim)
+        
+        # Get coordinates for all tokens
+        coordinates = []
+        for token in tokens:
+            if token in self.basin_coords:
+                coordinates.append(self.basin_coords[token])
+            else:
+                # Unknown token - use UNK coordinate
+                coordinates.append(self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim))
+        
+        # Return mean coordinate (centroid in simplex space)
+        return np.mean(coordinates, axis=0)
+    
     # =====================================================================
     # Legacy Methods (maintained for backward compatibility)
     # =====================================================================
