@@ -17,6 +17,16 @@ from typing import Dict, List, Optional
 import numpy as np
 import logging
 
+# Import canonical Fisher-Rao operations (E8 Protocol v4.0)
+try:
+    from qig_geometry.canonical_upsert import to_simplex_prob
+except ImportError:
+    # Fallback: simplex normalization
+    def to_simplex_prob(basin: np.ndarray) -> np.ndarray:
+        """Normalize basin to probability simplex (sum=1, non-negative)."""
+        basin = np.maximum(basin, 0) + 1e-10
+        return basin / basin.sum()
+
 logger = logging.getLogger(__name__)
 
 # Import unified coordizer access
@@ -122,10 +132,13 @@ def encode_text():
             return jsonify({'error': 'Coordizer not initialized'}), 503
 
         basin = coordizer.encode(text)
+        
+        # FIXED: Use simplex normalization, not Euclidean norm (E8 Protocol v4.0)
+        basin_simplex = to_simplex_prob(basin)
 
         return jsonify({
-            'basin': basin.tolist(),
-            'norm': float(np.linalg.norm(basin)),
+            'basin': basin_simplex.tolist(),
+            'simplex_sum': float(basin_simplex.sum()),  # Should be 1.0
         })
 
     except Exception as e:
