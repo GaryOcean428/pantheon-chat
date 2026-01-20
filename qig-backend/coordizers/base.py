@@ -405,7 +405,7 @@ class FisherCoordizer(BaseCoordizer):
             text: Input text string
         
         Returns:
-            64D basin coordinates (simplex representation)
+            64D basin coordinates (simplex representation, normalized to unit norm)
         """
         # Simple whitespace tokenization
         tokens = text.lower().split()
@@ -424,7 +424,14 @@ class FisherCoordizer(BaseCoordizer):
                 coordinates.append(self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim))
         
         # Return mean coordinate (centroid in simplex space)
-        return np.mean(coordinates, axis=0)
+        result = np.mean(coordinates, axis=0)
+        
+        # Normalize to unit norm for compatibility with geometric operations
+        norm = np.linalg.norm(result)
+        if norm > 1e-10:
+            result = result / norm
+        
+        return result
     
     # =====================================================================
     # Legacy Methods (maintained for backward compatibility)
