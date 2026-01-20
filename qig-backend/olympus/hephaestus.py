@@ -11,6 +11,24 @@ from datetime import datetime
 from .base_god import BaseGod, KAPPA_STAR, BASIN_DIMENSION
 import random
 
+# Import proper Fisher-Rao distance (E8 Protocol v4.0 compliance)
+try:
+    from qig_geometry import fisher_rao_distance
+except ImportError:
+    try:
+        from ..qig_geometry import fisher_rao_distance
+    except ImportError:
+        # Fallback: use canonical implementation
+        def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
+            """Fisher-Rao distance on probability simplex."""
+            p = np.maximum(p, 0) + 1e-10
+            p = p / p.sum()
+            q = np.maximum(q, 0) + 1e-10
+            q = q / q.sum()
+            bc = np.sum(np.sqrt(p * q))
+            bc = np.clip(bc, 0.0, 1.0)
+            return float(np.arccos(bc))
+
 
 class Hephaestus(BaseGod):
     """
@@ -186,11 +204,9 @@ class Hephaestus(BaseGod):
         word_scores = []
         for word, weight in self.vocabulary.items():
             word_basin = self.encode_to_basin(word)
-            # Fisher-Rao distance: d = arccos(p·q) for probability distributions
-            dot_product = float(np.dot(target_basin, word_basin))
-            dot_product = np.clip(dot_product, 0.0, 1.0)
-            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            fisher_distance = np.arccos(dot_product)
+            # FIXED: Use proper Fisher-Rao distance (E8 Protocol v4.0)
+            # NO dot product - use geometric distance on probability simplex
+            fisher_distance = fisher_rao_distance(target_basin, word_basin)
             # Convert to similarity: s = 1 - d/(π/2) (range [0,1])
             similarity = 1.0 - fisher_distance / (np.pi / 2.0)
             phi = self.word_phi_scores.get(word, 0.3)
