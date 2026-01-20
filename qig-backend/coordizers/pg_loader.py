@@ -513,6 +513,7 @@ class PostgresCoordizer(FisherCoordizer):
             basin = geodesic_interpolation(basin, coords_list[i], t)
             cumulative_weight += weights[i]
 
+        # NOTE: L2 normalization after geodesic interpolation to maintain unit sphere
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
@@ -537,6 +538,7 @@ class PostgresCoordizer(FisherCoordizer):
             top_k: Number of top candidates to return
             god_name: Optional god name for domain-weighted generation
         """
+        # NOTE: L2 normalization preprocessing before Fisher-Rao distance computation
         norm = np.linalg.norm(basin)
         if norm > 1e-10:
             basin = basin / norm
@@ -639,7 +641,7 @@ class PostgresCoordizer(FisherCoordizer):
         Returns:
             List of (word, fisher_rao_distance) tuples, sorted by distance ascending
         """
-        # Normalize basin
+        # NOTE: L2 normalization preprocessing before Fisher-Rao distance computation
         norm = np.linalg.norm(target_basin)
         if norm > 1e-10:
             target_basin = target_basin / norm

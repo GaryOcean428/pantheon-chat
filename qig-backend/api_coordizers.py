@@ -123,6 +123,7 @@ def encode_text():
 
         basin = coordizer.encode(text)
 
+        # NOTE: Basin norm returned as metadata for debugging/monitoring (not used for distance)
         return jsonify({
             'basin': basin.tolist(),
             'norm': float(np.linalg.norm(basin)),

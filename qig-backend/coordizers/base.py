@@ -323,7 +323,8 @@ class FisherCoordizer(BaseCoordizer):
         Returns:
             List of (word, fisher_rao_distance) tuples
         """
-        # Normalize basin
+        # NOTE: L2 normalization preprocessing before Fisher-Rao distance computation
+        # Ensures basin is on unit sphere for geometric operations
         norm = np.linalg.norm(target_basin)
         if norm > 1e-10:
             target_basin = target_basin / norm

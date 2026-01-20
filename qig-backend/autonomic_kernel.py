@@ -2312,6 +2312,7 @@ class GaryAutonomicKernel:
             manifold = None
         
         basin_entropy = -np.sum(np.abs(current_basin) * np.log(np.abs(current_basin) + 1e-8))
+        # NOTE: Basin norm used as heuristic factor for exploration probability (not distance)
         basin_norm = np.linalg.norm(current_basin)
         entropy_factor = min(1.0, basin_entropy / 50.0)
         norm_factor = min(1.0, basin_norm / 5.0)

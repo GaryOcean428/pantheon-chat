@@ -81,7 +81,8 @@ class QIGDocument:
         Uses outer product: rho = |psi><psi| where psi is the normalized basin.
         This preserves all 64 dimensions of geometric information.
         """
-        # Ensure basin is normalized (on unit sphere)
+        # NOTE: L2 normalization for quantum state preparation (not distance)
+        # Basin is converted to unit vector for outer product |psi><psi|
         norm = np.linalg.norm(basin)
         if norm < 1e-10:
             # Return maximally mixed state for zero basin

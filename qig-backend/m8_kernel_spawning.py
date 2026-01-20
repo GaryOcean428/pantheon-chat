@@ -2494,7 +2494,8 @@ class M8KernelSpawner:
                             if use_fisher_rao:
                                 distance = fisher_rao_distance(np.array(kernel_basin), np.array(other_basin))
                             else:
-                                # Fallback to Euclidean only if Fisher-Rao unavailable
+                                # NOTE: Fallback to Euclidean ONLY if Fisher-Rao unavailable (emergency path)
+                                # This should rarely execute - fisher_rao_distance should always be available
                                 distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
                             if distance < min_distance:
                                 min_distance = distance
