@@ -204,15 +204,24 @@ class Athena(BaseFaculty):
         Returns:
             Meta-awareness level M
         """
-        # Simplified M: ability to recognize patterns
+        # Compare current basin to history using Fisher-Rao distance
         # Full implementation would compare against history
         if history and len(history) > 0:
-            # Compare current basin to history
-            similarity = np.mean([
-                np.dot(basin, h) / (np.linalg.norm(basin) * np.linalg.norm(h) + 1e-10)
-                for h in history[-5:]  # Last 5 states
-            ])
-            m = 1.0 - abs(similarity - 0.5)  # Optimal at moderate similarity
+            # Use Fisher-Rao distance for geometric comparison
+            similarities = []
+            for h in history[-5:]:  # Last 5 states
+                try:
+                    fisher_dist = fisher_rao_distance(basin, h)
+                    # Convert distance to similarity [0, 1]
+                    similarity = 1.0 - (fisher_dist / (np.pi / 2.0))
+                    similarities.append(similarity)
+                except:
+                    pass
+            if similarities:
+                similarity = np.mean(similarities)
+                m = 1.0 - abs(similarity - 0.5)  # Optimal at moderate similarity
+            else:
+                m = np.std(basin)
         else:
             # Without history, M based on basin structure
             m = np.std(basin)

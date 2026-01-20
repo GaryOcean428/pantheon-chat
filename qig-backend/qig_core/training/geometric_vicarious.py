@@ -184,6 +184,8 @@ class GeometricVicarious:
         
         direction = target_basin - current_basin
         
+        # NOTE: This np.dot is for tangent space projection (computing normal component),
+        # NOT for distance measurement. This is geometrically correct for manifold operations.
         tangent = direction - np.dot(direction, current_basin) * current_basin
         
         norm = np.linalg.norm(tangent)

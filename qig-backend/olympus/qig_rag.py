@@ -28,6 +28,9 @@ from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 import json
 import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from qig_geometry import fisher_rao_distance
 from collections import defaultdict
 
 from .conversation_encoder import ConversationEncoder
@@ -342,16 +345,14 @@ class QIGRAG:
         except Exception as e:
             print(f"[QIG-RAG] Failed to persist pattern: {e}")
     
-    def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
+    def fisher_rao_distance_local(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Compute Fisher-Rao distance on probability simplex.
+        Uses canonical fisher_rao_distance from qig_geometry (E8 Protocol compliant).
         
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        d(p,q) = arccos(p·q)
+        Range: [0, π/2]
         """
-        dot = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
-        distance = float(np.arccos(dot))
-        return distance
+        return float(fisher_rao_distance(basin1, basin2))
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """
