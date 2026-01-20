@@ -35,6 +35,7 @@ SIMPLEX-AS-STORAGE CONTRACT (v4.0):
 import logging
 from typing import Dict, List, Optional, Tuple
 import numpy as np
+from qig_geometry.representation import BasinRepresentation, to_simplex
 
 logger = logging.getLogger(__name__)
 
