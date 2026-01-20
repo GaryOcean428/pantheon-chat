@@ -371,10 +371,11 @@ def verify_migration(conn, expected_count: int):
         top_phi = cur.fetchall()
         
         # Count real words vs byte tokens
+        # Migration 017 (2026-01-19): Count coordizer_vocabulary by source_type instead of learned_words
         cur.execute("""
             SELECT 
                 COUNT(*) FILTER (WHERE source_type = 'base') as base_words,
-                COUNT(*) FILTER (WHERE source_type = 'learned') as learned_words,
+                COUNT(*) FILTER (WHERE source_type = 'learned') as generation_words,
                 COUNT(*) FILTER (WHERE source_type = 'byte_level') as byte_tokens,
                 COUNT(*) FILTER (WHERE source_type = 'special') as special_tokens
             FROM coordizer_vocabulary
@@ -391,7 +392,7 @@ def verify_migration(conn, expected_count: int):
         logger.info(f"  {source}: {count}")
     logger.info(f"\nWord type breakdown:")
     logger.info(f"  Base words: {word_counts[0]}")
-    logger.info(f"  Learned words: {word_counts[1]}")
+    logger.info(f"  Generation words (learned): {word_counts[1]}")
     logger.info(f"  Byte tokens: {word_counts[2]}")
     logger.info(f"  Special tokens: {word_counts[3]}")
     logger.info(f"\nPhi score distribution:")

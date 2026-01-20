@@ -520,21 +520,34 @@ class VocabularyPersistence:
     
     def get_vocabulary_stats(self) -> Dict:
         if not self.enabled:
-            return {'total_words': 0, 'bip39_words': 0, 'learned_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
+            return {'total_words': 0, 'bip39_words': 0, 'generation_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
         try:
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT total_words, bip39_words, learned_words, high_phi_words, merge_rules, last_updated FROM vocabulary_stats ORDER BY last_updated DESC LIMIT 1")
+                    # Query coordizer_vocabulary directly for generation token count
+                    # Migration 017 (2026-01-19) deprecated learned_words - use coordizer_vocabulary instead
+                    cur.execute("""
+                        SELECT 
+                            (SELECT COUNT(*) FROM coordizer_vocabulary) as total_words,
+                            0 as bip39_words,
+                            (SELECT COUNT(*) FROM coordizer_vocabulary WHERE token_role IN ('generation', 'both')) as generation_words,
+                            (SELECT COUNT(*) FROM coordizer_vocabulary WHERE qfi_score >= 0.7) as high_phi_words,
+                            0 as merge_rules
+                    """)
                     row = cur.fetchone()
                     if row:
-                        return {'total_words': int(row[0]), 'bip39_words': int(row[1]), 'learned_words': int(row[2]), 'high_phi_words': int(row[3]), 'merge_rules': int(row[4]), 'last_updated': row[5].isoformat()}
+                        return {
+                            'total_words': int(row[0]), 
+                            'bip39_words': int(row[1]), 
+                            'generation_words': int(row[2]), 
+                            'high_phi_words': int(row[3]), 
+                            'merge_rules': int(row[4])
+                        }
                     else:
-                        cur.execute("SELECT update_vocabulary_stats()")
-                        conn.commit()
-                        return self.get_vocabulary_stats()
+                        return {'total_words': 0, 'bip39_words': 0, 'generation_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get stats: {e}")
-            return {'total_words': 0, 'bip39_words': 0, 'learned_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
+            return {'total_words': 0, 'bip39_words': 0, 'generation_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
     
     def learn_word(self, word: str, context: str = "") -> Dict:
         """
