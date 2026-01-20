@@ -394,6 +394,52 @@ class FisherCoordizer(BaseCoordizer):
         """POS filtering not supported in base FisherCoordizer."""
         return False
     
+    def encode(self, text: str) -> np.ndarray:
+        """
+        Encode text to basin coordinates.
+        
+        For single-token text, returns the token's basin coordinate.
+        For multi-token text, returns mean of token coordinates (centroid).
+        
+        Args:
+            text: Input text string
+        
+        Returns:
+            64D basin coordinates (simplex representation: sum=1, non-negative)
+        """
+        # Import simplex normalization from canonical module
+        try:
+            from qig_geometry.canonical_upsert import to_simplex_prob
+        except ImportError:
+            # Fallback if canonical_upsert not available
+            def to_simplex_prob(v):
+                v = np.abs(v) + 1e-10
+                return v / v.sum()
+        
+        # Simple whitespace tokenization
+        tokens = text.lower().split()
+        
+        if not tokens:
+            # Empty text - return UNK coordinate
+            return self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim)
+        
+        # Get coordinates for all tokens
+        coordinates = []
+        for token in tokens:
+            if token in self.basin_coords:
+                coordinates.append(self.basin_coords[token])
+            else:
+                # Unknown token - use UNK coordinate
+                coordinates.append(self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim))
+        
+        # Return mean coordinate (centroid in simplex space)
+        result = np.mean(coordinates, axis=0)
+        
+        # Normalize to simplex (sum=1, non-negative) per E8 Protocol v4.0 §02
+        result = to_simplex_prob(result)
+        
+        return result
+    
     # =====================================================================
     # Legacy Methods (maintained for backward compatibility)
     # =====================================================================
