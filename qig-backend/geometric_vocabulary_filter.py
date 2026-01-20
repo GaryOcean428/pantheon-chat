@@ -47,7 +47,6 @@ else:
     logger.warning("qig_geometry.canonical not available - using fallback geometric measures")
 
     from qig_geometry import fisher_rao_distance, fisher_similarity
-    from qig_geometry.representation import BasinRepresentation, to_simplex
 
     def _to_simplex(basin: np.ndarray, from_repr: BasinRepresentation) -> np.ndarray:
         """Normalize basin inputs to simplex with explicit representation."""
