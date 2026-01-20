@@ -23,9 +23,9 @@ import type {
   RoleSpec,
   KernelSelection,
   ChaosKernelIdentity,
-} from '@/shared/pantheon-registry-schema';
+} from '@shared/pantheon-registry-schema';
 
-export * from '@/shared/pantheon-registry-schema';
+export * from '@shared/pantheon-registry-schema';
 
 /**
  * Get Python backend URL from environment

@@ -11,7 +11,7 @@
  */
 
 import { useQuery, useMutation, type UseQueryResult } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { get, post } from '@/api';
 import type {
   PantheonRegistry,
   GodContract,
@@ -19,7 +19,7 @@ import type {
   RoleSpec,
   KernelSelection,
   ChaosKernelIdentity,
-} from '@/shared/pantheon-registry-schema';
+} from '@shared/pantheon-registry-schema';
 
 // =============================================================================
 // API CLIENT FUNCTIONS
@@ -29,96 +29,96 @@ import type {
  * Fetch full pantheon registry
  */
 export async function fetchRegistry(): Promise<PantheonRegistry> {
-  const response = await api.get('/pantheon/registry');
-  return response.data.data;
+  const response = await get<{ success: boolean; data: PantheonRegistry }>('/api/pantheon/registry');
+  return response.data;
 }
 
 /**
  * Fetch registry metadata
  */
 export async function fetchRegistryMetadata() {
-  const response = await api.get('/pantheon/registry/metadata');
-  return response.data.data;
+  const response = await get<{ success: boolean; data: any }>('/api/pantheon/registry/metadata');
+  return response.data;
 }
 
 /**
  * Fetch all god contracts
  */
 export async function fetchGods(): Promise<Record<string, GodContract>> {
-  const response = await api.get('/pantheon/registry/gods');
-  return response.data.data;
+  const response = await get<{ success: boolean; data: Record<string, GodContract> }>('/api/pantheon/registry/gods');
+  return response.data;
 }
 
 /**
  * Fetch specific god contract
  */
 export async function fetchGod(name: string): Promise<GodContract> {
-  const response = await api.get(`/pantheon/registry/gods/${name}`);
-  return response.data.data;
+  const response = await get<{ success: boolean; data: GodContract }>(`/api/pantheon/registry/gods/${name}`);
+  return response.data;
 }
 
 /**
  * Fetch gods by tier
  */
 export async function fetchGodsByTier(tier: 'essential' | 'specialized') {
-  const response = await api.get(`/pantheon/registry/gods/by-tier/${tier}`);
-  return response.data.data;
+  const response = await get<{ success: boolean; data: any }>(`/api/pantheon/registry/gods/by-tier/${tier}`);
+  return response.data;
 }
 
 /**
  * Find gods by domain
  */
 export async function findGodsByDomain(domain: string) {
-  const response = await api.get(`/pantheon/registry/gods/by-domain/${domain}`);
-  return response.data.data;
+  const response = await get<{ success: boolean; data: any }>(`/api/pantheon/registry/gods/by-domain/${domain}`);
+  return response.data;
 }
 
 /**
  * Fetch chaos kernel rules
  */
 export async function fetchChaosRules(): Promise<ChaosKernelRules> {
-  const response = await api.get('/pantheon/registry/chaos-rules');
-  return response.data.data;
+  const response = await get<{ success: boolean; data: ChaosKernelRules }>('/api/pantheon/registry/chaos-rules');
+  return response.data;
 }
 
 /**
  * Select god or chaos kernel for role
  */
 export async function selectKernel(role: RoleSpec): Promise<KernelSelection> {
-  const response = await api.post('/pantheon/spawner/select', role);
-  return response.data.data;
+  const response = await post<{ success: boolean; data: KernelSelection }, RoleSpec>('/api/pantheon/spawner/select', role);
+  return response.data;
 }
 
 /**
  * Validate spawn request
  */
 export async function validateSpawn(name: string): Promise<{ valid: boolean; reason: string }> {
-  const response = await api.post('/pantheon/spawner/validate', { name });
-  return response.data.data;
+  const response = await post<{ success: boolean; data: { valid: boolean; reason: string } }, { name: string }>('/api/pantheon/spawner/validate', { name });
+  return response.data;
 }
 
 /**
  * Parse chaos kernel name
  */
 export async function parseChaosName(name: string): Promise<ChaosKernelIdentity> {
-  const response = await api.get(`/pantheon/spawner/chaos/parse/${name}`);
-  return response.data.data;
+  const response = await get<{ success: boolean; data: ChaosKernelIdentity }>(`/api/pantheon/spawner/chaos/parse/${name}`);
+  return response.data;
 }
 
 /**
  * Fetch spawner status
  */
 export async function fetchSpawnerStatus() {
-  const response = await api.get('/pantheon/spawner/status');
-  return response.data.data;
+  const response = await get<{ success: boolean; data: any }>('/api/pantheon/spawner/status');
+  return response.data;
 }
 
 /**
  * Health check
  */
 export async function fetchRegistryHealth() {
-  const response = await api.get('/pantheon/health');
-  return response.data.data;
+  const response = await get<{ success: boolean; data: any }>('/api/pantheon/health');
+  return response.data;
 }
 
 // =============================================================================

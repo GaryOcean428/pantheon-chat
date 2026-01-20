@@ -12,7 +12,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { getRegistryService, createSpawnerService } from '../services/pantheon-registry';
-import type { RoleSpec } from '@/shared/pantheon-registry-schema';
+import type { RoleSpec } from '@shared/pantheon-registry-schema';
 
 const router = Router();
 
