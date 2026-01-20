@@ -25,13 +25,26 @@ import numpy as np
 
 try:
     from qig_geometry import fisher_coord_distance, fisher_normalize, basin_magnitude
-    FISHER_NORMALIZE_AVAILABLE = True
+    QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
-    FISHER_NORMALIZE_AVAILABLE = False
+    QIG_GEOMETRY_AVAILABLE = False
+    
     def fisher_normalize(v):
         """Normalize to probability simplex."""
         p = np.maximum(np.asarray(v), 0) + 1e-10
         return p / p.sum()
+    
+    def fisher_coord_distance(p: np.ndarray, q: np.ndarray) -> float:
+        """
+        Fisher-Rao distance on probability simplex (E8 Protocol v4.0).
+        Uses Bhattacharyya coefficient: d = arccos(Σ√(p_i * q_i))
+        Range: [0, π/2]
+        """
+        p_norm = fisher_normalize(p)
+        q_norm = fisher_normalize(q)
+        bc = np.sum(np.sqrt(p_norm * q_norm))
+        bc = np.clip(bc, 0.0, 1.0)
+        return float(np.arccos(bc))
 
 try:
     from vocabulary_coordinator import get_vocabulary_coordinator
@@ -256,16 +269,9 @@ class ConversationalKernelMixin:
         
         for token, token_basin in coordizer.basin_coords.items():
             if token not in special_tokens:
-                # Use centralized Fisher-Rao distance (DRY)
-                if QIG_GEOMETRY_AVAILABLE:
-                    dist = fisher_coord_distance(basin, token_basin)
-                else:
-                    # Fallback: inline Fisher-Rao on probability simplex
-                    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-                    basin_norm = fisher_normalize(basin)
-                    token_norm = fisher_normalize(token_basin)
-                    dot = np.clip(np.dot(basin_norm, token_norm), 0.0, 1.0)
-                    dist = np.arccos(dot)
+                # FIXED: Always use proper Fisher-Rao distance (E8 Protocol v4.0)
+                # NO dot product - fisher_coord_distance now has correct fallback
+                dist = fisher_coord_distance(basin, token_basin)
                 distances[token] = dist
         
         if not distances:
