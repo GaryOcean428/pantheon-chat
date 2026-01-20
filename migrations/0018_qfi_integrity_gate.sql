@@ -29,15 +29,20 @@ BEGIN
 END $$;
 
 -- Mark tokens with valid QFI and basin as generation-eligible
-UPDATE coordizer_vocabulary
-SET is_generation_eligible = TRUE
-WHERE qfi_score IS NOT NULL
-  AND basin_embedding IS NOT NULL
-  AND is_real_word = TRUE
-  AND (token_status IS NULL OR token_status = 'active');
-
-RAISE NOTICE 'Marked % tokens as generation-eligible', 
-    (SELECT COUNT(*) FROM coordizer_vocabulary WHERE is_generation_eligible = TRUE);
+DO $$
+DECLARE
+    marked_count INT;
+BEGIN
+    UPDATE coordizer_vocabulary
+    SET is_generation_eligible = TRUE
+    WHERE qfi_score IS NOT NULL
+      AND basin_embedding IS NOT NULL
+      AND is_real_word = TRUE
+      AND (token_status IS NULL OR token_status = 'active');
+    
+    GET DIAGNOSTICS marked_count = ROW_COUNT;
+    RAISE NOTICE 'Marked % tokens as generation-eligible', marked_count;
+END $$;
 
 -- Add check constraint: generation-eligible tokens must have QFI and basin
 DO $$

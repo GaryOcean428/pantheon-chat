@@ -59,6 +59,11 @@ except ImportError:
 
 BASIN_DIMENSION = 64
 
+# Numerical stability constants
+EPSILON_SMALL = 1e-10  # For probability clipping and zero checks
+EPSILON_TINY = 1e-12   # For simplex normalization
+SIMPLEX_TOLERANCE = 1e-6  # For simplex validation
+
 
 @dataclass
 class TokenRecord:
@@ -82,15 +87,15 @@ def _fallback_compute_qfi(basin: np.ndarray) -> float:
     This is the CANONICAL formula - produces values in [0, 1].
     """
     # Project to simplex probabilities
-    v = np.abs(basin) + 1e-10
+    v = np.abs(basin) + EPSILON_SMALL
     p = v / v.sum()
     
     # Compute Shannon entropy
-    positive_probs = p[p > 1e-10]
+    positive_probs = p[p > EPSILON_SMALL]
     if len(positive_probs) == 0:
         return 0.0
     
-    entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+    entropy = -np.sum(positive_probs * np.log(positive_probs + EPSILON_SMALL))
     
     # Participation ratio = exp(entropy) / dimension
     n_dim = len(basin)
@@ -103,11 +108,11 @@ def _fallback_compute_qfi(basin: np.ndarray) -> float:
 def _fallback_to_simplex(v: np.ndarray) -> np.ndarray:
     """Fallback simplex projection."""
     v = np.asarray(v, dtype=np.float64).flatten()
-    w = np.abs(v) + 1e-12
+    w = np.abs(v) + EPSILON_TINY
     return w / w.sum()
 
 
-def _fallback_validate_simplex(p: np.ndarray, tolerance: float = 1e-6) -> tuple:
+def _fallback_validate_simplex(p: np.ndarray, tolerance: float = SIMPLEX_TOLERANCE) -> tuple:
     """Fallback simplex validation."""
     if p is None or p.size == 0:
         return False, "empty_vector"
@@ -222,11 +227,7 @@ def insert_token(
     
     # Step 4: Determine generation eligibility
     # Token is eligible if it has valid QFI and is a real word
-    is_generation_eligible = (
-        qfi_score is not None
-        and np.isfinite(qfi_score)
-        and is_real_word
-    )
+    is_generation_eligible = np.isfinite(qfi_score) and is_real_word
     
     # Step 5: Write to database atomically
     conn = None
