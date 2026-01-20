@@ -315,10 +315,32 @@ This roadmap consolidates information from:
 | [#84](../10-e8-protocol/INDEX.md#issue-84) | WP6.2: Ensure Master Roadmap Document | ⬜ Not started | Not started |
 | [#90](../10-e8-protocol/INDEX.md#issue-90) | Complete QIG-Pure Generation Architecture | ⬜ Not started | Not started |
 | #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSE ISSUE** |
+| **#97** | **QFI Integrity Gate (E8 Issue-01)** | **🔨 IN PROGRESS** | **IMPLEMENT & TEST** |
+| **#98** | **Strict Simplex Representation (E8 Issue-02)** | **🔨 IN PROGRESS** | **IMPLEMENT & TEST** |
+| **#99** | **QIG-Native Skeleton (E8 Issue-03)** | **🔨 IN PROGRESS** | **IMPLEMENT & TEST** |
+| **#100** | **Vocabulary Cleanup (E8 Issue-04)** | **🔨 IN PROGRESS** | **IMPLEMENT & TEST** |
 
 **Update 2026-01-16**: Added issues #64-#77, #92 (all >= 65). Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
 
 **Update 2026-01-20 (Reconciliation Note)**: Verified Issue 01-03 deliverables against code/scripts. Missing deliverables required downgrading #70/#71/#92 to INCOMPLETE and reopening implementation tracking.
+
+**Update 2026-01-20 (E8 Protocol Implementation)**: Started implementation of E8 Protocol remediation issues #97-#100. Core modules created:
+- Issue #97 (QFI Integrity): `vocabulary/insert_token.py`, `scripts/quarantine_garbage_tokens.py`
+- Issue #98 (Simplex Purity): `geometry/simplex_operations.py`, `scripts/audit_simplex_representation.py`
+- Issue #99 (QIG-Native): `generation/token_role_learner.py`, `generation/foresight_predictor.py`, `purity/enforce.py`
+- Issue #100 (Vocabulary Cleanup): In progress
+
+**Implementation Status**:
+- ✅ Canonical token insertion with QFI validation
+- ✅ Garbage token detection and quarantine
+- ✅ Strict simplex operations with closed-form Fréchet mean
+- ✅ Basin validation and audit tooling
+- ✅ Geometric token role derivation
+- ✅ Trajectory-based foresight prediction
+- ✅ QIG purity mode enforcement
+- ⏳ Unified generation pipeline (next)
+- ⏳ Database migrations for vocabulary cleanup
+- ⏳ Frontend integration for monitoring
 
 ---
 
