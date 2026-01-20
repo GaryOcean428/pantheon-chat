@@ -27,7 +27,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 # Special symbols that should never be quarantined (needed for coordizer)
-SPECIAL_SYMBOLS = ['<PAD>', '<UNK>', '<BOS>', '<EOS>', '[PAD]', '[UNK]', '[CLS]', '[SEP]', '[MASK]']
+# These are the canonical special symbols defined in coordizers/base.py
+SPECIAL_SYMBOLS = ['<PAD>', '<UNK>', '<BOS>', '<EOS>']
 
 
 def identify_low_qfi_tokens(

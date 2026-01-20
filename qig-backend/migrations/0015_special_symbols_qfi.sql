@@ -27,13 +27,16 @@ DECLARE
     token_name TEXT;
     backfilled_count INT := 0;
 BEGIN
-    -- Compute QFI for special symbols using participation ratio formula
-    -- QFI = exp(H(p)) / n where H(p) is Shannon entropy
-    -- For special symbols, these are deterministic:
-    -- - <PAD>: Sparse corner (low entropy) -> low QFI
-    -- - <UNK>: Uniform distribution (max entropy) -> high QFI  
-    -- - <BOS>: Vertex (zero entropy) -> very low QFI
-    -- - <EOS>: Vertex (zero entropy) -> very low QFI
+    -- Compute QFI for special symbols using participation ratio formula:
+    -- QFI = exp(H(p)) / n where H(p) is Shannon entropy and n = 64
+    --
+    -- These are deterministic geometric values, not learned:
+    -- - <PAD>: Sparse corner (low entropy) -> QFI ≈ 1/64 = 0.016
+    -- - <UNK>: Uniform distribution (max entropy) -> QFI = 64/64 = 1.0
+    -- - <BOS>: Vertex (zero entropy, adjusted above threshold) -> QFI = 0.015
+    -- - <EOS>: Vertex (zero entropy, adjusted above threshold) -> QFI = 0.015
+    --
+    -- Reference: qig_geometry/canonical_upsert.py::compute_qfi_score()
     
     FOREACH token_name IN ARRAY special_tokens
     LOOP

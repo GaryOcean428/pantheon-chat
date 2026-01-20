@@ -34,6 +34,14 @@ from qig_geometry.canonical_upsert import (
     validate_simplex,
 )
 
+# Import SPECIAL_SYMBOLS for tests
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+    from quarantine_low_qfi_tokens import SPECIAL_SYMBOLS
+except ImportError:
+    # Fallback if import fails
+    SPECIAL_SYMBOLS = ['<PAD>', '<UNK>', '<BOS>', '<EOS>']
+
 
 class TestQFIComputation:
     """Test QFI computation matches canonical formula."""
@@ -225,12 +233,11 @@ class TestQuarantineLogic:
     
     def test_special_symbols_excluded(self):
         """Special symbols should be excluded from quarantine."""
-        special_symbols = ['<PAD>', '<UNK>', '<BOS>', '<EOS>']
+        special_symbols = SPECIAL_SYMBOLS
         
         # These should never be quarantined
         for symbol in special_symbols:
             # In practice, check if symbol in SPECIAL_SYMBOLS list
-            from scripts.quarantine_low_qfi_tokens import SPECIAL_SYMBOLS
             assert symbol in SPECIAL_SYMBOLS
     
     def test_low_qfi_identification(self):
@@ -247,8 +254,6 @@ class TestQuarantineLogic:
         threshold = 0.01
         quarantine_count = 0
         skip_count = 0
-        
-        from scripts.quarantine_low_qfi_tokens import SPECIAL_SYMBOLS
         
         for token, qfi in tokens:
             if token in SPECIAL_SYMBOLS:

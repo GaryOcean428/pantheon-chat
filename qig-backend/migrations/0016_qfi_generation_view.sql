@@ -220,36 +220,39 @@ COMMENT ON FUNCTION qfi_coverage_metrics() IS
 'QFI coverage metrics: total tokens, with QFI, above threshold, coverage percentages';
 
 -- ============================================================================
--- VERIFICATION QUERIES
+-- VERIFICATION QUERIES (for manual testing - comment out in production)
 -- ============================================================================
+-- To run these after deployment:
+-- SELECT * FROM count_generation_safe_tokens();
+-- SELECT * FROM qfi_coverage_metrics();
 
 -- Count generation-safe tokens
-SELECT * FROM count_generation_safe_tokens();
+-- SELECT * FROM count_generation_safe_tokens();
 
 -- Show QFI coverage metrics
-SELECT * FROM qfi_coverage_metrics();
+-- SELECT * FROM qfi_coverage_metrics();
 
 -- Sample generation-safe tokens (highest QFI)
-SELECT 
-    token,
-    qfi_score,
-    frequency,
-    phrase_category
-FROM coordizer_vocabulary_generation_safe
-ORDER BY qfi_score DESC
-LIMIT 10;
+-- SELECT 
+--     token,
+--     qfi_score,
+--     frequency,
+--     phrase_category
+-- FROM coordizer_vocabulary_generation_safe
+-- ORDER BY qfi_score DESC
+-- LIMIT 10;
 
 -- Sample tokens failing QFI gate (for review)
-SELECT 
-    token,
-    qfi_score,
-    token_status,
-    basin_embedding IS NOT NULL as has_basin
-FROM coordizer_vocabulary
-WHERE token_status != 'quarantined'
-  AND (qfi_score IS NULL OR qfi_score < 0.01)
-ORDER BY qfi_score NULLS FIRST
-LIMIT 10;
+-- SELECT 
+--     token,
+--     qfi_score,
+--     token_status,
+--     basin_embedding IS NOT NULL as has_basin
+-- FROM coordizer_vocabulary
+-- WHERE token_status != 'quarantined'
+--   AND (qfi_score IS NULL OR qfi_score < 0.01)
+-- ORDER BY qfi_score NULLS FIRST
+-- LIMIT 10;
 
 -- Summary
 DO $$
