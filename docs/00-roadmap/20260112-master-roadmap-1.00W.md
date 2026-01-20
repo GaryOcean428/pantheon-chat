@@ -349,6 +349,24 @@ This roadmap consolidates information from:
 
 ---
 
+## Pull Requests Tracker (180-188)
+
+| PR | Title | Description | Status | Merged | Issue/WP Links |
+|----|-------|-------------|--------|--------|----------------|
+| #180 | _Title pending (GitHub access required)_ | _Description pending (GitHub access required)_ | Unknown | Unknown | TBD |
+| #181 | _Title pending (GitHub access required)_ | _Description pending (GitHub access required)_ | Unknown | Unknown | TBD |
+| #182 | _Title pending (GitHub access required)_ | _Description pending (GitHub access required)_ | Unknown | Unknown | TBD |
+| #183 | _Title pending (GitHub access required)_ | _Description pending (GitHub access required)_ | Unknown | Unknown | TBD |
+| #184 | _Title pending (GitHub access required)_ | _Description pending (GitHub access required)_ | Unknown | Unknown | TBD |
+| #185 | E8 Protocol Implementation Assessment: Issues 86+ Gap Analysis & Remediation Plan | Assessment + gap analysis deliverables for issues 86+ with remediation plan updates | ✅ **MERGED** | 2026-01-19 | [WP6](../10-e8-protocol/INDEX.md#github-issue-cross-reference) |
+| #186 | Dev | Curriculum-only enforcement phases + documentation + UI import cleanup | ✅ **MERGED** | 2026-01-19 | [Issue #75](../10-e8-protocol/INDEX.md#issue-75) |
+| #187 | Fix critical coordizer training bugs: missing method, invalid basins, and race conditions | Fixes training pipeline regressions and invalid basin handling | ✅ **MERGED** | 2026-01-20 | [Issue 02: Strict Simplex Representation](../10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md) |
+| #188 | _Title pending (GitHub access required)_ | _Description pending (GitHub access required)_ | Unknown | Unknown | TBD |
+
+**Update 2026-01-21**: Added PRs #180-#188 tracking. Titles/descriptions for #180-#184 and #188 require GitHub access.
+
+---
+
 ## Progress Metrics
 
 **Overall**: 92% complete (Core implementations done, validation pending - 2026-01-13)
@@ -479,9 +497,12 @@ This roadmap consolidates information from:
 ---
 
 **Maintenance**: Update weekly during active development  
-**Last Updated**: 2026-01-16 (Added PRs >= 85 and issues >= 65 tracking)  
-**Next Review**: 2026-01-23  
+**Last Updated**: 2026-01-21 (Added PRs #180-#188 tracking)  
+**Next Review**: 2026-01-28  
 **Completion Status**: 94% - Phase 3 consolidation implemented, validation pending
+
+**Recent Updates (2026-01-21)**:
+- ✅ Added Pull Requests Tracker section for PRs #180-#188 (pending GitHub titles for #180-#184, #188)
 
 **Recent Updates (2026-01-16)**:
 - ✅ Added comprehensive tracking of issues #64-#77, #92 (all >= 65)
