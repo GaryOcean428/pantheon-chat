@@ -5,6 +5,7 @@
 -- Project: pantheon-chat
 -- Date: 2026-01-20
 -- Work Package: WP2.3 - Geometrically Define Special Symbol Coordinates
+-- Migration: 0016 (renamed from 0015 to avoid conflict with existing migrations)
 --
 -- This migration:
 -- 1. Validates special symbols exist with proper basin embeddings

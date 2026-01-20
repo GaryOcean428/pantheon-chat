@@ -43,9 +43,34 @@ def test_special_symbols_accessible():
     print(f"  Special symbols: {list(special_symbols.keys())}")
 
 
+def test_special_symbols_are_simplex():
+    """Test that all special symbols satisfy simplex constraints."""
+    print("\n=== Test 2: Special Symbols Are Simplex ===")
+    
+    coordizer = FisherCoordizer()
+    
+    for symbol in ['<UNK>', '<PAD>', '<BOS>', '<EOS>']:
+        basin = coordizer.basin_coords[symbol]
+        
+        # Check non-negative
+        assert np.all(basin >= 0), f"{symbol} has negative components"
+        
+        # Check sum to 1 (simplex constraint)
+        basin_sum = np.sum(basin)
+        assert np.abs(basin_sum - 1.0) < 1e-5, \
+            f"{symbol} not simplex: sum={basin_sum:.6f} (expected 1.0)"
+        
+        # Check finite
+        assert np.all(np.isfinite(basin)), f"{symbol} has NaN or Inf"
+        
+        print(f"✓ {symbol}: simplex validated (sum={basin_sum:.6f})")
+    
+    print("✓ All special symbols satisfy simplex constraints")
+
+
 def test_unknown_word_fallback():
     """Test that unknown words fall back to UNK coordinate."""
-    print("\n=== Test 2: Unknown Word Fallback ===")
+    print("\n=== Test 3: Unknown Word Fallback ===")
     
     coordizer = FisherCoordizer()
     
@@ -67,7 +92,7 @@ def test_unknown_word_fallback():
 
 def test_encode_with_unknown_words():
     """Test encoding text with unknown words."""
-    print("\n=== Test 3: Encode with Unknown Words ===")
+    print("\n=== Test 4: Encode with Unknown Words ===")
     
     coordizer = FisherCoordizer()
     
@@ -92,7 +117,7 @@ def test_encode_with_unknown_words():
 
 def test_boundary_symbols_distinct():
     """Test that BOS and EOS are geometrically distinct."""
-    print("\n=== Test 4: Boundary Symbols Distinct ===")
+    print("\n=== Test 5: Boundary Symbols Distinct ===")
     
     coordizer = FisherCoordizer()
     
@@ -113,7 +138,7 @@ def test_boundary_symbols_distinct():
 
 def test_padding_geometric_properties():
     """Test that PAD has expected geometric properties for padding."""
-    print("\n=== Test 5: Padding Geometric Properties ===")
+    print("\n=== Test 6: Padding Geometric Properties ===")
     
     coordizer = FisherCoordizer()
     
@@ -137,7 +162,7 @@ def test_padding_geometric_properties():
 
 def test_special_symbols_in_coordize():
     """Test special symbols work in coordize method."""
-    print("\n=== Test 6: Special Symbols in Coordize ===")
+    print("\n=== Test 7: Special Symbols in Coordize ===")
     
     coordizer = FisherCoordizer()
     
@@ -176,7 +201,7 @@ def test_special_symbols_in_coordize():
 
 def test_geometric_consistency():
     """Test that special symbols maintain geometric consistency."""
-    print("\n=== Test 7: Geometric Consistency ===")
+    print("\n=== Test 8: Geometric Consistency ===")
     
     coordizer = FisherCoordizer()
     
@@ -211,7 +236,7 @@ def test_geometric_consistency():
 
 def test_special_symbols_deterministic_generation():
     """Test that special symbols produce deterministic results in generation."""
-    print("\n=== Test 8: Deterministic Generation ===")
+    print("\n=== Test 9: Deterministic Generation ===")
     
     # Create multiple coordizer instances
     results = []
@@ -239,7 +264,7 @@ def test_special_symbols_deterministic_generation():
 
 def test_acceptance_criteria_integration():
     """Verify all WP2.3 acceptance criteria in integration context."""
-    print("\n=== Test 9: WP2.3 Integration Acceptance ===")
+    print("\n=== Test 10: WP2.3 Integration Acceptance ===")
     
     coordizer = FisherCoordizer()
     
@@ -278,6 +303,7 @@ if __name__ == "__main__":
     print("=" * 60)
     
     test_special_symbols_accessible()
+    test_special_symbols_are_simplex()
     test_unknown_word_fallback()
     test_encode_with_unknown_words()
     test_boundary_symbols_distinct()

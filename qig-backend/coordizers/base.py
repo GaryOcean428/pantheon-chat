@@ -405,8 +405,17 @@ class FisherCoordizer(BaseCoordizer):
             text: Input text string
         
         Returns:
-            64D basin coordinates (simplex representation, normalized to unit norm)
+            64D basin coordinates (simplex representation: sum=1, non-negative)
         """
+        # Import simplex normalization from canonical module
+        try:
+            from qig_geometry.canonical_upsert import to_simplex_prob
+        except ImportError:
+            # Fallback if canonical_upsert not available
+            def to_simplex_prob(v):
+                v = np.abs(v) + 1e-10
+                return v / v.sum()
+        
         # Simple whitespace tokenization
         tokens = text.lower().split()
         
@@ -426,10 +435,8 @@ class FisherCoordizer(BaseCoordizer):
         # Return mean coordinate (centroid in simplex space)
         result = np.mean(coordinates, axis=0)
         
-        # Normalize to unit norm for compatibility with geometric operations
-        norm = np.linalg.norm(result)
-        if norm > 1e-10:
-            result = result / norm
+        # Normalize to simplex (sum=1, non-negative) per E8 Protocol v4.0 §02
+        result = to_simplex_prob(result)
         
         return result
     

@@ -2,17 +2,20 @@
 
 **Work Package:** WP2.3  
 **Status:** ✅ Complete  
-**Date:** 2026-01-20
+**Date:** 2026-01-20  
+**Updated:** 2026-01-20 (Fixed simplex normalization per E8 Protocol v4.0)
 
 ## Overview
 
 Special symbols (UNK, PAD, BOS, EOS) are geometrically defined as deterministic points on the 64D probability simplex. This ensures they have clear geometric meaning in the Fisher-Rao manifold and are reproducible across system restarts.
 
+**Critical**: All coordinates use **simplex representation** (Σx_i = 1, x_i ≥ 0), NOT unit norm (||x|| = 1). This is required by E8 Protocol v4.0 §02 and post-Jan 15 2026 documentation.
+
 ## Geometric Definitions
 
 All special symbols are represented as 64-dimensional probability distributions on the simplex:
 - **Non-negative:** All components ≥ 0
-- **Sum to 1:** Σ(components) = 1.0 ± 1e-5
+- **Sum to 1:** Σ(components) = 1.0 ± 1e-5 (simplex constraint)
 - **Finite:** No NaN or Inf values
 - **Deterministic:** Identical coordinates across runs
 
