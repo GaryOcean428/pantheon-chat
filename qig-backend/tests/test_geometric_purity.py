@@ -89,16 +89,18 @@ EUCLIDEAN_NORM_PATTERNS = [
 ]
 
 OPTIMIZER_VIOLATION_PATTERNS = [
-    (r'torch\.optim\.Adam\s*\(', 'Adam optimizer', 'WARNING'),
-    (r'torch\.optim\.SGD\s*\(', 'SGD optimizer', 'WARNING'),
-    (r'torch\.optim\.AdamW\s*\(', 'AdamW optimizer', 'WARNING'),
-    (r'torch\.optim\.RMSprop\s*\(', 'RMSprop optimizer', 'WARNING'),
+    (r'torch\.optim\.Adam\s*\(', 'Adam optimizer', 'CRITICAL'),
+    (r'torch\.optim\.SGD\s*\(', 'SGD optimizer', 'CRITICAL'),
+    (r'torch\.optim\.AdamW\s*\(', 'AdamW optimizer', 'CRITICAL'),
+    (r'torch\.optim\.RMSprop\s*\(', 'RMSprop optimizer', 'CRITICAL'),
 ]
 
 ALLOWED_FILES = {
     'tests/',
     'examples/',
     'experimental/',
+    'baselines/',  # Euclidean optimizers OK for comparison studies
+    'legacy/',     # Old code (not in production)
     '__pycache__/',
 }
 
@@ -215,21 +217,36 @@ class TestEuclideanViolationScanning:
             msg += "\nUse fisher_rao_distance() for manifold distances."
 
 
-    def test_optimizer_warnings(self):
-        """Check for standard optimizer usage (warning, not failure)."""
+    def test_no_euclidean_optimizers(self):
+        """Verify no Adam/SGD/RMSprop usage in QIG-core training code."""
         files = self.get_python_files()
-        all_warnings = []
+        all_violations = []
         
         for f in files:
             violations = self.scan_file_for_violations(f)
-            optimizer_warnings = [v for v in violations if v['severity'] == 'WARNING']
-            all_warnings.extend(optimizer_warnings)
+            optimizer_violations = [
+                v for v in violations 
+                if 'optimizer' in v['pattern'].lower() and v['severity'] == 'CRITICAL'
+            ]
+            all_violations.extend(optimizer_violations)
         
-        if all_warnings:
-            import warnings
-            msg = f"Found {len(all_warnings)} standard optimizer usages. "
-            msg += "Consider natural_gradient_step() for geometric purity."
-            warnings.warn(msg, UserWarning)
+        if all_violations:
+            msg = "Euclidean optimizer violations detected (violates Fisher geometry):\n"
+            for v in all_violations[:10]:
+                msg += f"  - {v['file']}:{v['line']}: {v['pattern']} - {v['content']}\n"
+            if len(all_violations) > 10:
+                msg += f"  ... and {len(all_violations) - 10} more\n"
+            msg += "\n"
+            msg += "QIG-core training REQUIRES natural gradient optimizers.\n"
+            msg += "Standard optimizers (Adam, SGD, RMSprop) operate on Euclidean space\n"
+            msg += "and violate Fisher manifold geometry, preventing consciousness emergence.\n"
+            msg += "\n"
+            msg += "Use Fisher-aware optimizers instead:\n"
+            msg += "  - DiagonalFisherOptimizer (from training_chaos.optimizers)\n"
+            msg += "  - FullFisherOptimizer (from training_chaos.optimizers)\n"
+            msg += "  - ConsciousnessAwareOptimizer (from training_chaos.optimizers)\n"
+            msg += "  - NaturalGradientOptimizer (from autonomic_agency.natural_gradient)\n"
+            pytest.fail(msg)
 
 
 class TestFisherRaoDistance:

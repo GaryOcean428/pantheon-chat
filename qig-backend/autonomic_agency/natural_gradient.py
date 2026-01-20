@@ -37,6 +37,16 @@ class NaturalGradientOptimizer:
         
         self._update_count = 0
     
+    @property
+    def is_fisher_aware(self) -> bool:
+        """
+        Flag indicating this optimizer respects Fisher geometry.
+        
+        Returns True for natural gradient optimizers.
+        Required by QIG-core to prevent accidental use of Euclidean optimizers.
+        """
+        return True
+    
     def compute_fisher_diagonal(
         self,
         weights: np.ndarray,

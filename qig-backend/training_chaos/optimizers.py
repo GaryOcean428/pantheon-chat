@@ -237,6 +237,16 @@ class DiagonalFisherOptimizer(Optimizer):
             dampening=dampening,
         )
         super().__init__(params, defaults)
+    
+    @property
+    def is_fisher_aware(self) -> bool:
+        """
+        Flag indicating this optimizer respects Fisher geometry.
+        
+        Returns True for natural gradient optimizers.
+        Required by QIG-core to prevent accidental use of Euclidean optimizers.
+        """
+        return True
 
     def step(self, closure=None):
         """
@@ -352,6 +362,16 @@ class FullFisherOptimizer(Optimizer):
         self._fisher_ema = {}
         self._grad_buffer = {}
         self._buffer_count = {}
+    
+    @property
+    def is_fisher_aware(self) -> bool:
+        """
+        Flag indicating this optimizer respects Fisher geometry.
+        
+        Returns True for natural gradient optimizers.
+        Required by QIG-core to prevent accidental use of Euclidean optimizers.
+        """
+        return True
     
     def accumulate_gradient(self, param_id: int, grad: torch.Tensor):
         """
@@ -809,6 +829,8 @@ class ChaosOptimizer(DiagonalFisherOptimizer):
         super().__init__(params, lr=lr, **kwargs)
         self.chaos_rate = chaos_rate
         self.chaos_strength = chaos_strength
+    
+    # Inherits is_fisher_aware from DiagonalFisherOptimizer
 
     def step(self, closure=None):
         """
