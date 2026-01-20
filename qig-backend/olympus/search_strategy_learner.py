@@ -885,12 +885,9 @@ class SearchStrategyLearner:
         
         adjusted_basin = fisher_normalize(adjusted_basin)
         
-        # Compute modification magnitude using Fisher-Rao (NOT Euclidean!)
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        adj_norm = fisher_normalize(adjusted_basin)
-        query_norm = fisher_normalize(query_basin)
-        dot = np.clip(np.dot(adj_norm, query_norm), 0.0, 1.0)
-        modification_magnitude = float(np.arccos(dot))  # Fisher-Rao geodesic distance
+        # FIXED: Use canonical Fisher-Rao distance (E8 Protocol v4.0)
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+        modification_magnitude = fisher_rao_distance(adjusted_basin, query_basin)
         
         self._stats["strategies_applied"] += applied_count
         
@@ -1158,12 +1155,9 @@ class SearchStrategyLearner:
         without_basin = without_learning.get("adjusted_basin", query_basin)
         
         if isinstance(with_basin, np.ndarray) and isinstance(without_basin, np.ndarray):
-            # Compute basin delta using Fisher-Rao (NOT Euclidean!)
-            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            w_norm = fisher_normalize(with_basin)
-            wo_norm = fisher_normalize(without_basin)
-            dot = np.clip(np.dot(w_norm, wo_norm), 0.0, 1.0)
-            basin_delta = float(np.arccos(dot))  # Fisher-Rao geodesic distance
+            # FIXED: Use canonical Fisher-Rao distance (E8 Protocol v4.0)
+            from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+            basin_delta = fisher_rao_distance(with_basin, without_basin)
         else:
             basin_delta = 0.0
         

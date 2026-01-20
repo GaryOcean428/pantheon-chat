@@ -155,7 +155,9 @@ def geodesic_interpolation(
     p_sqrt_norm = p_sqrt / (np.linalg.norm(p_sqrt) + 1e-10)
     q_sqrt_norm = q_sqrt / (np.linalg.norm(q_sqrt) + 1e-10)
 
-    # 4. Compute angle between vectors
+    # 4. Compute angle between vectors using Fisher-Rao
+    # FIXED: This is valid in sqrt-space (Hellinger coordinates) for SLERP
+    # NOT a basin similarity measure - just for geodesic interpolation
     cos_angle = np.clip(np.dot(p_sqrt_norm, q_sqrt_norm), -1.0, 1.0)
     angle = np.arccos(cos_angle)
 

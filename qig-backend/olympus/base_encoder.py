@@ -272,13 +272,10 @@ class BaseEncoder(ABC):
     def fisher_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Compute Fisher-Rao distance between two basin coordinates.
-
-        On probability simplex: d(p,q) = arccos(p·q)
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
         """
-        dot = float(np.clip(np.dot(basin1, basin2), 0.0, 1.0))
-        distance = float(np.arccos(dot))
-        return distance
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+        return fisher_rao_distance(basin1, basin2)
 
     def similarity(self, text1: str, text2: str) -> float:
         """

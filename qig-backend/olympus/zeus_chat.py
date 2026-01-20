@@ -778,15 +778,15 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             base_phi += min(0.3, related_count * 0.05)
 
         # Geometric integration: Fisher-Rao similarity to related basins
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        # FIXED: Use canonical Fisher-Rao distance (E8 Protocol v4.0)
         if message_basin is not None and related_basins:
+            from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
             total_similarity = 0.0
             for related_basin in related_basins[:3]:
                 if related_basin is not None:
                     try:
                         basin_arr = np.array(related_basin)
-                        dot = np.clip(np.dot(message_basin, basin_arr), 0.0, 1.0)
-                        fisher_rao_dist = np.arccos(dot)
+                        fisher_rao_dist = fisher_rao_distance(message_basin, basin_arr)
                         similarity = 1.0 - (fisher_rao_dist / (np.pi / 2.0))
                         total_similarity += similarity
                     except Exception:

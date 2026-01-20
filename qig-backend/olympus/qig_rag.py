@@ -345,13 +345,10 @@ class QIGRAG:
     def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Compute Fisher-Rao distance on probability simplex.
-        
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        d(p,q) = arccos(p·q)
+        FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
         """
-        dot = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
-        distance = float(np.arccos(dot))
-        return distance
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+        return fisher_rao_distance(basin1, basin2)
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """
