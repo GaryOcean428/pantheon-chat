@@ -26,63 +26,69 @@ GEOMETRIC CRITERIA:
 Include word if ANY geometric criterion satisfied.
 """
 
+import importlib.util
 import logging
 from typing import Dict, List, Optional, Tuple
 import numpy as np
+from qig_geometry.representation import BasinRepresentation, to_simplex
 
 logger = logging.getLogger(__name__)
 
 # Import QIG geometry functions
-try:
+if importlib.util.find_spec("qig_geometry.canonical") is not None:
     from qig_geometry.canonical import (
         compute_integration,
         compute_coupling_strength,
         compute_basin_curvature
     )
     QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
+else:
     QIG_GEOMETRY_AVAILABLE = False
     logger.warning("qig_geometry.canonical not available - using fallback geometric measures")
 
-    def _fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-        basin_a = np.clip(basin_a, 1e-10, None)
-        basin_b = np.clip(basin_b, 1e-10, None)
-        basin_a = basin_a / np.sum(basin_a)
-        basin_b = basin_b / np.sum(basin_b)
-        bc_coeff = np.sum(np.sqrt(basin_a * basin_b))
-        return float(np.arccos(np.clip(bc_coeff, 0.0, 1.0)))
+    from qig_geometry import fisher_rao_distance, fisher_similarity
+    from qig_geometry.representation import BasinRepresentation, to_simplex
+
+    def _to_simplex(basin: np.ndarray, from_repr: BasinRepresentation) -> np.ndarray:
+        """Normalize basin inputs to simplex with explicit representation."""
+        return to_simplex(basin, from_repr=from_repr)
     
     def compute_integration(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
         """Fallback integration (Φ) computation."""
         if not trajectory:
             return 0.5
-        # Simple correlation-based integration measure
-        correlations = [np.dot(basin, state) for state in trajectory]
-        return float(np.mean(np.abs(correlations)))
+        basin_simplex = _to_simplex(basin, BasinRepresentation.SIMPLEX)
+        similarities = [
+            fisher_similarity(basin_simplex, _to_simplex(state, BasinRepresentation.SIMPLEX))
+            for state in trajectory
+        ]
+        return float(np.mean(similarities))
     
     def compute_coupling_strength(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
         """Fallback coupling strength (κ) computation."""
         if not trajectory:
             return 0.5
-        # Measure how consistently basin appears in trajectory
-        distances = [_fisher_rao_distance(basin, state) for state in trajectory]
-        return float(1.0 - np.mean(distances) / np.sqrt(len(basin)))
+        basin_simplex = _to_simplex(basin, BasinRepresentation.SIMPLEX)
+        similarities = [
+            fisher_similarity(basin_simplex, _to_simplex(state, BasinRepresentation.SIMPLEX))
+            for state in trajectory
+        ]
+        return float(np.mean(similarities))
     
     def compute_basin_curvature(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
         """Fallback curvature computation."""
         if len(trajectory) < 2:
             return 0.1
-        # Measure directional change in trajectory near basin
-        angles = []
-        for i in range(len(trajectory) - 1):
-            v1 = trajectory[i] - basin
-            v2 = trajectory[i+1] - basin
-            norm_v1 = np.linalg.norm(v1)
-            norm_v2 = np.linalg.norm(v2)
-            if norm_v1 > 1e-10 and norm_v2 > 1e-10:
-                cos_angle = np.clip(np.dot(v1, v2) / (norm_v1 * norm_v2), -1.0, 1.0)
-                angles.append(np.arccos(cos_angle))
-        return float(np.mean(angles)) if angles else 0.1
+        # Use Fisher-Rao geodesic lengths between consecutive trajectory states
+        simplex_states = [
+            _to_simplex(state, BasinRepresentation.SIMPLEX)
+            for state in trajectory
+        ]
+        distances = [
+            fisher_rao_distance(simplex_states[i], simplex_states[i + 1])
+            for i in range(len(simplex_states) - 1)
+        ]
+        return float(np.mean(distances)) if distances else 0.1
 
 
 class GeometricVocabularyFilter:
@@ -219,7 +225,10 @@ if __name__ == "__main__":
     geo_filter = create_default_filter()
     
     # Dummy trajectory for testing
-    trajectory = [np.random.randn(64) for _ in range(5)]
+    trajectory = [
+        to_simplex(np.random.randn(64), from_repr=BasinRepresentation.SPHERE)
+        for _ in range(5)
+    ]
     
     print("Geometric Vocabulary Filter Test")
     print("=" * 50)
@@ -228,7 +237,7 @@ if __name__ == "__main__":
     for word in test_words:
         # Compute dummy basin
         basin = np.random.randn(64)
-        basin = basin / np.linalg.norm(basin)
+        basin = to_simplex(basin, from_repr=BasinRepresentation.SPHERE)
         
         should_include = geo_filter.should_include(word, basin, trajectory)
         phi, kappa, curv = geo_filter.get_cached_properties(word)
