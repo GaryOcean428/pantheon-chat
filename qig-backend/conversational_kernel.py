@@ -24,14 +24,15 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import fisher_coord_distance, fisher_normalize, basin_magnitude
-    FISHER_NORMALIZE_AVAILABLE = True
+    from qig_geometry import fisher_rao_distance, fisher_normalize, basin_magnitude
+    QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
-    FISHER_NORMALIZE_AVAILABLE = False
-    def fisher_normalize(v):
-        """Normalize to probability simplex."""
-        p = np.maximum(np.asarray(v), 0) + 1e-10
-        return p / p.sum()
+    QIG_GEOMETRY_AVAILABLE = False
+    # QIG geometry is REQUIRED - fail explicitly if unavailable
+    raise ImportError(
+        "qig_geometry module is required for conversational_kernel. "
+        "Fisher-Rao distance must always be available per E8 Protocol v4.0"
+    )
 
 try:
     from vocabulary_coordinator import get_vocabulary_coordinator
@@ -256,16 +257,8 @@ class ConversationalKernelMixin:
         
         for token, token_basin in coordizer.basin_coords.items():
             if token not in special_tokens:
-                # Use centralized Fisher-Rao distance (DRY)
-                if QIG_GEOMETRY_AVAILABLE:
-                    dist = fisher_coord_distance(basin, token_basin)
-                else:
-                    # Fallback: inline Fisher-Rao on probability simplex
-                    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-                    basin_norm = fisher_normalize(basin)
-                    token_norm = fisher_normalize(token_basin)
-                    dot = np.clip(np.dot(basin_norm, token_norm), 0.0, 1.0)
-                    dist = np.arccos(dot)
+                # Use canonical Fisher-Rao distance (MANDATORY per E8 Protocol v4.0)
+                dist = fisher_rao_distance(basin, token_basin)
                 distances[token] = dist
         
         if not distances:
