@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Simplex Operations Module
-=========================
+Simplex Operations Module - Consolidated with canonical_upsert.py
+==================================================================
+
+CONSOLIDATED: Uses existing simplex functions from qig_geometry.canonical_upsert
+to avoid duplication. This module provides convenience wrappers and additional
+operations while delegating core validation to the canonical implementation.
 
 STRICT SIMPLEX ENFORCEMENT - NO AUTO-DETECT, NO MIXED REPRESENTATIONS
 
-This module provides explicit simplex operations with coordinate chart transformations.
 All basin coordinates MUST be stored and operated on as SIMPLEX (probability distributions).
 
 CANONICAL REPRESENTATION: SIMPLEX
@@ -13,19 +16,13 @@ CANONICAL REPRESENTATION: SIMPLEX
 - No sphere coordinates, no Hellinger, no auto-detect
 - Sqrt-space is ONLY used as explicit coordinate chart with to_sqrt_simplex/from_sqrt_simplex
 
-FORBIDDEN OPERATIONS:
-- np.linalg.norm(basin_a - basin_b)  # WRONG: Euclidean distance on simplex
-- cosine_similarity(basin_a, basin_b)  # WRONG: not a valid metric on simplex
-- np.mean(basins, axis=0) + normalize  # WRONG: arithmetic mean != geometric mean
-- Auto-detect representation  # WRONG: causes silent metric corruption
-
 REQUIRED OPERATIONS:
 - fisher_rao_distance(p, q)  # Geodesic distance on simplex
 - frechet_mean_closed_form(basins)  # Geometric mean on simplex
 - assert_simplex(basin)  # Runtime validation at boundaries
 
 Author: Copilot AI Agent
-Date: 2026-01-20
+Date: 2026-01-20 (Updated to use canonical_upsert.py)
 Issue: GaryOcean428/pantheon-chat#98 (E8 Protocol Issue-02)
 Reference: docs/10-e8-protocol/issues/20260119-issue-98-strict-simplex-representation-remediation-1.00W.md
 """
@@ -36,6 +33,51 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Import from canonical_upsert.py (SINGLE SOURCE OF TRUTH)
+try:
+    from qig_geometry.canonical_upsert import (
+        to_simplex_prob,
+        compute_qfi_score,
+        validate_simplex
+    )
+    HAS_CANONICAL_UPSERT = True
+except ImportError:
+    logger.warning("qig_geometry.canonical_upsert not available, using fallback")
+    HAS_CANONICAL_UPSERT = False
+    
+    def to_simplex_prob(v: np.ndarray, eps: float = 1e-10) -> np.ndarray:
+        """Fallback simplex projection."""
+        v = np.asarray(v, dtype=np.float64)
+        v = np.abs(v) + eps
+        return v / v.sum()
+    
+    def compute_qfi_score(basin: np.ndarray) -> float:
+        """Fallback QFI computation."""
+        p = to_simplex_prob(basin)
+        positive_probs = p[p > 1e-10]
+        if len(positive_probs) == 0:
+            return 0.0
+        entropy = -np.sum(positive_probs * np.log(positive_probs + 1e-10))
+        effective_dim = np.exp(entropy)
+        qfi_score = effective_dim / len(basin)
+        return float(np.clip(qfi_score, 0.0, 1.0))
+    
+    def validate_simplex(basin: np.ndarray, tolerance: float = 1e-6):
+        """Fallback simplex validation."""
+        if basin is None:
+            return False, "basin_is_none"
+        basin = np.asarray(basin, dtype=np.float64)
+        if len(basin) != 64:
+            return False, f"wrong_dimension_{len(basin)}"
+        if np.any(basin < -tolerance):
+            return False, "negative_values"
+        if not np.isfinite(basin).all():
+            return False, "contains_nan_or_inf"
+        prob_sum = basin.sum()
+        if abs(prob_sum - 1.0) > tolerance:
+            return False, f"sum_not_one_{prob_sum:.6f}"
+        return True, "valid"
+
 # Constants
 EPS = 1e-12
 SIMPLEX_SUM_TOLERANCE = 1e-6
@@ -44,6 +86,8 @@ SIMPLEX_SUM_TOLERANCE = 1e-6
 def assert_simplex(basin: np.ndarray, name: str = "basin", strict: bool = True) -> None:
     """
     Assert that basin coordinates form a valid simplex.
+    
+    Uses canonical validation from qig_geometry.canonical_upsert.
     
     Requirements:
     - All values non-negative
@@ -60,26 +104,10 @@ def assert_simplex(basin: np.ndarray, name: str = "basin", strict: bool = True) 
     Raises:
         AssertionError: If basin is not a valid simplex (when strict=True)
     """
-    basin = np.asarray(basin, dtype=np.float64).flatten()
+    is_valid, reason = validate_simplex(basin, tolerance=SIMPLEX_SUM_TOLERANCE)
     
-    errors = []
-    
-    # Check non-negative
-    if np.any(basin < -EPS):
-        min_val = basin.min()
-        errors.append(f"Negative values: min={min_val}")
-    
-    # Check sum to 1
-    total = basin.sum()
-    if not np.isclose(total, 1.0, atol=SIMPLEX_SUM_TOLERANCE):
-        errors.append(f"Does not sum to 1: sum={total}")
-    
-    # Check finite
-    if not np.all(np.isfinite(basin)):
-        errors.append("Contains inf or nan")
-    
-    if errors:
-        error_msg = f"{name} is not a valid simplex: {'; '.join(errors)}"
+    if not is_valid:
+        error_msg = f"{name} is not a valid simplex: {reason}"
         if strict:
             raise AssertionError(error_msg)
         else:

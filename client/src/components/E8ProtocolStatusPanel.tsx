@@ -40,6 +40,16 @@ interface E8ProtocolStatus {
   purity_mode: {
     enabled: boolean;
   };
+  moe_metadata?: MoEMetadata;
+}
+
+interface MoEMetadata {
+  contributing_kernels: string[];
+  weights: number[];
+  synthesis_method: string;
+  total_experts: number;
+  active_experts: number;
+  avg_weight: number;
 }
 
 export const E8ProtocolStatusPanel: React.FC = () => {
@@ -194,9 +204,41 @@ export const E8ProtocolStatusPanel: React.FC = () => {
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground">
-            Geometric role derivation from Fisher-Rao clustering
+            Kernel-in-loop geometric role derivation via Φ/κ measurements
           </div>
         </div>
+
+        {/* MoE Metadata */}
+        {status.moe_metadata && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Mixture of Experts (MoE)</span>
+              <Badge variant="default" className="bg-purple-600">
+                {status.moe_metadata.active_experts}/{status.moe_metadata.total_experts} Active
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 gap-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Synthesis Method:</span>
+                <span className="font-medium">{status.moe_metadata.synthesis_method}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Avg Weight:</span>
+                <span className="font-medium">{status.moe_metadata.avg_weight.toFixed(3)}</span>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <div className="font-medium mb-1">Contributing Kernels:</div>
+              <div className="flex flex-wrap gap-1">
+                {status.moe_metadata.contributing_kernels.map((kernel, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {kernel} ({(status.moe_metadata!.weights[idx] * 100).toFixed(0)}%)
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="pt-4 border-t text-xs text-muted-foreground">

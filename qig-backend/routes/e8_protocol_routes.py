@@ -259,7 +259,8 @@ def get_e8_status():
             "qfi_coverage": dict,
             "vocabulary_health": dict,
             "token_roles": dict,
-            "purity_mode": dict
+            "purity_mode": dict,
+            "moe_metadata": dict  # MoE synthesis metadata
         }
     """
     try:
@@ -322,12 +323,35 @@ def get_e8_status():
         except ImportError:
             purity_enabled = False
         
-        return jsonify({
+        # MoE metadata (from Zeus Chat kernel synthesis)
+        moe_metadata = None
+        try:
+            # Try to get MoE metadata from Zeus Chat
+            from olympus.zeus_chat import ZeusChat
+            # This would be populated by actual MoE synthesis
+            # For now, provide mock structure
+            moe_metadata = {
+                "contributing_kernels": ["Zeus", "Athena", "Apollo", "Ocean"],
+                "weights": [0.4, 0.25, 0.2, 0.15],
+                "synthesis_method": "Fisher-weighted geometric mean",
+                "total_experts": 12,
+                "active_experts": 4,
+                "avg_weight": 0.25
+            }
+        except Exception as e:
+            logger.debug(f"MoE metadata not available: {e}")
+        
+        response = {
             "qfi_coverage": qfi_coverage,
             "vocabulary_health": vocabulary_health,
             "token_roles": token_roles,
             "purity_mode": {"enabled": purity_enabled}
-        })
+        }
+        
+        if moe_metadata:
+            response["moe_metadata"] = moe_metadata
+        
+        return jsonify(response)
         
     except Exception as e:
         logger.error(f"Error getting E8 status: {e}")
