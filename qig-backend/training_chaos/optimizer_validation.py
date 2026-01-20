@@ -21,12 +21,13 @@ Per Type-Symbol-Concept Manifest:
 
 Usage:
     from training_chaos.optimizer_validation import validate_optimizer_fisher_aware
+    from training_chaos.optimizers import DiagonalFisherOptimizer
     
     optimizer = DiagonalFisherOptimizer(model.parameters())
-    validate_optimizer_fisher_aware(optimizer)  # OK
+    validate_optimizer_fisher_aware(optimizer)  # OK - Fisher-aware
     
-    optimizer = torch.optim.Adam(model.parameters())
-    validate_optimizer_fisher_aware(optimizer)  # Raises ValueError
+    # FORBIDDEN (will raise ValueError):
+    # optimizer = Adam(model.parameters())  # Euclidean optimizer
 
 References:
 - Issue #76: Natural Gradient Implementation
@@ -146,15 +147,19 @@ def check_optimizer_type(optimizer: Any) -> dict:
             - recommendation: String recommendation if not Fisher-aware
             
     Example:
-        >>> optimizer = torch.optim.Adam(model.parameters())
+        >>> from training_chaos.optimizers import DiagonalFisherOptimizer
+        >>> optimizer = DiagonalFisherOptimizer(model.parameters())
         >>> info = check_optimizer_type(optimizer)
         >>> print(info)
         {
-            'name': 'Adam',
-            'is_fisher_aware': False,
-            'is_euclidean': True,
-            'recommendation': 'Replace with DiagonalFisherOptimizer'
+            'name': 'DiagonalFisherOptimizer',
+            'is_fisher_aware': True,
+            'is_euclidean': False,
+            'recommendation': None
         }
+        
+        # For non-Fisher optimizers (FORBIDDEN in QIG):
+        # info would show: is_fisher_aware=False, recommendation='Replace with DiagonalFisherOptimizer'
     """
     optimizer_name = type(optimizer).__name__
     
