@@ -27,8 +27,7 @@ const router = Router();
 router.get('/registry', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    const registry = service.getRegistry();
+    const registry = await service.getRegistry();
     
     res.json({
       success: true,
@@ -50,8 +49,7 @@ router.get('/registry', async (req: Request, res: Response) => {
 router.get('/registry/metadata', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    const metadata = service.getMetadata();
+    const metadata = await service.getMetadata();
     
     res.json({
       success: true,
@@ -73,8 +71,7 @@ router.get('/registry/metadata', async (req: Request, res: Response) => {
 router.get('/registry/gods', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    const gods = service.getAllGods();
+    const gods = await service.getAllGods();
     
     res.json({
       success: true,
@@ -97,8 +94,7 @@ router.get('/registry/gods', async (req: Request, res: Response) => {
 router.get('/registry/gods/:name', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    const god = service.getGod(req.params.name);
+    const god = await service.getGod(req.params.name);
     
     if (!god) {
       res.status(404).json({
@@ -127,10 +123,6 @@ router.get('/registry/gods/:name', async (req: Request, res: Response) => {
  */
 router.get('/registry/gods/by-tier/:tier', async (req: Request, res: Response) => {
   try {
-    const service = getRegistryService();
-    await service.load();
-    const godsByTier = service.getGodsByTier();
-    
     const tier = req.params.tier;
     if (tier !== 'essential' && tier !== 'specialized') {
       res.status(400).json({
@@ -140,7 +132,8 @@ router.get('/registry/gods/by-tier/:tier', async (req: Request, res: Response) =
       return;
     }
     
-    const gods = godsByTier[tier];
+    const service = getRegistryService();
+    const gods = await service.getGodsByTier(tier as 'essential' | 'specialized');
     
     res.json({
       success: true,
@@ -163,8 +156,7 @@ router.get('/registry/gods/by-tier/:tier', async (req: Request, res: Response) =
 router.get('/registry/gods/by-domain/:domain', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    const gods = service.findGodsByDomain(req.params.domain);
+    const gods = await service.findGodsByDomain(req.params.domain);
     
     res.json({
       success: true,
@@ -187,8 +179,7 @@ router.get('/registry/gods/by-domain/:domain', async (req: Request, res: Respons
 router.get('/registry/chaos-rules', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    const rules = service.getChaosKernelRules();
+    const rules = await service.getChaosKernelRules();
     
     res.json({
       success: true,
@@ -215,9 +206,6 @@ router.get('/registry/chaos-rules', async (req: Request, res: Response) => {
  */
 router.post('/spawner/select', async (req: Request, res: Response) => {
   try {
-    const service = getRegistryService();
-    await service.load();
-    
     const spawner = createSpawnerService();
     
     // Validate role spec using Zod schema (imported from shared)
@@ -239,7 +227,7 @@ router.post('/spawner/select', async (req: Request, res: Response) => {
     }
     
     const role: RoleSpec = parseResult.data;
-    const selection = spawner.selectGod(role);
+    const selection = await spawner.selectGod(role);
     
     res.json({
       success: true,
@@ -262,9 +250,6 @@ router.post('/spawner/select', async (req: Request, res: Response) => {
  */
 router.post('/spawner/validate', async (req: Request, res: Response) => {
   try {
-    const service = getRegistryService();
-    await service.load();
-    
     const spawner = createSpawnerService();
     const { name } = req.body;
     
@@ -276,7 +261,7 @@ router.post('/spawner/validate', async (req: Request, res: Response) => {
       return;
     }
     
-    const validation = spawner.validateSpawnRequest(name);
+    const validation = await spawner.validateSpawnRequest(name);
     
     res.json({
       success: true,
@@ -298,9 +283,7 @@ router.post('/spawner/validate', async (req: Request, res: Response) => {
 router.get('/spawner/chaos/parse/:name', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    
-    const parsed = service.parseChaosKernelName(req.params.name);
+    const parsed = await service.parseChaosKernelName(req.params.name);
     
     if (!parsed) {
       res.status(400).json({
@@ -329,19 +312,12 @@ router.get('/spawner/chaos/parse/:name', async (req: Request, res: Response) => 
  */
 router.get('/spawner/status', async (req: Request, res: Response) => {
   try {
-    const service = getRegistryService();
-    await service.load();
-    
     const spawner = createSpawnerService();
-    const rules = service.getChaosKernelRules();
+    const status = await spawner.getSpawnerStatus();
     
     res.json({
       success: true,
-      data: {
-        total_chaos_spawned: spawner.getTotalChaosCount(),
-        active_chaos_count: spawner.getActiveChaosCount(),
-        limits: rules.spawning_limits,
-      },
+      data: status,
     });
   } catch (error) {
     console.error('Error getting spawner status:', error);
@@ -363,10 +339,8 @@ router.get('/spawner/status', async (req: Request, res: Response) => {
 router.get('/health', async (req: Request, res: Response) => {
   try {
     const service = getRegistryService();
-    await service.load();
-    
-    const metadata = service.getMetadata();
-    const godCount = service.getGodCount();
+    const metadata = await service.getMetadata();
+    const godCount = await service.getGodCount();
     
     res.json({
       success: true,
