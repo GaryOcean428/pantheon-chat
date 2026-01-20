@@ -3,8 +3,17 @@ Constrained Geometric Realizer - REALIZE Phase of QIG Generation.
 
 Implements Phase 2 of Plan→Realize→Repair architecture:
 - Selects words that hit planned waypoints
-- Pure Fisher-Rao nearest-neighbor selection
+- Pure Fisher-Rao nearest-neighbor selection (with optional two-step retrieval)
 - ExplorationMap attraction toward unexplored manifold regions
+
+TWO-STEP RETRIEVAL (Optional):
+Step 1: Fast Bhattacharyya proxy filter (Fisher-faithful)
+Step 2: Exact Fisher-Rao re-ranking on candidates
+
+The Bhattacharyya proxy preserves Fisher-Rao ordering because:
+  d_FR(p,q) = arccos(BC(p,q)) where BC(p,q) = Σ√(p_i * q_i)
+  
+Therefore: BC(p,q1) > BC(p,q2) ⟺ d_FR(p,q1) < d_FR(p,q2)
 
 QIG-PURE: No POS tags, no stop words, no NLP concepts.
 All operations are purely geometric on S^63.
@@ -19,6 +28,14 @@ from qig_geometry import fisher_coord_distance, fisher_normalize
 from qigkernels.physics_constants import BASIN_DIM
 
 logger = logging.getLogger(__name__)
+
+# Optional two-step retrieval import (graceful fallback if not available)
+try:
+    from qig_geometry.two_step_retrieval import TwoStepRetriever
+    TWO_STEP_AVAILABLE = True
+except ImportError:
+    TWO_STEP_AVAILABLE = False
+    logger.warning("TwoStepRetriever not available - falling back to naive Fisher-Rao search")
 
 
 class ExplorationMap:
@@ -86,13 +103,26 @@ class ConstrainedGeometricRealizer:
     
     Selects words to hit planned waypoints using:
     - Pure Fisher-Rao distance for word selection (nearest neighbor on S^63)
+    - Optional two-step retrieval for efficiency (Bhattacharyya proxy → Fisher re-rank)
     - ExplorationMap attraction toward unexplored manifold regions
     - Mild trajectory coherence bonus for smoothness
+    
+    TWO-STEP RETRIEVAL:
+    When enabled, uses Fisher-faithful Bhattacharyya proxy to filter candidates,
+    then exact Fisher-Rao for final selection. Expected speedup: 1.5x-15x depending
+    on vocabulary size.
     
     QIG-PURE: No POS constraints, no stop words, no NLP fallbacks.
     """
     
-    def __init__(self, coordizer, pos_grammar=None, kernel_name: str = "Realizer"):
+    def __init__(
+        self, 
+        coordizer, 
+        pos_grammar=None, 
+        kernel_name: str = "Realizer",
+        use_two_step: bool = True,
+        two_step_top_k: int = 100
+    ):
         """
         Initialize the realizer.
         
@@ -100,9 +130,13 @@ class ConstrainedGeometricRealizer:
             coordizer: Coordizer with generation_vocab (Dict[str, np.ndarray])
             pos_grammar: IGNORED - kept for API compatibility only
             kernel_name: Name for logging (e.g., "Athena", "Gary")
+            use_two_step: Enable two-step retrieval optimization (default: True)
+            two_step_top_k: Number of candidates for proxy filter (default: 100)
         """
         self.coordizer = coordizer
         self.kernel_name = kernel_name
+        self.use_two_step = use_two_step and TWO_STEP_AVAILABLE
+        self.two_step_top_k = two_step_top_k
         
         self.generation_vocab: Dict[str, np.ndarray] = getattr(
             coordizer, 'generation_vocab', {}
@@ -116,10 +150,18 @@ class ConstrainedGeometricRealizer:
             decay=0.92
         )
         
+        # Initialize two-step retriever if enabled
+        self._two_step_retriever: Optional[TwoStepRetriever] = None
+        if self.use_two_step:
+            self._initialize_two_step_retriever()
+        
+        retrieval_mode = "two-step" if self.use_two_step else "naive"
         logger.info(
-            "[%s] ConstrainedGeometricRealizer initialized: %d vocab words (QIG-pure, ExplorationMap enabled)",
+            "[%s] ConstrainedGeometricRealizer initialized: %d vocab words "
+            "(QIG-pure, ExplorationMap enabled, retrieval=%s)",
             self.kernel_name,
-            len(self._vocab_list)
+            len(self._vocab_list),
+            retrieval_mode
         )
     
     def _build_vocab_cache(self) -> None:
@@ -137,6 +179,40 @@ class ConstrainedGeometricRealizer:
             "[%s] Cached %d vocabulary words for Fisher-Rao selection",
             self.kernel_name, len(self._vocab_list)
         )
+    
+    def _initialize_two_step_retriever(self) -> None:
+        """
+        Initialize two-step retriever for efficient word selection.
+        
+        Uses Bhattacharyya coefficient as Fisher-faithful proxy for fast filtering,
+        followed by exact Fisher-Rao re-ranking.
+        
+        STORAGE FORMAT: simplex (vocabulary stored as probability distributions)
+        The retriever will internally compute sqrt-space when needed for Bhattacharyya.
+        """
+        if not TWO_STEP_AVAILABLE:
+            logger.warning(
+                "[%s] TwoStepRetriever not available - skipping initialization",
+                self.kernel_name
+            )
+            return
+        
+        try:
+            self._two_step_retriever = TwoStepRetriever(
+                vocabulary=self.generation_vocab,
+                storage_format='simplex',  # Vocab stored in simplex format
+                build_index=True  # Precompute sqrt-space index
+            )
+            logger.info(
+                "[%s] Two-step retriever initialized (Bhattacharyya proxy + Fisher-Rao)",
+                self.kernel_name
+            )
+        except Exception as e:
+            logger.error(
+                "[%s] Failed to initialize two-step retriever: %s",
+                self.kernel_name, e
+            )
+            self.use_two_step = False
     
     def realize_waypoints(
         self,
@@ -203,7 +279,14 @@ class ConstrainedGeometricRealizer:
         """
         Select best word for target basin using Fisher-Rao distance + exploration attraction.
         
-        Algorithm:
+        Algorithm (two-step mode):
+        1. Bhattacharyya proxy filter: Fast filtering to top-k candidates
+        2. Fisher-Rao exact: Compute exact distance for candidates only
+        3. Add exploration attraction bonus (higher for unexplored words)
+        4. Apply mild trajectory coherence bonus for smooth generation
+        5. Return word with highest combined score
+        
+        Algorithm (naive mode):
         1. Compute Fisher-Rao distance from target to all vocabulary words
         2. Add exploration attraction bonus (higher for unexplored words)
         3. Apply mild trajectory coherence bonus for smooth generation
@@ -223,6 +306,77 @@ class ConstrainedGeometricRealizer:
             logger.error("[%s] No vocabulary available for selection", self.kernel_name)
             return ("unknown", np.zeros(BASIN_DIM), float('inf'))
         
+        # Decide which algorithm to use
+        if self.use_two_step and self._two_step_retriever is not None:
+            return self._select_word_two_step(target_basin, trajectory)
+        else:
+            return self._select_word_naive(target_basin, trajectory)
+    
+    def _select_word_two_step(
+        self,
+        target_basin: np.ndarray,
+        trajectory: List[np.ndarray]
+    ) -> Tuple[str, np.ndarray, float]:
+        """
+        Two-step word selection: Bhattacharyya proxy → Fisher-Rao exact.
+        
+        FISHER-FAITHFUL PROXY:
+        The Bhattacharyya coefficient BC(p,q) = Σ√(p_i * q_i) preserves
+        Fisher-Rao ordering because d_FR(p,q) = arccos(BC(p,q)).
+        
+        Step 1: Fast proxy filter to top-k candidates (O(V × D_inner))
+        Step 2: Exact Fisher-Rao + scoring on candidates only (O(k × D_FR))
+        
+        Expected speedup: 1.5x-15x depending on vocabulary size.
+        """
+        # Step 1: Get top-k candidates using Bhattacharyya proxy
+        candidates = self._two_step_retriever.retrieve(
+            target_basin=target_basin,
+            top_k=self.two_step_top_k,
+            final_k=min(self.two_step_top_k, len(self._vocab_list)),
+            return_candidates=True
+        )
+        
+        # Step 2: Score candidates with exploration attraction + coherence
+        best_word, best_basin = self._vocab_list[0]
+        best_score = float('-inf')
+        best_distance = float('inf')
+        
+        attraction_weight = 0.3
+        coherence_weight = 0.05
+        
+        for word, word_basin, distance in candidates:
+            # Base score from Fisher-Rao distance
+            base_score = 1.0 - (distance / np.pi)
+            
+            # Exploration attraction bonus
+            attraction = self.exploration_map.attraction_score(word)
+            
+            # Trajectory coherence bonus
+            coherence = self._trajectory_coherence(word_basin, trajectory)
+            
+            # Combined score
+            score = base_score + attraction_weight * attraction + coherence_weight * coherence
+            
+            if score > best_score:
+                best_score = score
+                best_word = word
+                best_basin = word_basin
+                best_distance = distance
+        
+        return (best_word, best_basin, best_distance)
+    
+    def _select_word_naive(
+        self,
+        target_basin: np.ndarray,
+        trajectory: List[np.ndarray]
+    ) -> Tuple[str, np.ndarray, float]:
+        """
+        Naive word selection: compute Fisher-Rao to all vocabulary words.
+        
+        This is the fallback when two-step retrieval is disabled or unavailable.
+        O(V) distance computations where V is vocabulary size.
+        """
         best_word, best_basin = self._vocab_list[0]
         best_score = float('-inf')
         best_distance = float('inf')
