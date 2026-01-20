@@ -2,6 +2,10 @@
 """
 Apply Column Defaults Migration (0009_add_column_defaults.sql)
 This script executes the migration with error handling and verification.
+
+DEPRECATED: This is migration 0009 which references the legacy learned_words table.
+Migration 017 (2026-01-19) deprecated learned_words in favor of coordizer_vocabulary.
+This script is kept for historical reference only.
 """
 
 import os
