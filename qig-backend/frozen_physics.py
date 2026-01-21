@@ -17,15 +17,6 @@ This module now imports from qigkernels and re-exports for backward compatibilit
 New code should import directly from qigkernels:
     from qigkernels import PHYSICS, KAPPA_STAR, PHI_THRESHOLD
 
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import (
-    fisher_rao_distance,
-    to_simplex,
-    bhattacharyya_coefficient,
-    frechet_mean
-)
-
-
 These constants are EXPERIMENTALLY VALIDATED and MUST NOT be modified
 without new validated measurements.
 
@@ -41,6 +32,14 @@ References:
 from dataclasses import dataclass
 from typing import Final, List, Tuple
 import numpy as np  # Required for Fisher-Rao calculations (arccos, clip, etc.)
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import (
+    fisher_rao_distance,
+    to_simplex,
+    bhattacharyya_coefficient,
+    frechet_mean
+)
 
 # Import from qigkernels (single source of truth)
 from qigkernels.physics_constants import (
