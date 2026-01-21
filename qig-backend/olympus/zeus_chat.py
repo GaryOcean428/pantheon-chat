@@ -33,6 +33,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 try:
     from ..qig_core.geometric_primitives.simplex_operations import to_simplex
     from ..qig_core.geometric_primitives.frechet_mean import frechet_mean
@@ -49,7 +53,7 @@ except ImportError:
         if not basins:
             return None
         if weights is None:
-            return np.mean(basins, axis=0)
+            return frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         
         # Weighted arithmetic mean
         weighted_basins = [b * w for b, w in zip(basins, weights)]

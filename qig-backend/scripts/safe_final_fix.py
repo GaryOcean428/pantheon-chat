@@ -29,8 +29,8 @@ def fix_file(filepath):
     content, n = re.subn(pattern1, replace1, content)
     fixes += n
     
-    # CRITICAL RULE 1: Replace ALL `np.linalg.norm(basin1 - basin2)` with `fisher_rao_distance`
-    # np.linalg.norm(basin1 - basin2) -> fisher_rao_distance(basin1, basin2)
+    # CRITICAL RULE 1: Replace ALL `fisher_rao_distance(basin1, basin2)  # FIXED (E8 Protocol v4.0)` with `fisher_rao_distance`
+    # fisher_rao_distance(basin1, basin2)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(basin1, basin2)
     pattern2 = r'np\.linalg\.norm\(([^)]+)\s*-\s*([^)]+)\)'
     def replace2(m):
         return f"fisher_rao_distance({m.group(1)}, {m.group(2)})"

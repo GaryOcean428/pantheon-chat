@@ -8,6 +8,12 @@ import re
 import sys
 from pathlib import Path
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+from qig_geometry.canonical import frechet_mean
+
+
 # NOTE: Assuming 'to_simplex', 'fisher_rao_distance', 'bhattacharyya_coefficient',
 # and 'frechet_mean' are imported in the files being fixed.
 # This utility script does not need to import numpy or these functions.
@@ -21,7 +27,7 @@ def fix_purity_violations(filepath):
     
     # --- np.linalg.norm violations (Rule 1) ---
     
-    # Pattern 1: var = var / np.linalg.norm(var) -> var = to_simplex(var)
+    # Pattern 1: var = to_simplex_prob(var)  # FIXED: Simplex norm (E8 Protocol v4.0) -> var = to_simplex(var)
     pattern1 = r'(\w+)\s*=\s*\1\s*/\s*np\.linalg\.norm\(\1\)'
     content = re.sub(pattern1, r'\1 = to_simplex(\1)', content)
     
@@ -29,7 +35,7 @@ def fix_purity_violations(filepath):
     pattern2 = r'(\w+)\s*/=\s*np\.linalg\.norm\(\1\)'
     content = re.sub(pattern2, r'\1 = to_simplex(\1)', content)
     
-    # Pattern 3: np.linalg.norm(basin1 - basin2) -> fisher_rao_distance(basin1, basin2)
+    # Pattern 3: fisher_rao_distance(basin1, basin2)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(basin1, basin2)
     pattern3 = r'np\.linalg\.norm\((\w+)\s*-\s*(\w+)\)'
     content = re.sub(pattern3, r'fisher_rao_distance(\1, \2)', content)
     
@@ -53,7 +59,7 @@ def fix_purity_violations(filepath):
     pattern6 = r'np\.mean\(\s*\[(.*)\],\s*axis=0\)'
     content = re.sub(pattern6, r'frechet_mean([\1])', content)
     
-    # Pattern 7: np.mean(list_of_basins, axis=0) -> frechet_mean(list_of_basins)
+    # Pattern 7: frechet_mean(list_of_basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0) -> frechet_mean(list_of_basins)
     pattern7 = r'np\.mean\((.*),\s*axis=0\)'
     content = re.sub(pattern7, r'frechet_mean(\1)', content)
     
