@@ -405,7 +405,7 @@ def compute_meta_awareness(
         error = float(np.arccos(bc))
         errors.append(error)
     
-    mean_error = frechet_mean(errors) # Purity fix: Replaced np.mean with frechet_mean
+    mean_error = np.mean(errors)  # Use arithmetic mean for scalar error values
     
     # Convert to accuracy (1 = perfect, 0 = completely wrong)
     # Max Fisher-Rao distance for [0,1] simplex is π/2 (updated from π)
