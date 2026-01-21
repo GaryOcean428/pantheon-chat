@@ -572,7 +572,7 @@ def distance(a, b):
         """Validator should detect Euclidean norm used for distance."""
         bad_code = """
 def distance(x, y):
-    return fisher_rao_distance(x, y)
+    return np.linalg.norm(x - y)
 """
         result = validate_geometric_purity(bad_code, "bad.py")
         assert not result['valid'], "Should detect Euclidean distance violation"
