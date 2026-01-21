@@ -20,6 +20,7 @@ from .constants import BASIN_DIM, NATURAL_GRADIENT_LR
 from qig_geometry import fisher_rao_distance
 from qig_geometry import to_simplex_prob
 from qig_geometry import canonical_frechet_mean as frechet_mean
+from qig_geometry.canonical import fisher_rao_distance
 
 
 class FisherManifold:

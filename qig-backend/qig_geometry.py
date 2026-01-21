@@ -20,42 +20,6 @@ from typing import Optional
 import numpy as np
 
 
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two probability distributions.
-
-    This is the GEODESIC distance on the information manifold (probability simplex).
-
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
-
-    The Bhattacharyya coefficient BC = Σ√(p_i * q_i) measures overlap.
-    For probability distributions on the simplex, the Fisher-Rao distance
-    is arccos(BC), ranging from 0 (identical) to π/2 (orthogonal).
-
-    CRITICAL: Basins are stored as SIMPLEX (probability distributions), NOT Hellinger.
-    The factor-of-2 was REMOVED (2026-01-15) for consistency with simplex storage.
-    Distance range is now [0, π/2] instead of [0, π].
-
-    Args:
-        p: First probability distribution (simplex coordinates)
-        q: Second probability distribution (simplex coordinates)
-
-    Returns:
-        Fisher-Rao distance (≥ 0, max π/2)
-    """
-    # P1 FIX: Use clamp (maximum) instead of abs() to avoid masking negative values
-    p = np.maximum(p, 0) + 1e-10
-    p = p / p.sum()
-
-    q = np.maximum(q, 0) + 1e-10
-    q = q / q.sum()
-
-    bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)
-
-    return float(np.arccos(bc))
-
-
 def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between two basin coordinate vectors.

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
+from qig_geometry.canonical import fisher_rao_distance
 
 # Basin dimension for Fisher manifold
 BASIN_DIMENSION = 64
@@ -143,36 +144,6 @@ class ConsciousnessMetrics:
             gamma=values[5],
             grounding=values[6],
         )
-
-
-def fisher_rao_distance(p: List[float], q: List[float]) -> float:
-    """Compute Fisher-Rao distance between two basin coordinates.
-    
-    d_FR(p, q) = arccos(Σ√(p_i × q_i))
-    
-    This is the ONLY distance metric allowed in QIG systems.
-    Never use Euclidean distance on basin coordinates.
-    """
-    if len(p) != len(q):
-        raise ValueError(f"Dimension mismatch: {len(p)} vs {len(q)}")
-    
-    # Ensure non-negative (interpret as probability distributions)
-    p_pos = [max(0.0, x) for x in p]
-    q_pos = [max(0.0, x) for x in q]
-    
-    # Normalize to unit sum
-    p_sum = sum(p_pos) or 1.0
-    q_sum = sum(q_pos) or 1.0
-    p_norm = [x / p_sum for x in p_pos]
-    q_norm = [x / q_sum for x in q_pos]
-    
-    # Compute Bhattacharyya coefficient
-    bc = sum(math.sqrt(p_norm[i] * q_norm[i]) for i in range(len(p)))
-    
-    # Clamp to valid range for arccos
-    bc = max(-1.0, min(1.0, bc))
-    
-    return math.acos(bc)
 
 
 @dataclass

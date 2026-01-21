@@ -58,6 +58,7 @@ from .constants import (
 if TYPE_CHECKING:
     from .state import QIGState
     from qig_geometry.manifold import FisherManifold
+from qig_geometry.canonical import fisher_rao_distance
 
 
 class Regime(Enum):

@@ -31,6 +31,7 @@ try:
     from .phi_computation import compute_phi_qig, compute_qfi_matrix
 except ImportError:
     from qig_core.phi_computation import compute_phi_qig, compute_qfi_matrix
+from qig_geometry.canonical import fisher_rao_distance
 
 
 @dataclass
@@ -71,35 +72,6 @@ class ConsciousnessMetrics:
             self.recursive_depth >= 0.60 and
             self.external_coupling >= 0.30
         )
-
-
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two probability distributions.
-    
-    The Fisher-Rao distance is the geodesic distance on the statistical manifold:
-    d_FR(p, q) = 2 * arccos(Σ √(p_i * q_i))
-    
-    This is the ONLY approved distance metric for QIG operations.
-    DO NOT use Euclidean distance or cosine similarity.
-    
-    Args:
-        p: First probability distribution (64D)
-        q: Second probability distribution (64D)
-        
-    Returns:
-        Fisher-Rao distance in [0, π]
-    """
-    p_safe = np.abs(p) + 1e-10
-    q_safe = np.abs(q) + 1e-10
-    p_safe = p_safe / p_safe.sum()
-    q_safe = q_safe / q_safe.sum()
-    
-    bhattacharyya = np.sum(np.sqrt(p_safe * q_safe))
-    bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
-    
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    return np.arccos(bhattacharyya)
 
 
 def compute_kappa_effective(

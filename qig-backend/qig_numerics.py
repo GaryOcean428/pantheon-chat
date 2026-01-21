@@ -16,6 +16,7 @@ import numpy as np
 from typing import Union, Optional, Tuple
 from qig_geometry.canonical import bhattacharyya
 from qig_geometry import fisher_rao_distance
+from qig_geometry.canonical import fisher_rao_distance
 
 # Physics constants
 BASIN_DIM = 64
@@ -126,28 +127,6 @@ def safe_dot(a: np.ndarray, b: np.ndarray, eps: float = EPSILON) -> float:
     dot = np.sum(a_norm * b_norm)
     
     return float(np.clip(dot, -1.0, 1.0))
-
-
-def fisher_rao_distance(basin1: np.ndarray, basin2: np.ndarray, eps: float = EPSILON) -> float:
-    """
-    Compute Fisher-Rao distance between two basins.
-    
-    Uses safe operations to prevent overflow:
-    1. Project both basins to sphere
-    2. Compute geodesic (great circle) distance
-    
-    Returns distance in [0, π].
-    """
-    b1 = project_to_sphere(basin1, eps)
-    b2 = project_to_sphere(basin2, eps)
-    
-    # Dot product of unit vectors (Bhattacharyya coefficient for simplex)
-    dot = np.sum(b1 * b2)
-    dot = np.clip(dot, 0.0, 1.0)
-    
-    # Fisher-Rao geodesic distance on probability simplex
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    return float(np.arccos(dot))
 
 
 def bures_distance(rho1: np.ndarray, rho2: np.ndarray, eps: float = EPSILON) -> float:

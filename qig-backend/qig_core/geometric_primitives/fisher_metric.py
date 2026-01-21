@@ -12,6 +12,7 @@ import numpy as np
 from scipy.linalg import sqrtm
 
 from qigkernels.physics_constants import KAPPA_STAR
+from qig_geometry.canonical import fisher_rao_distance
 
 
 def fisher_metric_tensor(probabilities: np.ndarray) -> np.ndarray:
@@ -39,47 +40,6 @@ def fisher_metric_tensor(probabilities: np.ndarray) -> np.ndarray:
             G[i, i] = 1.0 / probabilities[i]
 
     return G
-
-
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two probability distributions.
-
-    This is the GEODESIC distance on the information manifold using
-    the Hellinger embedding (√p on unit sphere S^63).
-
-    Formula: d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i))
-
-    The factor of 2 is required because:
-    - We store √p on the unit sphere (Hellinger embedding)
-    - The Bhattacharyya coefficient BC = Σ√(p_i * q_i) = √p · √q
-    - Statistical distance on Fisher manifold = 2 * arccos(BC)
-
-    This matches contracts.py canonical definition.
-
-    Args:
-        p: First probability distribution
-        q: Second probability distribution
-
-    Returns:
-        Fisher-Rao distance (≥ 0, max π)
-    """
-    # Ensure valid probability distributions
-    p = np.abs(p) + 1e-10
-    p = p / p.sum()
-
-    q = np.abs(q) + 1e-10
-    q = q / q.sum()
-
-    # Bhattacharyya coefficient = dot product in Hellinger space
-    bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
-
-    # Fisher-Rao statistical distance on probability simplex
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    distance = float(np.arccos(bc))
-
-    return distance
 
 
 def compute_phi(trajectory: np.ndarray, window_size: int = 5) -> float:

@@ -2,17 +2,13 @@
 # It should contain the geometric operations required by other modules.
 
 import numpy as np
+from .canonical import fisher_rao_distance
 
 
 def to_simplex(p):
     """Projects a vector to the probability simplex."""
     p = np.abs(p)
     return p / p.sum()
-
-
-def fisher_rao_distance(p, q):
-    """Compute the Fisher-Rao distance between two probability distributions."""
-    return np.arccos(np.clip(np.sum(np.sqrt(p * q)), -1.0, 1.0))
 
 
 def frechet_mean(basins):
