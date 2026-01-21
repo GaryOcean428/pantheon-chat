@@ -102,19 +102,15 @@ logger = logging.getLogger(__name__)
 
 # Import QIG geometry functions if available
 try:
-    from qig_geometry import fisher_coord_distance, fisher_normalize
+    from qig_geometry import fisher_rao_distance as fisher_coord_distance, fisher_normalize
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
     logger.debug("qig_geometry not available - using fallback distance")
-
-    def fisher_coord_distance(a, b) -> float:
-        """
-        Fisher-Rao distance for probability simplex (fallback).
-        FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
-        """
-        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as canonical_fisher_rao
-        return canonical_fisher_rao(np.asarray(a), np.asarray(b))
+    
+    # Import canonical fisher_rao_distance from qig_geometry for fallback
+    from qig_geometry import fisher_rao_distance
+    fisher_coord_distance = fisher_rao_distance
 
     def fisher_normalize(v):
         """Normalize to probability simplex."""

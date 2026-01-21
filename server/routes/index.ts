@@ -46,3 +46,6 @@ export { default as pythonProxiesRouter } from "./python-proxies";
 
 // SSC Bridge - connects to SearchSpaceCollapse for Bitcoin recovery
 export { sscBridgeRouter } from "./ssc-bridge";
+
+// Pantheon Registry routes - formal god contracts and kernel spawner
+export { default as pantheonRegistryRouter } from "./pantheon-registry";

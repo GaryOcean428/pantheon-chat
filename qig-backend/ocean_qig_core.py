@@ -1100,9 +1100,27 @@ class GroundingDetector:
 
         for concept_id, concept_basin in self.known_concepts.items():
             # Fisher-Rao distance: d = arccos(p·q) for probability simplex
-            # FIXED: Use canonical Fisher-Rao distance (E8 Protocol v4.0)
-            from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
-            distance = fisher_rao_distance(query_basin, concept_basin)
+            try:
+                from qig_geometry import fisher_rao_distance
+            except ImportError:
+                def fisher_rao_distance(a, b):
+                    """Canonical Fisher-Rao distance."""
+                    from qig_geometry import fisher_normalize
+                    p = fisher_normalize(a)
+                    q = fisher_normalize(b)
+                    dot = np.clip(np.dot(np.sqrt(p), np.sqrt(q)), 0.0, 1.0)
+                    return np.arccos(dot)
+            try:
+                from qig_geometry import fisher_normalize
+            except ImportError:
+                def fisher_normalize(v):
+                    p = np.maximum(np.asarray(v), 0) + 1e-10
+                    return p / p.sum()
+            query_norm = fisher_normalize(query_basin)
+            concept_norm = fisher_normalize(concept_basin)
+            # Use Fisher-Rao distance for similarity
+            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+            distance = fisher_rao_distance(query_norm, concept_norm)
 
             if distance < min_distance:
                 min_distance = distance
@@ -5060,13 +5078,11 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     # Need at least 2 vectors for meaningful covariance
     if len(vectors) < 2:
         # Return direction orthogonal to the single vector
-        # NOTE: Gram-Schmidt orthogonalization uses Euclidean dot product
-        # This is CORRECT - not a purity violation. We're computing vector projections
-        # in tangent space, not basin distances on the manifold.
         mean = vectors[0]
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
-        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm  # Euclidean projection
+        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
 
     # Center the vectors
@@ -5079,10 +5095,10 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     # Handle NaN/Inf in covariance matrix
     if np.any(np.isnan(cov)) or np.any(np.isinf(cov)):
         # Fallback to random orthogonal direction
-        # NOTE: Gram-Schmidt orthogonalization - Euclidean projection is correct
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
-        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm  # Euclidean projection
+        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
     
     # FIX #1: REGULARIZATION - Ensure Hermitian (fix numerical errors)
@@ -5095,20 +5111,20 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
         eigenvalues = np.maximum(eigenvalues, 0.0)
     except np.linalg.LinAlgError:
         # Fallback if eigenvalue decomposition fails
-        # NOTE: Gram-Schmidt orthogonalization - Euclidean projection is correct
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
-        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm  # Euclidean projection
+        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
 
     # Check for NaN/Inf in eigenvalues or eigenvectors
     if np.any(np.isnan(eigenvalues)) or np.any(np.isinf(eigenvalues)) or \
        np.any(np.isnan(eigenvectors)) or np.any(np.isinf(eigenvectors)):
         # Fallback to random orthogonal direction
-        # NOTE: Gram-Schmidt orthogonalization - Euclidean projection is correct
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
-        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm  # Euclidean projection
+        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
 
     # FIX #1: REGULARIZATION - Add ridge if eigenvalues too small
@@ -5130,10 +5146,10 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
             min_eigenvalue = np.min(eigenvalues)
             max_eigenvalue = np.max(eigenvalues)
         except np.linalg.LinAlgError:
-            # NOTE: Gram-Schmidt orthogonalization - Euclidean projection is correct
             random_dir = np.random.randn(BASIN_DIMENSION)
+            # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
             mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
-            random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm  # Euclidean projection
+            random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
             return random_dir / (np.linalg.norm(random_dir) + 1e-10)
 
     # FIX #2: EIGENVALUE FILTERING - Project onto stable subspace
@@ -5144,10 +5160,10 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     if stable_count == 0:
         print(f"[FisherMetric] ⚠️ No stable eigenvalues! Using identity matrix fallback.")
         # Fallback to random orthogonal direction
-        # NOTE: Gram-Schmidt orthogonalization - Euclidean projection is correct
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
-        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm  # Euclidean projection
+        random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
     
     # Check stability ratio and log appropriately

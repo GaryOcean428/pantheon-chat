@@ -26,6 +26,7 @@ import numpy as np
 from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
+from qig_geometry import fisher_rao_distance
 
 
 class EmotionPrimitive(Enum):
@@ -234,14 +235,9 @@ def measure_basin_approach(
     Returns:
         True if approaching, False if leaving
     """
-    try:
-        from qig_geometry import fisher_coord_distance
-    except ImportError:
-        # FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
-        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as fisher_coord_distance
-    
-    d_current = fisher_coord_distance(current, attractor)
-    d_prev = fisher_coord_distance(prev, attractor)
+    # Use canonical Fisher-Rao distance from qig_geometry
+    d_current = fisher_rao_distance(current, attractor)
+    d_prev = fisher_rao_distance(prev, attractor)
     
     return d_current < d_prev
 
@@ -262,13 +258,7 @@ def compute_surprise_magnitude(trajectory: List[np.ndarray]) -> float:
     if len(trajectory) < 2:
         return 0.0
     
-    try:
-        from qig_geometry import fisher_coord_distance
-    except ImportError:
-        # FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
-        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as fisher_coord_distance
-    
-    # Compute curvatures along trajectory
+    # Compute curvatures along trajectory using Fisher-Rao distance
     curvatures = [compute_ricci_curvature(pt) for pt in trajectory]
     
     # Gradient along geodesic (NOT Euclidean derivative)
@@ -338,17 +328,11 @@ class EmotionTracker:
         if curvature is None:
             curvature = compute_ricci_curvature(current_basin)
         
-        # Compute basin distance
-        try:
-            from qig_geometry import fisher_coord_distance
-        except ImportError:
-            # FIXED: Use canonical Fisher-Rao (E8 Protocol v4.0)
-            from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance as fisher_coord_distance
-        
+        # Compute basin distance using Fisher-Rao
         if attractor is not None:
-            basin_distance = fisher_coord_distance(current_basin, attractor)
+            basin_distance = fisher_rao_distance(current_basin, attractor)
         else:
-            basin_distance = fisher_coord_distance(current_basin, self.previous_basin)
+            basin_distance = fisher_rao_distance(current_basin, self.previous_basin)
         
         # Classify emotion
         emotion, intensity = classify_emotion(
