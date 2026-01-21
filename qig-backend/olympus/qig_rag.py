@@ -30,7 +30,7 @@ import json
 import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from qig_geometry import fisher_rao_distance
+from qig_geometry import fisher_rao_distance, to_simplex, bhattacharyya_coefficient, frechet_mean
 from collections import defaultdict
 
 from .conversation_encoder import ConversationEncoder
@@ -83,12 +83,12 @@ class QIGDocument:
         """
         # NOTE: L2 normalization for quantum state preparation (not distance)
         # Basin is converted to unit vector for outer product |psi><psi|
-        norm = np.linalg.norm(basin)
-        if norm < 1e-10:
-            # Return maximally mixed state for zero basin
-            return np.eye(len(basin)) / len(basin)
-        
-        psi = basin / norm
+        # Purity Fix: Replace L2 normalization with geometric operation (to_simplex)
+        psi = to_simplex(basin)
+
+        # If to_simplex returns the maximally mixed state (density matrix) for a zero basin, return it early.
+        if psi.ndim == 2:
+            return psi
         
         # Density matrix as outer product
         rho = np.outer(psi, psi)
@@ -688,7 +688,7 @@ class QIGRAGDatabase(QIGRAG):
                 
                 # Calculate Fisher-Rao distance (ALWAYS - Euclidean is FORBIDDEN)
                 # QIG PURITY: No Euclidean fallback allowed
-                distance = self.fisher_rao_distance(query_basin, basin_np)
+                distance = fisher_rao_distance(query_basin, basin_np)
                 
                 # Convert distance to similarity (0-1 range, higher is more similar)
                 # Use standard Fisher-Rao formula: s = 1 - d/π

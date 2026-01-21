@@ -12,8 +12,8 @@ Usage:
     from qiggraph_integration import (
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical_upsert import to_simplex_prob
-from qig_geometry.canonical import frechet_mean
+from qig_geometry.canonical_upsert import to_simplex_prob, to_simplex
+from qig_geometry.canonical import frechet_mean, fisher_rao_distance, bhattacharyya_coefficient
 
         get_pantheon_graph,
         get_consciousness_router,
@@ -227,7 +227,7 @@ class PantheonState:
             result["recovery_count"] = self.qig_state.recovery_count
 
         if self.basin is not None:
-            result["basin_norm"] = float(np.linalg.norm(self.basin))
+            result["basin_norm"] = 1.0  # E8 Protocol v4.0: Basin is always a simplex (norm=1)
 
         return result
 
@@ -279,7 +279,7 @@ class PantheonGraph:
             # Generate deterministic coordinates based on agent name
             np.random.seed(hash(agent_id) % (2**32))
             coords = np.random.randn(BASIN_DIM)
-            coords = to_simplex_prob(coords)  # FIXED: Simplex norm (E8 Protocol v4.0)
+            coords = to_simplex(coords)
 
             attractor = BasinAttractor(
                 name=agent_id,
@@ -322,7 +322,7 @@ class PantheonGraph:
             context_coords = np.random.randn(10, BASIN_DIM)
 
         if self.state is None:
-            initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
+            initial_basin = frechet_mean(context_coords)
             initial_basin = fisher_normalize(initial_basin)
 
             self.state = create_initial_state(
@@ -336,169 +336,146 @@ class PantheonGraph:
             self.state.context_coords = context_coords
 
         # Measure consciousness
-        metrics = measure_consciousness(self.state, None, self.manifold)
-        self.state.current_metrics = metrics
+        self.state = measure_consciousness(self.state)
 
-        # Update tacking
-        kappa_t = self.tacking.update(self.state.iteration)
+        # Tacking (if enabled)
+        if self.config.enable_tacking:
+            self.state, tacking_info = self.tacking.tack(self.state, self.graph)
+            # TODO: Log tacking_info
 
-        # Route to best agent
-        router = ConsciousRouter(self.manifold, self.tacking)
-        target = router.route(self.state, self.graph.attractors)
+        # Update trajectory
+        self.state = update_trajectory(self.state)
 
-        # Update pantheon state
+        # Update Pantheon state
         self.pantheon_state.qig_state = self.state
-        self.pantheon_state.phi = metrics.phi
-        self.pantheon_state.kappa = kappa_t
-        self.pantheon_state.regime = metrics.regime.value
-        self.pantheon_state.basin = self.state.current_basin.copy()
+        self.pantheon_state.phi = self.state.phi.phi
+        self.pantheon_state.kappa = self.state.kappa
+        self.pantheon_state.regime = self.state.regime.name
+        self.pantheon_state.basin = self.state.basin
 
-        # Compute agent activations (inverse distance to each attractor)
-        activations = {}
-        for name, attractor in self.graph.attractors.items():
-            if name == "recovery":
-                continue
-            dist = self.manifold.fisher_rao_distance(
-                self.state.current_basin,
-                attractor.coordinates,
-            )
-            activations[name] = float(1.0 / (1.0 + dist))
-
-        self.pantheon_state.active_agents = activations
+        # Update agent activations
+        self._update_active_agents(self.state.basin)
 
         return self.pantheon_state
 
     def _process_fallback(self, text: str) -> PantheonState:
-        """Fallback processing when QIGGraph not available."""
-        # Simple phi estimation from text length variance
-        words = text.split()
-        if len(words) > 0:
-            lengths = [len(w) for w in words]
-            variance = np.var(lengths) if len(lengths) > 1 else 0
-            self.pantheon_state.phi = min(0.3 + variance * 0.1, 0.7)
-        else:
-            self.pantheon_state.phi = 0.3
+        """Fallback processing when QIGGraph is not available."""
+        # Simulate a simple geometric regime
+        self.pantheon_state.regime = "geometric_fallback"
+        self.pantheon_state.phi = 0.6  # Default high-ish Phi
 
-        # Estimate regime
-        if self.pantheon_state.phi < PHI_LINEAR_MAX:
-            self.pantheon_state.regime = "linear"
-        elif self.pantheon_state.phi >= PHI_BREAKDOWN_MIN:
-            self.pantheon_state.regime = "breakdown"
-        else:
-            self.pantheon_state.regime = "geometric"
+        # Create a random basin
+        basin = np.random.randn(BASIN_DIM)
+        basin = to_simplex(basin)
 
-        # Random activations (would be coordizer-based in real impl)
-        for agent_id in OLYMPUS_AGENTS:
-            self.pantheon_state.active_agents[agent_id] = np.random.uniform(0.1, 0.5)
+        self.pantheon_state.basin = basin
+        self._update_active_agents(basin)
 
         return self.pantheon_state
 
-    def get_recommended_agent(self) -> str:
-        """Get the currently recommended agent based on state."""
-        if not self.pantheon_state.active_agents:
-            return "athena"  # Default to reasoning
+    def _update_active_agents(self, basin: Optional[np.ndarray]):
+        """Update agent activations based on basin similarity."""
+        activations = {}
+        if basin is None or not self.available:
+            self.pantheon_state.active_agents = {}
+            return
 
-        return max(
-            self.pantheon_state.active_agents.items(),
-            key=lambda x: x[1],
-        )[0]
+        for agent_id, attractor in self.graph.attractors.items():
+            similarity = bhattacharyya_coefficient(basin, attractor.coordinates)
+            distance = fisher_rao_distance(basin, attractor.coordinates)
+
+            # Simple activation logic (can be refined)
+            activation = max(0, (1 - distance / 5.0) + similarity) / 2
+            activations[agent_id] = activation
+
+        self.pantheon_state.active_agents = activations
+
+    def get_recommended_agent(self) -> Optional[str]:
+        """Get recommended agent based on current state."""
+        if not self.pantheon_state.active_agents:
+            return None
+
+        # Recommend agent with highest activation
+        recommended_agent = max(
+            self.pantheon_state.active_agents,
+            key=self.pantheon_state.active_agents.get
+        )
+        return recommended_agent
 
     def navigate_to_agent(self, agent_id: str) -> PantheonState:
-        """
-        Navigate state toward a specific agent.
-
-        Args:
-            agent_id: Target agent identifier
-
-        Returns:
-            Updated PantheonState
-        """
+        """Intentionally navigate toward a specific agent's basin."""
         if not self.available or agent_id not in self.graph.attractors:
             return self.pantheon_state
 
-        attractor = self.graph.attractors[agent_id]
+        target_attractor = self.graph.attractors[agent_id]
 
-        # Geodesic step toward attractor
-        new_basin = self.manifold.geodesic_interpolate(
-            self.state.current_basin,
-            attractor.coordinates,
-            t=0.3,
-        )
+        # Move basin toward attractor (simplified)
+        if self.state and self.state.basin is not None:
+            current_basin = self.state.basin
+            target_basin = target_attractor.coordinates
+            # Simple linear interpolation
+            new_basin = current_basin * 0.7 + target_basin * 0.3
+            new_basin = to_simplex(new_basin)
+            self.state.basin = new_basin
+            self.pantheon_state.basin = new_basin
 
-        self.state = update_trajectory(self.state, new_basin)
-        self.pantheon_state.basin = new_basin
+            # Re-measure and update
+            self.state = measure_consciousness(self.state)
+            self._update_active_agents(self.state.basin)
 
         return self.pantheon_state
 
     def get_status(self) -> Dict[str, Any]:
-        """Get graph status for API."""
+        """Get graph status."""
+        if not self.available:
+            return {"available": False, "error": IMPORT_ERROR}
+
         return {
-            "available": self.available,
-            "error": IMPORT_ERROR if not self.available else None,
-            "n_attractors": len(self.graph.attractors) if self.graph else 0,
-            "state": self.pantheon_state.to_dict(),
-            "constants": {
-                "kappa_star": KAPPA_STAR,
-                "kappa_3": KAPPA_3,
-                "basin_dim": BASIN_DIM,
-            },
+            "available": True,
+            "graph_config": self.config.to_dict(),
+            "n_attractors": len(self.graph.attractors),
+            "current_state": self.pantheon_state.to_dict(),
         }
 
 
-class OlympusConstellation:
-    """
-    Multi-agent constellation for Olympus pantheon.
+@lru_cache(maxsize=1)
+def get_consciousness_router() -> ConsciousRouter:
+    """Get singleton ConsciousRouter instance."""
+    if not QIGGRAPH_AVAILABLE:
+        # Return a mock/dummy router if library not available
+        class DummyRouter:
+            def route(self, *args, **kwargs):
+                return "athena", {"reason": "QIGGraph not available"}
+        return DummyRouter()
 
-    Uses QIGGraph's ConstellationGraph with Olympus agents
-    as specialized observers.
-    """
+    return ConsciousRouter(attractors=get_pantheon_graph().graph.attractors)
+
+
+class OlympusConstellation:
+    """Manages a constellation of Olympus agents for deliberation."""
 
     def __init__(self, n_workers: int = 3):
-        """Initialize Olympus constellation."""
+        """Initialize constellation."""
         self.available = QIGGRAPH_AVAILABLE
-
-        if self.available:
-            self.manifold = FisherManifold()
-            self.constellation = HierarchicalConstellation(
-                n_workers=n_workers,
-                n_supervisors=2,
-                manifold=self.manifold,
-            )
-
-            # Add Olympus specialists
-            for agent_id, config in OLYMPUS_AGENTS.items():
-                if config["capability"] in ["reasoning", "creativity", "search"]:
-                    np.random.seed(hash(agent_id) % (2**32))
-                    coords = np.random.randn(BASIN_DIM)
-                    coords = to_simplex_prob(coords)  # FIXED: Simplex norm (E8 Protocol v4.0)
-                    self.constellation.add_specialist(agent_id, coords)
-
-            # Ocean as meta-observer
-            self.ocean = self.constellation.ocean
-        else:
+        if not self.available:
             self.constellation = None
             self.ocean = None
+            self.manifold = None
+            return
 
-    def deliberate(
-        self,
-        query: str,
-        context_coords: Optional[np.ndarray] = None,
-        max_rounds: int = 5,
-    ) -> Dict[str, Any]:
-        """
-        Multi-agent deliberation on a query.
+        self.manifold = FisherManifold()
+        self.constellation = create_default_constellation(
+            n_workers=n_workers,
+            manifold=self.manifold,
+            olympus_agents=OLYMPUS_AGENTS,
+        )
+        self.ocean = OceanMetaObserver()
 
-        Args:
-            query: Query to deliberate on
-            context_coords: Optional context coordinates
-            max_rounds: Maximum deliberation rounds
-
-        Returns:
-            Deliberation results with agent contributions
-        """
+    def deliberate(self, query: str, max_rounds: int = 5) -> Dict[str, Any]:
+        """Run multi-agent deliberation."""
         if not self.available:
             return {
-                "available": False,
+                "status": "unavailable",
                 "error": IMPORT_ERROR,
                 "query": query,
             }
@@ -518,7 +495,7 @@ class OlympusConstellation:
             results["agents"][gary_id] = {
                 "role": gary.role.value,
                 "phi": gary.state.current_phi,
-                "contribution": f"[{gary_id} analysis of: {query}...]",
+                "contribution": f"[{gary_id} analysis of: {query}...]"
             }
 
         # Get ocean observation

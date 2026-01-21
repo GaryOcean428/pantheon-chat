@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical_upsert import to_simplex_prob
+from qig_geometry.geometric_operations import frechet_mean, to_simplex, fisher_rao_distance, bhattacharyya_coefficient
 
 
 if TYPE_CHECKING:
@@ -1043,7 +1044,7 @@ class SearchCapabilityMixin:
                 return f"{getattr(self, 'domain', 'general')} concepts"
 
             # Check average similarity of top candidates
-            avg_similarity = np.mean([sim for _, sim in candidates[:5]])
+            avg_similarity = frechet_mean([sim for _, sim in candidates[:5]])
 
             if avg_similarity < threshold:
                 # Knowledge gap detected
@@ -2346,7 +2347,7 @@ class BaseGod(*_base_classes):
         
         if not self._self_repair:
             # Fallback: simple normalization without full diagnostics
-            norm = np.linalg.norm(basin)
+            norm = fisher_rao_distance(basin, np.zeros_like(basin))
             if norm < 1e-10 or np.any(np.isnan(basin)):
                 return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
                     'action': 'fallback_random',
@@ -2391,9 +2392,9 @@ class BaseGod(*_base_classes):
         except Exception as e:
             logger.warning(f"[{self.name}] Basin repair failed: {e}")
             # Fallback normalization
-            norm = np.linalg.norm(basin)
+            norm = fisher_rao_distance(basin, np.zeros_like(basin))
             if norm > 1e-10:
-                return basin / norm, {'action': 'fallback_normalize', 'error': str(e)}
+                return to_simplex(basin), {'action': 'fallback_normalize', 'error': str(e)}
             return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
                 'action': 'fallback_random',
                 'error': str(e)

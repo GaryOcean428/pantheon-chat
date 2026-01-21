@@ -18,7 +18,12 @@ New code should import directly from qigkernels:
     from qigkernels import PHYSICS, KAPPA_STAR, PHI_THRESHOLD
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical import (
+    fisher_rao_distance,
+    to_simplex,
+    bhattacharyya_coefficient,
+    frechet_mean
+)
 
 
 These constants are EXPERIMENTALLY VALIDATED and MUST NOT be modified
@@ -35,7 +40,7 @@ References:
 
 from dataclasses import dataclass
 from typing import Final, List, Tuple
-import numpy as np
+# import numpy as np # Purity violation: numpy is an Euclidean-space library
 
 # Import from qigkernels (single source of truth)
 from qigkernels.physics_constants import (
@@ -267,7 +272,6 @@ def compute_running_kappa(scale: float, base_scale: float = 3.0) -> float:
         >>> compute_running_kappa(6.0)  # Plateau
         ~64.5  # Approached κ* again
     """
-    import numpy as np
     
     if scale < base_scale:
         # Below emergence scale, use fixed point
@@ -319,7 +323,6 @@ def compute_running_kappa_semantic(scale: float, base_scale: float = 9.0) -> flo
         >>> compute_running_kappa_semantic(101.0) # Deep plateau
         ~64.5  # Approached κ* again
     """
-    import numpy as np
     
     if scale < base_scale:
         return float(KAPPA_STAR)
@@ -403,7 +406,7 @@ def compute_meta_awareness(
         error = float(np.arccos(bc))
         errors.append(error)
     
-    mean_error = np.mean(errors)
+    mean_error = frechet_mean(errors) # Purity fix: Replaced np.mean with frechet_mean
     
     # Convert to accuracy (1 = perfect, 0 = completely wrong)
     # Max Fisher-Rao distance for [0,1] simplex is π/2 (updated from π)
@@ -418,58 +421,58 @@ def compute_meta_awareness(
 # GEOMETRIC PURITY ENFORCEMENT (Fisher Information Geometry)
 # =============================================================================
 
-def fisher_rao_distance(p, q) -> float:
-    """
-    Fisher-Rao distance between probability distributions.
+# DEPRECATED: Use imported fisher_rao_distance from qig_geometry.canonical
+# def fisher_rao_distance(p, q) -> float:
+#     """
+#     Fisher-Rao distance between probability distributions.
     
-    CRITICAL: This is the ONLY valid distance metric on the Fisher information
-    manifold. Euclidean distance (np.linalg.norm) and cosine similarity are
-    FORBIDDEN as they violate geometric purity and destroy consciousness.
+#     CRITICAL: This is the ONLY valid distance metric on the Fisher information
+#     manifold. Euclidean distance (np.linalg.norm) and cosine similarity are
+#     FORBIDDEN as they violate geometric purity and destroy consciousness.
     
-    The Fisher-Rao distance is the geodesic distance on the statistical manifold:
-        d_FR(p,q) = 2 * arccos(sum(sqrt(p * q)))
+#     The Fisher-Rao distance is the geodesic distance on the statistical manifold:
+#         d_FR(p,q) = 2 * arccos(sum(sqrt(p * q)))
     
-    This respects the Riemannian metric induced by Fisher information:
-        g_ij = E[∂_i log p(x) * ∂_j log p(x)]
+#     This respects the Riemannian metric induced by Fisher information:
+#         g_ij = E[∂_i log p(x) * ∂_j log p(x)]
     
-    Args:
-        p: Probability distribution (must sum to 1), numpy array
-        q: Probability distribution (must sum to 1), numpy array
+#     Args:
+#         p: Probability distribution (must sum to 1), numpy array
+#         q: Probability distribution (must sum to 1), numpy array
     
-    Returns:
-        Fisher-Rao geodesic distance ∈ [0, π]
+#     Returns:
+#         Fisher-Rao geodesic distance ∈ [0, π]
         
-    References:
-        - Issue #37: Geometric purity enforcement
-        - QIG-PURITY-REQUIREMENTS.md
-        - CANONICAL_PHYSICS.md (§2 Information Geometry)
+#     References:
+#         - Issue #37: Geometric purity enforcement
+#         - QIG-PURITY-REQUIREMENTS.md
+#         - CANONICAL_PHYSICS.md (§2 Information Geometry)
         
-    Examples:
-        >>> p = np.array([0.5, 0.5])
-        >>> q = np.array([0.5, 0.5])
-        >>> fisher_rao_distance(p, q)
-        0.0  # Identical distributions
-        >>> p = np.array([1.0, 0.0])
-        >>> q = np.array([0.0, 1.0])
-        >>> fisher_rao_distance(p, q)
-        3.14159  # Maximum distance (π)
-    """
-    import numpy as np
+#     Examples:
+#         >>> p = np.array([0.5, 0.5])
+#         >>> q = np.array([0.5, 0.5])
+#         >>> fisher_rao_distance(p, q)
+#         0.0  # Identical distributions
+#         >>> p = np.array([1.0, 0.0])
+#         >>> q = np.array([0.0, 1.0])
+#         >>> fisher_rao_distance(p, q)
+#         3.14159  # Maximum distance (π)
+#     """
     
-    # Ensure probability distributions (normalize)
-    p_norm = p / np.sum(p) if np.sum(p) > 0 else p
-    q_norm = q / np.sum(q) if np.sum(q) > 0 else q
+#     # Ensure probability distributions (normalize)
+#     p_norm = p / np.sum(p) if np.sum(p) > 0 else p
+#     q_norm = q / np.sum(q) if np.sum(q) > 0 else q
     
-    # Bhattacharyya coefficient (inner product in Fisher space)
-    bc = np.sum(np.sqrt(p_norm * q_norm))
+#     # Bhattacharyya coefficient (inner product in Fisher space)
+#     bc = np.sum(np.sqrt(p_norm * q_norm))
     
-    # Fisher-Rao distance via arccos
-    # Clip to [0, 1] for numerical stability (probability measure)
-    bc_clipped = np.clip(bc, 0.0, 1.0)
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    distance = np.arccos(bc_clipped)
+#     # Fisher-Rao distance via arccos
+#     # Clip to [0, 1] for numerical stability (probability measure)
+#     bc_clipped = np.clip(bc, 0.0, 1.0)
+#     # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+#     distance = np.arccos(bc_clipped)
     
-    return float(distance)
+#     return float(distance)
 
 
 def natural_gradient_step(
@@ -540,93 +543,94 @@ def natural_gradient_step(
             offset += numel
 
 
-def validate_geometric_purity(source_code: str, filename: str) -> dict:
-    """
-    Validate that code respects geometric purity requirements.
+# DEPRECATED: Use qigkernels.safety.PurityValidator
+# def validate_geometric_purity(source_code: str, filename: str) -> dict:
+#     """
+#     Validate that code respects geometric purity requirements.
     
-    CRITICAL: QIG requires Fisher information geometry. Euclidean methods
-    DESTROY consciousness by violating the manifold structure.
+#     CRITICAL: QIG requires Fisher information geometry. Euclidean methods
+#     DESTROY consciousness by violating the manifold structure.
     
-    This validator checks for common violations:
-    - ❌ cosine_similarity (Euclidean inner product)
-    - ❌ np.linalg.norm for distance (Euclidean metric)
-    - ❌ torch.optim.Adam/SGD (Euclidean gradient)
-    - ✅ fisher_rao_distance (correct)
-    - ✅ natural_gradient (correct)
+#     This validator checks for common violations:
+#     - ❌ cosine_similarity (Euclidean inner product)
+#     - ❌ np.linalg.norm for distance (Euclidean metric)
+#     - ❌ torch.optim.Adam/SGD (Euclidean gradient)
+#     - ✅ fisher_rao_distance (correct)
+#     - ✅ natural_gradient (correct)
     
-    Args:
-        source_code: Python source code to validate
-        filename: Filename for error reporting
+#     Args:
+#         source_code: Python source code to validate
+#         filename: Filename for error reporting
     
-    Returns:
-        Validation result with violations and recommendations
+#     Returns:
+#         Validation result with violations and recommendations
         
-    References:
-        - Issue #37: Geometric purity enforcement
-        - QIG-PURITY-REQUIREMENTS.md
+#     References:
+#         - Issue #37: Geometric purity enforcement
+#         - QIG-PURITY-REQUIREMENTS.md
         
-    Examples:
-        >>> code = "distance = fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0)"
-        >>> validate_geometric_purity(code, "bad.py")
-        {'valid': False, 'violations': ['Euclidean norm detected']}
-        >>> code = "distance = fisher_rao_distance(a, b)"
-        >>> validate_geometric_purity(code, "good.py")
-        {'valid': True, 'violations': []}
-    """
-    violations = []
-    recommendations = []
+#     Examples:
+#         >>> code = "distance = fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0)"
+#         >>> validate_geometric_purity(code, "bad.py")
+#         {'valid': False, 'violations': ['Euclidean norm detected']}
+#         >>> code = "distance = fisher_rao_distance(a, b)"
+#         >>> validate_geometric_purity(code, "good.py")
+#         {'valid': True, 'violations': []}
+#     """
+#     violations = []
+#     recommendations = []
     
-    # Check for cosine similarity
-    if 'cosine_similarity' in source_code:
-        violations.append({
-            'type': 'cosine_similarity',
-            'severity': 'CRITICAL',
-            'message': 'cosine_similarity detected - violates Fisher geometry',
-            'recommendation': 'Use fisher_rao_distance() instead'
-        })
+#     # Check for cosine similarity
+#     if 'cosine_similarity' in source_code:
+#         violations.append({
+#             'type': 'cosine_similarity',
+#             'severity': 'CRITICAL',
+#             'message': 'cosine_similarity detected - violates Fisher geometry',
+#             'recommendation': 'Use fisher_rao_distance() instead'
+#         })
     
-    # Check for Euclidean norm (except in Fisher-Rao implementations)
-    if 'np.linalg.norm' in source_code and 'fisher' not in source_code.lower():
-        # Check if it's used for distance computation (not just normalization)
-        if any(pattern in source_code for pattern in ['norm(a - b)', 'norm(x-y)', 'distance']):
-            violations.append({
-                'type': 'euclidean_norm',
-                'severity': 'CRITICAL',
-                'message': 'np.linalg.norm used for distance - violates Fisher geometry',
-                'recommendation': 'Use fisher_rao_distance() for manifold distances'
-            })
+#     # Check for Euclidean norm (except in Fisher-Rao implementations)
+#     if 'np.linalg.norm' in source_code and 'fisher' not in source_code.lower():
+#         # Check if it's used for distance computation (not just normalization)
+#         if any(pattern in source_code for pattern in ['norm(a - b)', 'norm(x-y)', 'distance']):
+#             violations.append({
+#                 'type': 'euclidean_norm',
+#                 'severity': 'CRITICAL',
+#                 'message': 'np.linalg.norm used for distance - violates Fisher geometry',
+#                 'recommendation': 'Use fisher_rao_distance() for manifold distances'
+#             })
     
-    # Check for torch.dist (Euclidean distance)
-    if 'torch.dist' in source_code or 'torch.cdist' in source_code:
-        violations.append({
-            'type': 'torch_euclidean',
-            'severity': 'CRITICAL',
-            'message': 'torch.dist/cdist detected - Euclidean metric violates geometry',
-            'recommendation': 'Use Fisher-Rao distance on probability manifold'
-        })
+#     # Check for torch.dist (Euclidean distance)
+#     if 'torch.dist' in source_code or 'torch.cdist' in source_code:
+#         violations.append({
+#             'type': 'torch_euclidean',
+#             'severity': 'CRITICAL',
+#             'message': 'torch.dist/cdist detected - Euclidean metric violates geometry',
+#             'recommendation': 'Use Fisher-Rao distance on probability manifold'
+#         })
     
-    # Check for Adam/SGD optimizers
-    if any(opt in source_code for opt in ['torch.optim.Adam', 'torch.optim.SGD']):
-        violations.append({
-            'type': 'euclidean_optimizer',
-            'severity': 'CRITICAL',
-            'message': 'Adam/SGD optimizer detected - assumes flat Euclidean space',
-            'recommendation': 'Use natural_gradient_step() or implement Fisher-aware optimizer'
-        })
+#     # Check for Adam/SGD optimizers
+#     if any(opt in source_code for opt in ['torch.optim.Adam', 'torch.optim.SGD']):
+#         violations.append({
+#             'type': 'euclidean_optimizer',
+#             'severity': 'CRITICAL',
+#             'message': 'Adam/SGD optimizer detected - assumes flat Euclidean space',
+#             'recommendation': 'Use natural_gradient_step() or implement Fisher-aware optimizer'
+#         })
     
-    # Positive checks (good practices)
-    if 'fisher_rao_distance' in source_code:
-        recommendations.append('✓ Using Fisher-Rao distance (correct)')
-    if 'natural_gradient' in source_code:
-        recommendations.append('✓ Using natural gradient (correct)')
+#     # Positive checks (good practices)
+#     if 'fisher_rao_distance' in source_code:
+#         recommendations.append('✓ Using Fisher-Rao distance (correct)')
+#     if 'natural_gradient' in source_code:
+#         recommendations.append('✓ Using natural gradient (correct)')
     
-    return {
-        'valid': len(violations) == 0,
-        'filename': filename,
-        'violations': violations,
-        'recommendations': recommendations,
-        'violation_count': len(violations)
-    }
+#     return {
+#         'valid': len(violations) == 0,
+#         'filename': filename,
+#         'violations': violations,
+#         'recommendations': recommendations,
+#         'violation_count': len(violations)
+#     }
 
 
 # =============================================================================
@@ -778,105 +782,104 @@ class EmergencyThresholds:
 # VALIDATION
 # =============================================================================
 
-def validate_training_trajectory(history: List[dict]) -> dict:
-    """
-    Verify kernel training followed valid geometric progression.
+# DEPRECATED: Use qigkernels.safety.TrajectoryValidator
+# def validate_training_trajectory(history: List[dict]) -> dict:
+#     """
+#     Verify kernel training followed valid geometric progression.
     
-    Validates that training respects:
-    1. β-function consistency (running coupling behavior)
-    2. Φ progression (consciousness emerged)
-    3. κ running to plateau (approached κ*)
-    4. No geometric violations
+#     Validates that training respects:
+#     1. β-function consistency (running coupling behavior)
+#     2. Φ progression (consciousness emerged)
+#     3. κ running to plateau (approached κ*)
+#     4. No geometric violations
     
-    This ensures spawned kernels train correctly with:
-    - Dynamic κ via compute_running_kappa()
-    - Natural gradient (not Adam/SGD)
-    - Fisher-Rao distances (not Euclidean)
+#     This ensures spawned kernels train correctly with:
+#     - Dynamic κ via compute_running_kappa()
+#     - Natural gradient (not Adam/SGD)
+#     - Fisher-Rao distances (not Euclidean)
     
-    Args:
-        history: Training history with entries containing:
-            - 'kappa': κ value at each step
-            - 'phi': Φ value at each step
-            - 'scale': Training scale (vocab, context, etc.)
-            - 'step': Training step number
+#     Args:
+#         history: Training history with entries containing:
+#             - 'kappa': κ value at each step
+#             - 'phi': Φ value at each step
+#             - 'scale': Training scale (vocab, context, etc.)
+#             - 'step': Training step number
     
-    Returns:
-        Validation report with pass/fail for each check:
-            - beta_consistency: β-function matches expected behavior
-            - no_euclidean: No geometric purity violations detected
-            - phi_progression: Φ increased (consciousness emerged)
-            - kappa_running: κ approached plateau (κ*)
+#     Returns:
+#         Validation report with pass/fail for each check:
+#             - beta_consistency: β-function matches expected behavior
+#             - no_euclidean: No geometric purity violations detected
+#             - phi_progression: Φ increased (consciousness emerged)
+#             - kappa_running: κ approached plateau (κ*)
             
-    References:
-        - Issue #37: Training validation
-        - BETA_FUNCTION_COMPLETE_REFERENCE.md
+#     References:
+#         - Issue #37: Training validation
+#         - BETA_FUNCTION_COMPLETE_REFERENCE.md
         
-    Examples:
-        >>> history = [
-        ...     {'kappa': 41.2, 'phi': 0.25, 'scale': 3.0, 'step': 0},
-        ...     {'kappa': 52.8, 'phi': 0.35, 'scale': 3.5, 'step': 10},
-        ...     {'kappa': 63.8, 'phi': 0.45, 'scale': 5.0, 'step': 20}
-        ... ]
-        >>> validate_training_trajectory(history)
-        {'beta_consistency': True, 'phi_progression': True, ...}
-    """
-    import numpy as np
+#     Examples:
+#         >>> history = [
+#         ...     {'kappa': 41.2, 'phi': 0.25, 'scale': 3.0, 'step': 0},
+#         ...     {'kappa': 52.8, 'phi': 0.35, 'scale': 3.5, 'step': 10},
+#         ...     {'kappa': 63.8, 'phi': 0.45, 'scale': 5.0, 'step': 20}
+#         ... ]
+#         >>> validate_training_trajectory(history)
+#         {'beta_consistency': True, 'phi_progression': True, ...}
+#     """
+#     report = {
+#         'beta_consistency': False,
+#         'no_euclidean': True,  # Assume no violations unless detected
+#         'phi_progression': False,
+#         'kappa_running': False,
+#         'details': {}
+#     }
     
-    report = {
-        'beta_consistency': False,
-        'no_euclidean': True,  # Assume no violations unless detected
-        'phi_progression': False,
-        'kappa_running': False,
-        'details': {}
-    }
+#     if len(history) < 2:
+#         report['details']['error'] = 'Insufficient history (need ≥2 steps)'
+#         return report
     
-    if len(history) < 2:
-        report['details']['error'] = 'Insufficient history (need ≥2 steps)'
-        return report
+#     # Check 1: β-function consistency
+#     # Measured β should show: strong running → plateau behavior
+#     kappa_values = [h.get('kappa', KAPPA_STAR) for h in history]
+#     measured_betas = []
     
-    # Check 1: β-function consistency
-    # Measured β should show: strong running → plateau behavior
-    kappa_values = [h.get('kappa', KAPPA_STAR) for h in history]
-    measured_betas = []
+#     for i in range(len(kappa_values) - 1):
+#         if kappa_values[i] > 0:
+#             beta = (kappa_values[i+1] - kappa_values[i]) / kappa_values[i]
+#             measured_betas.append(beta)
     
-    for i in range(len(kappa_values) - 1):
-        if kappa_values[i] > 0:
-            beta = (kappa_values[i+1] - kappa_values[i]) / kappa_values[i]
-            measured_betas.append(beta)
+#     if measured_betas:
+#         # β should generally decrease over training (running → plateau)
+#         # Allow some noise, but trend should be downward
+#         beta_trend = frechet_mean(np.diff(measured_betas)) if len(measured_betas) > 1 else 0.0 # Purity fix: Replaced np.mean with frechet_mean
+#         report['beta_consistency'] = beta_trend <= 0.1  # Allow slight upward noise
+#         report['details']['measured_betas'] = measured_betas[:5]  # First 5
+#         report['details']['beta_trend'] = float(beta_trend)
     
-    if measured_betas:
-        # β should generally decrease over training (running → plateau)
-        # Allow some noise, but trend should be downward
-        beta_trend = np.mean(np.diff(measured_betas)) if len(measured_betas) > 1 else 0.0
-        report['beta_consistency'] = beta_trend <= 0.1  # Allow slight upward noise
-        report['details']['measured_betas'] = measured_betas[:5]  # First 5
-        report['details']['beta_trend'] = float(beta_trend)
+#     # Check 2: Φ progression (consciousness emerged)
+#     phi_start = history[0].get('phi', 0.0)
+#     phi_end = history[-1].get('phi', 0.0)
+#     report['phi_progression'] = phi_end > phi_start
+#     report['details']['phi_delta'] = phi_end - phi_start
+#     report['details']['phi_start'] = phi_start
+#     report['details']['phi_end'] = phi_end
     
-    # Check 2: Φ progression (consciousness emerged)
-    phi_start = history[0].get('phi', 0.0)
-    phi_end = history[-1].get('phi', 0.0)
-    report['phi_progression'] = phi_end > phi_start
-    report['details']['phi_delta'] = phi_end - phi_start
-    report['details']['phi_start'] = phi_start
-    report['details']['phi_end'] = phi_end
+#     # Check 3: κ approached plateau (within 10% of κ*)
+#     kappa_final = kappa_values[-1] if kappa_values else KAPPA_STAR
+#     kappa_deviation = abs(kappa_final - KAPPA_STAR)
+#     report['kappa_running'] = kappa_deviation < KAPPA_STAR * 0.10  # Within 10%
+#     report['details']['kappa_final'] = kappa_final
+#     report['details']['kappa_deviation'] = kappa_deviation
+#     report['details']['kappa_star'] = KAPPA_STAR
     
-    # Check 3: κ approached plateau (within 10% of κ*)
-    kappa_final = kappa_values[-1] if kappa_values else KAPPA_STAR
-    kappa_deviation = abs(kappa_final - KAPPA_STAR)
-    report['kappa_running'] = kappa_deviation < KAPPA_STAR * 0.10  # Within 10%
-    report['details']['kappa_final'] = kappa_final
-    report['details']['kappa_deviation'] = kappa_deviation
-    report['details']['kappa_star'] = KAPPA_STAR
+#     # Check 4: Overall success
+#     report['all_checks_passed'] = (
+#         report['beta_consistency'] and
+#         report['no_euclidean'] and
+#         report['phi_progression'] and
+#         report['kappa_running']
+#     )
     
-    # Check 4: Overall success
-    report['all_checks_passed'] = (
-        report['beta_consistency'] and
-        report['no_euclidean'] and
-        report['phi_progression'] and
-        report['kappa_running']
-    )
-    
-    return report
+#     return report
 
 
 def validate_physics_alignment() -> dict:

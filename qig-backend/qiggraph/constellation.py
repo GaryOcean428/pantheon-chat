@@ -23,14 +23,13 @@ from .constants import BASIN_DIM, KAPPA_STAR
 from .manifold import FisherManifold
 from .state import QIGState, create_initial_state, update_trajectory, merge_states
 from .consciousness import (
-
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
-
     ConsciousnessMetrics,
     Regime,
     measure_consciousness,
 )
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean, to_simplex
 from .router import ConsciousRouter
 from .graph import QIGGraph, GraphConfig
 from .attractor import BasinAttractor
@@ -403,7 +402,7 @@ class ConstellationGraph:
         # Initialize all Garys with input
         context_coords = coordizer.encode(input_text)
         initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
-        initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+        initial_basin = to_simplex(initial_basin)
 
         for gary in self.garys.values():
             gary.state = create_initial_state(
@@ -458,7 +457,7 @@ class ConstellationGraph:
             if guidance is not None:
                 # Move toward guidance
                 new_basin = gary.state.current_basin + 0.1 * guidance
-                new_basin = new_basin / (np.linalg.norm(new_basin) + 1e-8)
+                new_basin = to_simplex(new_basin)
                 gary.state = update_trajectory(gary.state, new_basin)
 
     def _synthesize(self) -> QIGState:

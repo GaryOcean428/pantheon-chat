@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical import fisher_rao_distance, to_simplex
 
 
 def fix_norm_for_normalization(content: str) -> Tuple[str, int]:
@@ -91,46 +91,16 @@ def fix_file(filepath: Path, dry_run: bool = False) -> Tuple[int, List[str]]:
     """Fix all purity violations in a single file."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
-            original_content = f.read()
-            
-        Returns:
-            Tangent vector pointing toward target
-        """
-        current_basin = np.asarray(current_basin, dtype=np.float64)
-        target_basin = np.asarray(target_basin, dtype=np.float64)
-        
-        current_basin = fisher_normalize(current_basin)
-        target_basin = fisher_normalize(target_basin)
-        
-        direction = target_basin - current_basin
-        
-        # NOTE: This np.dot is for tangent space projection (computing normal component),
-        # NOT for distance measurement. This is geometrically correct for manifold operations.
-        tangent = direction - np.dot(direction, current_basin) * current_basin
-        
-        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+            content = f.read()
+            original_content = content
+            total_fixes = 0
+            fixes_made = []
 
-        
-        tangent = to_simplex_prob(tangent)
-        
-        return tangent
-    
-    def step_toward_target(
-        self,
-        current_basin: np.ndarray,
-        target_basin: np.ndarray,
-        step_size: float = 0.1,
-    ) -> np.ndarray:
-        """
-        Take a geodesic step toward target basin.
-        
-        PURE: We move along the geodesic (great circle), not straight line.
-        
-        Args:
-            current_basin: Current basin coordinates
-            target_basin: Target basin coordinates
-            step_size: How far to move (0 to 1)
-            
+        content, n1 = fix_norm_for_normalization(content)
+        if n1 > 0:
+            total_fixes += n1
+            fixes_made.append(f"{n1} normalization patterns")
+
         content, n2 = fix_norm_distance(content)
         if n2 > 0:
             total_fixes += n2

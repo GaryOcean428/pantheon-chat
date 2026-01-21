@@ -20,6 +20,7 @@ from .constants import BASIN_DIM, PHI_THRESHOLD_DEFAULT, KAPPA_STAR, BETA_RUNNIN
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical_upsert import to_simplex_prob
+from qig_geometry.primitives import frechet_mean, bhattacharyya_coefficient
 
 
 # Import canonical Φ computation
@@ -258,8 +259,7 @@ class QIGToolSelector(QIGToolComputations):
             state_match = tool.geometric_match(current_basin)
             
             if tool.domain_basin is not None:
-                predicted_basin = (current_basin + tool.domain_basin) / 2
-                predicted_basin = predicted_basin / (np.linalg.norm(predicted_basin) + 1e-10)
+                predicted_basin = frechet_mean([current_basin, tool.domain_basin])
                 predicted_phi = self.compute_phi(predicted_basin)
             else:
                 predicted_phi = 0.5
@@ -310,8 +310,7 @@ class QIGToolSelector(QIGToolComputations):
             state_match = tool.geometric_match(current_basin)
             
             if tool.domain_basin is not None:
-                predicted_basin = (current_basin + tool.domain_basin) / 2
-                predicted_basin = predicted_basin / (np.linalg.norm(predicted_basin) + 1e-10)
+                predicted_basin = frechet_mean([current_basin, tool.domain_basin])
                 predicted_phi = self.compute_phi(predicted_basin)
             else:
                 predicted_phi = 0.5

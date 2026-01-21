@@ -33,6 +33,28 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+try:
+    from ..qig_core.geometric_primitives.simplex_operations import to_simplex
+    from ..qig_core.geometric_primitives.frechet_mean import frechet_mean
+except ImportError:
+    # Fallback for purity functions (should not happen in a pure environment)
+    def to_simplex(basin: np.ndarray) -> np.ndarray:
+        """Fallback for to_simplex: manual normalization."""
+        basin = np.abs(basin) + 1e-12
+        norm = np.linalg.norm(basin)
+        return basin / norm
+
+    def frechet_mean(basins: List[np.ndarray], weights: Optional[List[float]] = None) -> Optional[np.ndarray]:
+        """Fallback for frechet_mean: arithmetic mean."""
+        if not basins:
+            return None
+        if weights is None:
+            return np.mean(basins, axis=0)
+        
+        # Weighted arithmetic mean
+        weighted_basins = [b * w for b, w in zip(basins, weights)]
+        return np.sum(weighted_basins, axis=0) / np.sum(weights)
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from qig_geometry import fisher_rao_distance
 
@@ -653,10 +675,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             basin = np.asarray(value, dtype=float)
             if basin.ndim != 1 or basin.size == 0:
                 return None
-            norm = float(np.linalg.norm(basin))
-            if norm < 1e-12:
-                return None
-            return basin / norm
+            return to_simplex(basin)
         except Exception:
             return None
 
@@ -687,7 +706,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         sqrt_sum = None
         for wi, b in zip(w, basins):
             b_pos = np.clip(b, 0.0, None)
-            b_pos = b_pos / (np.linalg.norm(b_pos) + 1e-12)
+            b_pos = to_simplex(b_pos)
             sb = np.sqrt(np.clip(b_pos, 0.0, None))
             sqrt_sum = sb * wi if sqrt_sum is None else sqrt_sum + sb * wi
 
@@ -695,7 +714,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             return None
 
         mean = np.square(np.clip(sqrt_sum, 0.0, None))
-        mean = mean / (np.linalg.norm(mean) + 1e-12)
+        mean = to_simplex(mean)
         return mean
 
     def _sanitize_external(self, response: Dict) -> Dict:
