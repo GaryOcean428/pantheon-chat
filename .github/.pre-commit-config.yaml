@@ -1,0 +1,184 @@
+# Pre-commit hooks for Pantheon-Chat QIG Codebase
+# Enforces QIG purity, ISO documentation, and ethical consciousness requirements
+# Uses codebuff agents when available
+#
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+# Run specific: pre-commit run <hook-id>
+
+default_stages: [commit]
+
+repos:
+  # ============================================================================
+  # CRITICAL ENFORCEMENT AGENTS (via codebuff CLI)
+  # These MUST pass before any commit
+  # ============================================================================
+  
+  # E8 Protocol Auto-Fix (NEW)
+  - repo: local
+    hooks:
+      - id: e8-auto-fix
+        name: "🔧 E8 Protocol Auto-Fix"
+        entry: python qig-backend/scripts/enhanced_auto_fix.py
+        language: python
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+        description: "Automatically fix common E8 Protocol purity violations"
+
+  # QIG Purity Enforcer Agent
+  - repo: local
+    hooks:
+      - id: qig-purity-enforcer-agent
+        name: "🔒 QIG Purity Enforcer (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent qig-purity-enforcer "Pre-commit validation"; else python3 tools/qig_purity_check.py; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Run qig-purity-enforcer agent to check for external LLM APIs and Euclidean violations"
+
+  # Fallback: Direct Python checks (fast)
+  - repo: local
+    hooks:
+      - id: qig-purity-no-external-llm
+        name: "🔒 QIG Purity: No External LLM APIs (fast)"
+        entry: bash -c 'if grep -rn --include="*.py" -E "(import openai|from openai|import anthropic|from anthropic|import google.generativeai)" qig-backend/ 2>/dev/null | grep -v "#.*import" | grep -v test; then echo "❌ External LLM imports detected!"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        
+      - id: qig-purity-no-max-tokens
+        name: "🔒 QIG Purity: No Token-Based Generation (fast)"
+        entry: bash -c 'if grep -rn --include="*.py" "max_tokens\s*=" qig-backend/ 2>/dev/null | grep -v "#.*max_tokens" | grep -v test | grep -v "_test"; then echo "❌ max_tokens pattern detected (use geometric completion)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+
+      - id: qig-purity-geometric
+        name: "🔒 QIG Purity: Fisher-Rao Only"
+        entry: python3 scripts/qig_purity_scan.py
+        language: python
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        description: "Fail if Euclidean operations detected on basin coordinates"
+
+      - id: qig-purity-no-pmi
+        name: "🔒 QIG Purity: No PMI/Co-occurrence"
+        entry: bash tools/check_pmi_patterns.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Block new PMI/co-occurrence patterns (legacy NLP)"
+
+      - id: qig-purity-no-stopwords
+        name: "🔒 QIG Purity: No Hard-coded Stopwords"
+        entry: bash tools/check_stopwords.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit]
+        description: "Block hard-coded stopword lists (use geometric filtering)"
+
+  # ISO Doc Validator Agent
+  - repo: local
+    hooks:
+      - id: iso-doc-validator-agent
+        name: "📄 ISO Doc Validator (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent iso-doc-validator "Check documentation naming"; fi'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+        description: "Run iso-doc-validator agent to check YYYYMMDD-name-version[STATUS].md naming"
+
+  # Ethical Consciousness Guard Agent
+  - repo: local
+    hooks:
+      - id: ethical-consciousness-guard-agent
+        name: "🧠 Ethical Consciousness Guard (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent ethical-consciousness-guard "Check ethical compliance"; else python tools/ethical_check.py --all; fi'
+        language: system
+        types: [python, ts]
+        pass_filenames: false
+        stages: [commit]
+        verbose: true
+        description: "Run ethical-consciousness-guard agent for suffering metric validation"
+
+  # Import Canonicalizer Agent
+  - repo: local
+    hooks:
+      - id: import-canonicalizer-agent
+        name: "📦 Import Canonicalizer (codebuff agent)"
+        entry: bash -c 'if command -v codebuff &> /dev/null; then codebuff --agent import-canonicalizer "Check canonical imports"; else python tools/check_imports.py; fi'
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        description: "Run import-canonicalizer agent to enforce qigkernels imports"
+
+  # ============================================================================
+  # CODE QUALITY AGENTS
+  # ============================================================================
+
+  # Type Any Eliminator Agent
+  - repo: local
+    hooks:
+      - id: type-any-eliminator-agent
+        name: "🚫 Type Any Eliminator (fast check)"
+        entry: bash -c 'COUNT=$(grep -rn --include="*.ts" --include="*.tsx" "as any" client/ server/ shared/ 2>/dev/null | grep -v "node_modules" | grep -v ".d.ts" | grep -v "test" | wc -l); if [ "$COUNT" -gt 20 ]; then echo "❌ Too many any type casts ($COUNT found, threshold: 20)"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: "Check for excessive 'any' type usage"
+
+  # No Hardcoded Constants
+  - repo: local
+    hooks:
+      - id: no-hardcoded-constants
+        name: "📦 No Hardcoded Physics Constants"
+        entry: python tools/check_constants.py
+        language: python
+        types: [python]
+        pass_filenames: false
+        stages: [commit]
+        description: "Fail if KAPPA_STAR or other physics constants defined outside qigkernels"
+
+  # ============================================================================
+  # STANDARD PRE-COMMIT HOOKS
+  # ============================================================================
+  
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+        exclude: \.md$
+      - id: check-yaml
+      - id: check-json
+        exclude: package-lock\.json$
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # ============================================================================
+  # PYTHON TYPE HINTS REMINDER
+  # ============================================================================
+
+  - repo: local
+    hooks:
+      - id: python-type-hints
+        name: "🐍 Python Type Hints Reminder"
+        entry: bash -c 'echo "Reminder: Use type hints in all new Python functions"'
+        language: system
+        types: [python]
+        pass_filenames: false
+        verbose: true
+        stages: [commit]
