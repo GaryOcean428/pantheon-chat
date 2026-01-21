@@ -53,8 +53,6 @@ References:
 import numpy as np
 from typing import List, Optional, Tuple
 import logging
-from qig_geometry.canonical import bhattacharyya
-from qig_geometry import fisher_rao_distance
 
 logger = logging.getLogger(__name__)
 
