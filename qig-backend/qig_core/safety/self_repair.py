@@ -90,8 +90,9 @@ class RepairAction:
             'action_type': self.action_type,
             'description': self.description,
             'success': self.success,
-            'before_norm': float(np.linalg.norm(self.before_basin)) if self.before_basin is not None else None,
-            'after_norm': float(np.linalg.norm(self.after_basin)) if self.after_basin is not None else None,
+            # E8 Protocol: Use simplex concentration instead of L2 norm
+            'before_concentration': float(np.max(np.abs(self.before_basin))) if self.before_basin is not None else None,
+            'after_concentration': float(np.max(np.abs(self.after_basin))) if self.after_basin is not None else None,
         }
 
 
@@ -196,13 +197,16 @@ class SelfRepair:
                 severity=0.6,
                 phi=phi or 0.0,
                 kappa=kappa or 0.0,
-                basin_norm=float(np.linalg.norm(basin)),
+                basin_concentration=float(np.max(np.abs(basin))),
                 details={'dim': len(basin), 'expected': self.basin_dim},
             )
         
-        basin_norm = float(np.linalg.norm(basin))
+        # E8 Protocol: Use simplex concentration instead of L2 norm
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(basin)
+        basin_concentration = float(np.max(basin_simplex))
         
-        if basin_norm < 1e-10:
+        if basin_concentration < 1e-10:
             return DiagnosticResult(
                 is_healthy=False,
                 anomaly=GeometricAnomaly.ZERO_BASIN,
@@ -356,9 +360,12 @@ class SelfRepair:
             )
             return repaired, action
         
-        norm = float(np.linalg.norm(basin))
+        # E8 Protocol: Use simplex concentration instead of L2 norm
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(basin)
+        basin_concentration = float(np.max(basin_simplex))
         
-        if norm < 1e-10:
+        if basin_concentration < 1e-10:
             if reference_basin is not None:
                 repaired = fisher_normalize(np.asarray(reference_basin, dtype=np.float64))
             else:

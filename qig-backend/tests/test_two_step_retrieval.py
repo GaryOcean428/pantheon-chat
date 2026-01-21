@@ -94,9 +94,9 @@ def test_sqrt_simplex_properties():
     # sqrt-space should be non-negative
     assert np.all(sqrt_basin >= 0)
     
-    # sqrt-space should be on unit hemisphere (norm ≈ 1)
-    norm = np.linalg.norm(sqrt_basin)
-    assert np.isclose(norm, 1.0, atol=1e-6)
+    # E8 Protocol: For sqrt-space representation, check L2 norm (Hellinger coordinates)
+    l2_norm = np.sqrt(np.sum(sqrt_basin**2))
+    assert np.isclose(l2_norm, 1.0, atol=1e-6), f"Sqrt-space L2 norm should be 1.0, got {l2_norm}"
 
 
 def test_bhattacharyya_from_sqrt_matches_canonical():

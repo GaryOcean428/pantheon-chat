@@ -408,8 +408,10 @@ class VocabularyIngestionService:
                     if basin_column not in ALLOWED_BASIN_COLUMNS:
                         raise RuntimeError(f"Invalid basin column name: {basin_column}")
                     
-                    # Compute geometric validation metrics
-                    basin_distance = float(np.linalg.norm(basin_embedding))
+                    # E8 Protocol: Use simplex concentration for geometric metrics
+                    from qig_geometry.representation import to_simplex_prob
+                    basin_simplex = to_simplex_prob(basin_embedding)
+                    basin_concentration = float(np.max(basin_simplex))
                     curvature_std = float(np.std(basin_embedding))
                     entropy_score = self._compute_entropy(basin_embedding)
                     

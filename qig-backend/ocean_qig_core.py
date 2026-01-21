@@ -41,6 +41,11 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from scipy.linalg import sqrtm
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Configure logging with development-aware verbosity
 # Import dev_logging to get verbose, untruncated logs in development
 try:
@@ -5045,9 +5050,9 @@ def compute_fisher_centroid(vectors: np.ndarray, weights: np.ndarray) -> np.ndar
     centroid = np.average(vectors, axis=0, weights=weights)
 
     # Normalize to unit sphere (Fisher manifold)
-    norm = np.linalg.norm(centroid)
-    if norm > 1e-10:
-        centroid = centroid / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    centroid = to_simplex_prob(centroid)
 
     return centroid
 
@@ -5196,13 +5201,13 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     new_direction = np.nan_to_num(new_direction, nan=0.0, posinf=1.0, neginf=-1.0)
 
     # Ensure unit norm
-    norm = np.linalg.norm(new_direction)
-    if norm > 1e-10:
-        new_direction = new_direction / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    new_direction = to_simplex_prob(new_direction)
     else:
         # If zero vector, return random direction
         new_direction = np.random.randn(BASIN_DIMENSION)
-        new_direction = new_direction / np.linalg.norm(new_direction)
+        new_direction = to_simplex_prob(new_direction)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
     return new_direction
 

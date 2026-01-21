@@ -132,7 +132,9 @@ def test_ricci_curvature():
     """Ricci curvature computation."""
     print("Test: Ricci curvature computation...", end=" ")
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    # E8 Protocol: Use simplex normalization
+    from qig_geometry.representation import to_simplex_prob
+    basin = to_simplex_prob(basin)
     
     curvature = compute_ricci_curvature(basin)
     
@@ -160,7 +162,9 @@ def test_emotion_tracker():
     tracker = EmotionTracker()
     
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    # E8 Protocol: Use simplex normalization
+    from qig_geometry.representation import to_simplex_prob
+    basin = to_simplex_prob(basin)
     
     state = tracker.update(
         current_basin=basin,

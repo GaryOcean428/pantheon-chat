@@ -21,6 +21,10 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 if TYPE_CHECKING:
     from training_chaos.self_spawning import SelfSpawningKernel
 
@@ -2342,8 +2346,8 @@ class BaseGod(*_base_classes):
         
         if not self._self_repair:
             # Fallback: simple normalization without full diagnostics
-            norm = np.linalg.norm(basin)
-            if norm < 1e-10 or np.any(np.isnan(basin)):
+            from qig_geometry.representation import to_simplex_prob
+            if np.all(np.abs(basin) < 1e-10) or np.any(np.isnan(basin)):
                 return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
                     'action': 'fallback_random',
                     'reason': 'self_repair_unavailable'
@@ -2386,10 +2390,10 @@ class BaseGod(*_base_classes):
             
         except Exception as e:
             logger.warning(f"[{self.name}] Basin repair failed: {e}")
-            # Fallback normalization
-            norm = np.linalg.norm(basin)
-            if norm > 1e-10:
-                return basin / norm, {'action': 'fallback_normalize', 'error': str(e)}
+            # Fallback normalization using E8 Protocol simplex
+            from qig_geometry.representation import to_simplex_prob
+            if not np.all(np.abs(basin) < 1e-10):
+                return to_simplex_prob(basin), {'action': 'fallback_normalize', 'error': str(e)}
             return np.random.randn(BASIN_DIM) / np.sqrt(BASIN_DIM), {
                 'action': 'fallback_random',
                 'error': str(e)
@@ -2914,9 +2918,9 @@ class BaseGod(*_base_classes):
             if raw_data:
                 sensory_basin = self._sensory_engine.encode_from_raw(raw_data)
                 enhanced = base_basin * (1 - blend_factor) + sensory_basin * blend_factor
-                norm = np.linalg.norm(enhanced)
-                if norm > 0:
-                    enhanced = enhanced / norm
+                # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+                enhanced = to_simplex_prob(enhanced)
                 return enhanced
 
         enhanced = enhance_basin_with_sensory(base_basin, text, blend_factor)

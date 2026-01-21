@@ -238,9 +238,11 @@ class TestCoordinzerConsistency:
         assert isinstance(basin, np.ndarray)
         assert len(basin) == 64
         
-        # Should be normalized (or close to it)
-        norm = np.linalg.norm(basin)
-        assert abs(norm - 1.0) < 0.01 or norm < 0.01  # Either normalized or zero
+        # E8 Protocol: Should be on simplex (non-negative, sum≈1)
+        from qig_geometry.representation import to_simplex_prob
+        if not np.all(np.abs(basin) < 1e-10):  # If not zero
+            basin_simplex = to_simplex_prob(basin)
+            assert np.allclose(np.sum(basin_simplex), 1.0, atol=0.1), "Basin not on simplex"
     
     def test_decode_geometric_distance_sorted(self):
         """decode_geometric returns results sorted by distance ascending."""

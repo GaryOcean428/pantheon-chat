@@ -209,7 +209,9 @@ class QIGGraph:
         if initial_basin is None:
             # Start at mean of input coordinates
             initial_basin = np.mean(context_coords, axis=0)
-            initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+            # E8 Protocol: Use simplex normalization
+            from qig_geometry.representation import to_simplex_prob
+            initial_basin = to_simplex_prob(initial_basin)
 
         state = create_initial_state(
             context_text=input_text,
@@ -486,7 +488,9 @@ class StreamingQIGGraph(QIGGraph):
 
         if initial_basin is None:
             initial_basin = np.mean(context_coords, axis=0)
-            initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+            # E8 Protocol: Use simplex normalization
+            from qig_geometry.representation import to_simplex_prob
+            initial_basin = to_simplex_prob(initial_basin)
 
         state = create_initial_state(
             context_text=input_text,

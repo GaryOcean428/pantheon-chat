@@ -29,7 +29,10 @@ def test_direct_pg_loader():
         # Test encode/decode
         import numpy as np
         basin = coordizer.encode("hello world consciousness")
-        print(f"  Encoded basin norm: {np.linalg.norm(basin):.4f}")
+        # E8 Protocol: Use simplex metrics
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(basin)
+        print(f"  Encoded basin concentration: {np.max(basin_simplex):.4f}")
         
         decoded = coordizer.decode(basin, top_k=5)
         print(f"  Decoded: {[t for t, s in decoded]}")

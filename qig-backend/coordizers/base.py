@@ -31,6 +31,10 @@ from abc import ABC, abstractmethod
 import os
 import sys
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -324,9 +328,9 @@ class FisherCoordizer(BaseCoordizer):
             List of (word, fisher_rao_distance) tuples
         """
         # Normalize basin
-        norm = np.linalg.norm(target_basin)
-        if norm > 1e-10:
-            target_basin = target_basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        target_basin = to_simplex_prob(target_basin)
         
         # POS filtering not supported in base implementation
         if allowed_pos:

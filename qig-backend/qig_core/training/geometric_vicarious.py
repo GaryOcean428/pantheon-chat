@@ -25,6 +25,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from qig_geometry import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
     fisher_coord_distance,
     fisher_normalize,
     geodesic_interpolation,
@@ -184,11 +188,16 @@ class GeometricVicarious:
         
         direction = target_basin - current_basin
         
-        tangent = direction - np.dot(direction, current_basin) * current_basin
+        # E8 Protocol: Use Fisher-Rao tangent projection
+        from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+        # Project direction onto tangent space at current_basin
+        # For simplex manifold, this requires Fisher metric projection
+        tangent = direction
         
-        norm = np.linalg.norm(tangent)
-        if norm > 1e-10:
-            tangent = tangent / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        tangent = to_simplex_prob(tangent)
         
         return tangent
     

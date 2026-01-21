@@ -2312,9 +2312,12 @@ class GaryAutonomicKernel:
             manifold = None
         
         basin_entropy = -np.sum(np.abs(current_basin) * np.log(np.abs(current_basin) + 1e-8))
-        basin_norm = np.linalg.norm(current_basin)
+        # E8 Protocol: Use simplex concentration instead of L2 norm
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(current_basin)
+        basin_concentration = np.max(basin_simplex)
         entropy_factor = min(1.0, basin_entropy / 50.0)
-        norm_factor = min(1.0, basin_norm / 5.0)
+        norm_factor = min(1.0, basin_concentration * 5.0)
         
         explore_prob = 0.4 + temperature * 0.3 + entropy_factor * 0.1
         consolidate_prob = 0.6 - temperature * 0.2 + norm_factor * 0.15

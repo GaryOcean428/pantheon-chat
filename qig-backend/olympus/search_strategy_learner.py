@@ -111,9 +111,9 @@ class FeedbackRecord:
             "query": self.query,
             "user_feedback": self.user_feedback,
             "results_summary": self.results_summary,
-            "query_basin_norm": float(np.linalg.norm(self.query_basin)),
-            "feedback_basin_norm": float(np.linalg.norm(self.feedback_basin)),
-            "modification_basin_norm": float(np.linalg.norm(self.modification_basin)),
+            "query_basin_concentration": float(np.max(np.abs(self.query_basin))),
+            "feedback_basin_concentration": float(np.max(np.abs(self.feedback_basin))),
+            "modification_basin_concentration": float(np.max(np.abs(self.modification_basin))),
             "search_params": self.search_params,
             "outcome_quality": self.outcome_quality,
             "timestamp": self.timestamp,
@@ -764,11 +764,14 @@ class SearchStrategyLearner:
         combined_basin = self.encoder.encode(combined_context)
         
         modification_basin = combined_basin - query_basin
-        mod_norm = np.linalg.norm(modification_basin)
-        if mod_norm > 1e-10:
-            modification_basin = modification_basin / mod_norm
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        if not np.all(np.abs(modification_basin) < 1e-10):
+            modification_basin = to_simplex_prob(modification_basin)
+            mod_concentration = float(np.max(np.abs(modification_basin)))
         else:
             modification_basin = np.zeros(BASIN_DIMENSION)
+            mod_concentration = 0.0
         
         record = FeedbackRecord(
             query_basin=query_basin,
@@ -792,8 +795,8 @@ class SearchStrategyLearner:
         return {
             "success": True,
             "record_id": record.record_id,
-            "modification_magnitude": float(mod_norm),
-            "combined_basin_norm": float(np.linalg.norm(combined_basin)),
+            "modification_magnitude": float(mod_concentration),
+            "combined_basin_concentration": float(np.max(np.abs(combined_basin))),
             "total_records": len(self.feedback_records),
             "persisted": self.persistence is not None and self.persistence.enabled,
         }

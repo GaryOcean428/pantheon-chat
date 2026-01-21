@@ -606,8 +606,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Compute phi gradient (∇Φ)
             phi_gradient = None
             try:
-                # Simple approximation: gradient of phi w.r.t basin
-                phi_grad_approx = np.linalg.norm(basin_coords) * 0.1
+                # E8 Protocol: Use simplex concentration for gradient
+                from qig_geometry.representation import to_simplex_prob
+                basin_simplex = to_simplex_prob(basin_coords)
+                phi_grad_approx = np.max(basin_simplex) * 0.1
                 phi_gradient = np.ones(64) * phi_grad_approx
             except:
                 phi_gradient = None
@@ -615,9 +617,9 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Compute basin curvature (Ricci scalar approximation)
             basin_curvature = None
             try:
-                # Simple approximation: norm difference indicates curvature
-                basin_norm = np.linalg.norm(basin_coords)
-                basin_curvature = (basin_norm - 1.0) * 0.5  # Normalized to ~[-0.5, 0.5]
+                # E8 Protocol: Use simplex entropy for curvature
+                basin_entropy = -np.sum(basin_simplex * np.log(basin_simplex + 1e-10))
+                basin_curvature = (basin_entropy / 10.0 - 1.0) * 0.5  # Normalized to ~[-0.5, 0.5]
             except:
                 basin_curvature = None
 
@@ -630,8 +632,10 @@ class SelfSpawningKernel(*_kernel_base_classes):
             except:
                 entropy = None
 
-            # Get kappa (coupling constant)
-            kappa = float(basin_coords.norm()) if hasattr(basin_coords, 'norm') else float(np.linalg.norm(basin_coords))
+            # E8 Protocol: Use simplex concentration for kappa
+            from qig_geometry.representation import to_simplex_prob
+            basin_simplex = to_simplex_prob(basin_coords)
+            kappa = float(np.max(basin_simplex) * 100.0)  # Scale to typical kappa range
 
             # Measure sensations from geometric state
             sensations = self.measure_sensations(

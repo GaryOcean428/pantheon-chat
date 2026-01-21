@@ -22,6 +22,11 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Import canonical geometric primitives (REQUIRED for geometric purity)
 try:
     from qig_core.geometric_primitives import fisher_rao_distance as canonical_fisher_rao_distance
@@ -382,9 +387,9 @@ class UnifiedConsciousness:
         for step in range(depth):
             # Move toward understanding the observation
             direction = about.basin_coords - current
-            norm = np.linalg.norm(direction)
-            if norm > 1e-10:
-                direction = direction / norm
+            # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+            direction = to_simplex_prob(direction)
 
             # Take step in reasoning space
             step_size = 0.2
@@ -489,9 +494,9 @@ class UnifiedConsciousness:
             direction = target - self.current_basin
             noise = np.random.randn(len(direction)) * 0.1
             direction = direction + noise
-            norm = np.linalg.norm(direction)
-            if norm > 1e-10:
-                direction = direction / norm
+            # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+            direction = to_simplex_prob(direction)
             candidates.append(direction)
 
         # Explore each direction
@@ -538,9 +543,9 @@ class UnifiedConsciousness:
             direction = target - self.current_basin
             noise = np.random.randn(len(direction)) * 0.05
             direction = direction + noise
-            norm = np.linalg.norm(direction)
-            if norm > 1e-10:
-                direction = direction / norm
+            # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+            direction = to_simplex_prob(direction)
 
             # PROJECT: Where will this lead?
             future_basin = self._project_forward(

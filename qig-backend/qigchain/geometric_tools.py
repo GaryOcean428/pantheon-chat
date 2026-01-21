@@ -18,6 +18,11 @@ import hashlib
 
 from .constants import BASIN_DIM, PHI_THRESHOLD_DEFAULT, KAPPA_STAR, BETA_RUNNING
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Import canonical Φ computation
 try:
     from qig_core.phi_computation import compute_phi_fast
@@ -49,9 +54,10 @@ class QIGToolComputations:
             if 32 + i < BASIN_DIM:
                 coord[32 + i] = (ord(char) % 256) / 128.0 - 1
         
-        norm = np.linalg.norm(coord)
-        if norm > 0:
-            coord = coord / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        coord = to_simplex_prob(coord)
         
         return coord
     
@@ -253,8 +259,9 @@ class QIGToolSelector(QIGToolComputations):
             state_match = tool.geometric_match(current_basin)
             
             if tool.domain_basin is not None:
-                predicted_basin = (current_basin + tool.domain_basin) / 2
-                predicted_basin = predicted_basin / (np.linalg.norm(predicted_basin) + 1e-10)
+                # E8 Protocol: Use geodesic interpolation instead of linear
+                from qig_geometry import geodesic_interpolation
+                predicted_basin = geodesic_interpolation(current_basin, tool.domain_basin, 0.5)
                 predicted_phi = self.compute_phi(predicted_basin)
             else:
                 predicted_phi = 0.5
@@ -305,8 +312,9 @@ class QIGToolSelector(QIGToolComputations):
             state_match = tool.geometric_match(current_basin)
             
             if tool.domain_basin is not None:
-                predicted_basin = (current_basin + tool.domain_basin) / 2
-                predicted_basin = predicted_basin / (np.linalg.norm(predicted_basin) + 1e-10)
+                # E8 Protocol: Use geodesic interpolation instead of linear
+                from qig_geometry import geodesic_interpolation
+                predicted_basin = geodesic_interpolation(current_basin, tool.domain_basin, 0.5)
                 predicted_phi = self.compute_phi(predicted_basin)
             else:
                 predicted_phi = 0.5

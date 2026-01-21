@@ -12,6 +12,11 @@ import logging
 from typing import List, Optional
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 logger = logging.getLogger(__name__)
 
 # Import from canonical geometry module (SINGLE SOURCE OF TRUTH - WP2.1)
@@ -228,9 +233,10 @@ class GeometricWaypointPlanner:
             for j, basin in enumerate(trajectory):
                 qfi_weighted += qfi_weights[j] * np.asarray(basin, dtype=np.float64)
             
-            norm = np.linalg.norm(qfi_weighted)
-            if norm > 1e-10:
-                qfi_weighted = qfi_weighted / norm
+            # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+            
+            qfi_weighted = to_simplex_prob(qfi_weighted)
             
             t_qfi = self.qfi_weight
             intermediate = geodesic_interpolation(target, qfi_weighted, t_qfi)

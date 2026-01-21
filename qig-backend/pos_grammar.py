@@ -217,10 +217,10 @@ class POSGrammar:
         for word in candidates:
             if word in basin_coords_map:
                 word_basin = basin_coords_map[word]
-                # Fisher-Rao distance on probability simplex
-                # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-                dot = np.clip(np.dot(basin, word_basin), 0.0, 1.0)
-                similarity = 1.0 - np.arccos(dot) / (np.pi / 2.0)
+                # E8 Protocol: Use Fisher-Rao distance on simplex
+                from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+                distance = fisher_rao_distance(basin, word_basin)
+                similarity = 1.0 - (distance / (np.pi / 2.0))
                 scored.append((word, similarity))
         
         scored.sort(key=lambda x: x[1], reverse=True)

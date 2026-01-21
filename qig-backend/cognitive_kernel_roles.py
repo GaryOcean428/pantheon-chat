@@ -228,7 +228,10 @@ class TriLayerMediator:
             self.state.id_activation = min(1.0, self.state.id_activation + 0.1)
         
         id_pass = impulse_basin.copy()
-        id_energy = np.linalg.norm(impulse_basin)
+        # E8 Protocol: Use simplex entropy for energy instead of L2 norm
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(impulse_basin)
+        id_energy = -np.sum(basin_simplex * np.log(basin_simplex + 1e-10))
         result['layer_results']['id'] = {
             'energy': float(id_energy),
             'activation': self.state.id_activation,

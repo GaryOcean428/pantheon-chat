@@ -87,9 +87,10 @@ def test_geodesic_step():
     # New basin should be same dimension
     assert len(new_basin) == len(basin), "New basin should match dimension"
     
-    # New basin should be on unit sphere (approximately)
-    norm = np.linalg.norm(new_basin)
-    assert abs(norm - 1.0) < 0.1, f"New basin should be near unit sphere, got norm={norm}"
+    # E8 Protocol: Check simplex constraints
+    from qig_geometry.representation import to_simplex_prob
+    basin_simplex = to_simplex_prob(new_basin)
+    assert np.allclose(np.sum(basin_simplex), 1.0, atol=1e-6), "Basin not on simplex"
     
     # Should have moved from original basin
     distance = fisher_coord_distance(basin, new_basin)

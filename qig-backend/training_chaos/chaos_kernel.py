@@ -33,6 +33,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 logger = logging.getLogger(__name__)
 
 # Import generative capability for QIG-pure text generation
@@ -803,9 +808,10 @@ class ChaosKernel(nn.Module):
         
         basin = np.array(coords[:self.basin_dim])
         
-        norm = np.linalg.norm(basin)
-        if norm > 1e-8:
-            basin = basin / norm * np.sqrt(self.basin_dim)
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        basin = to_simplex_prob(basin) * np.sqrt(self.basin_dim)
         
         return torch.tensor(basin, dtype=torch.float32)
 

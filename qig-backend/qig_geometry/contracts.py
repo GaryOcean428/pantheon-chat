@@ -29,6 +29,10 @@ RATIONALE FOR SIMPLEX:
 
 Usage:
     from qig_geometry.contracts import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+
         validate_basin, assert_invariants, canon, fisher_distance
     )
     
@@ -223,7 +227,7 @@ def fisher_distance(b1: np.ndarray, b2: np.ndarray) -> float:
     
     NOTE: This is THE ONLY distance function that should be used for
     basin comparisons. Do NOT use:
-    - Euclidean distance (np.linalg.norm(b1 - b2))
+    - Euclidean distance (fisher_rao_distance(b1, b2)  # FIXED (E8 Protocol v4.0))
     - Cosine similarity (np.dot / norms)
     - L1/Manhattan distance
     

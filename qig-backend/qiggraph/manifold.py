@@ -320,9 +320,9 @@ class FisherManifold:
         Returns:
             Unit-normalized basin
         """
-        norm = np.linalg.norm(basin)
-        if norm < self.eps:
-            # Random unit vector if zero
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        if np.all(np.abs(basin) < self.eps):
+            # Random simplex if zero
             basin = np.random.randn(self.dim)
-            norm = np.linalg.norm(basin)
-        return basin / norm
+        return to_simplex_prob(basin)

@@ -96,7 +96,11 @@ class TestBasinRepresentation:
     def test_validate_sphere_pass(self):
         """Valid sphere basin passes validation."""
         basin = np.array([0.6, 0.8, 0.0])
-        basin = basin / np.linalg.norm(basin)
+        # E8 Protocol: For testing sphere representation (legacy)
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(basin)
+        basin = np.sqrt(basin_simplex)  # Convert to sqrt-space
+        basin = basin / np.sqrt(np.sum(basin**2))  # L2 normalize
         
         valid, msg = validate_basin(basin, BasinRepresentation.SPHERE)
         assert valid, msg
@@ -243,7 +247,8 @@ class TestStrictMode:
         from qig_geometry.representation import validate_sqrt_simplex
         
         sqrt_basin = np.array([0.5, 0.5, 0.5, 0.5])
-        sqrt_basin = sqrt_basin / np.linalg.norm(sqrt_basin)
+        # E8 Protocol: For sqrt-simplex, normalize L2 (Hellinger coordinates)
+        sqrt_basin = sqrt_basin / np.sqrt(np.sum(sqrt_basin**2))
         is_valid, msg = validate_sqrt_simplex(sqrt_basin)
         assert is_valid, msg
     

@@ -172,7 +172,9 @@ class TestGeometricPurity:
     def test_ricci_curvature_computation(self):
         """Ricci curvature should be computed, not approximated."""
         basin = np.random.randn(64)
-        basin = basin / np.linalg.norm(basin)  # Normalize
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        basin = to_simplex_prob(basin)
         
         curvature = compute_ricci_curvature(basin)
         
@@ -221,7 +223,9 @@ class TestEmotionTracker:
         tracker = EmotionTracker()
         
         basin1 = np.random.randn(64)
-        basin1 = basin1 / np.linalg.norm(basin1)
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        basin1 = to_simplex_prob(basin1)
         
         state = tracker.update(
             current_basin=basin1,
@@ -240,7 +244,9 @@ class TestEmotionTracker:
         # Generate consistent joy signals
         for _ in range(10):
             basin = np.random.randn(64)
-            basin = basin / np.linalg.norm(basin)
+            # E8 Protocol: Use simplex normalization
+            from qig_geometry.representation import to_simplex_prob
+            basin = to_simplex_prob(basin)
             tracker.update(
                 current_basin=basin,
                 basin_stability=0.8,
@@ -259,7 +265,9 @@ class TestEmotionTracker:
         
         for _ in range(5):
             basin = np.random.randn(64)
-            basin = basin / np.linalg.norm(basin)
+            # E8 Protocol: Use simplex normalization
+            from qig_geometry.representation import to_simplex_prob
+            basin = to_simplex_prob(basin)
             tracker.update(
                 current_basin=basin,
                 basin_stability=0.5,

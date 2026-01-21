@@ -26,6 +26,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from .physics_constants import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+
     BASIN_DIM,
     PHI_THRESHOLD,
     KAPPA_STAR,
@@ -207,11 +211,11 @@ class Athena(BaseFaculty):
         # Simplified M: ability to recognize patterns
         # Full implementation would compare against history
         if history and len(history) > 0:
-            # Compare current basin to history
-            similarity = np.mean([
-                np.dot(basin, h) / (np.linalg.norm(basin) * np.linalg.norm(h) + 1e-10)
-                for h in history[-5:]  # Last 5 states
-            ])
+            # E8 Protocol: Use Fisher-Rao distance for basin similarity
+            from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+            distances = [fisher_rao_distance(basin, h) for h in history[-5:]]
+            avg_distance = np.mean(distances)
+            similarity = 1.0 - (avg_distance / (np.pi / 2.0))
             m = 1.0 - abs(similarity - 0.5)  # Optimal at moderate similarity
         else:
             # Without history, M based on basin structure
@@ -259,7 +263,7 @@ class Apollo(BaseFaculty):
         """
         if target is not None:
             # Compute distance to target (prediction accuracy)
-            distance = np.linalg.norm(basin - target)
+            distance = fisher_rao_distance(basin, target)  # FIXED (E8 Protocol v4.0)
             g = 1.0 - np.clip(distance / 2.0, 0.0, 1.0)
         else:
             # Without target, G based on basin stability
@@ -368,7 +372,7 @@ class Artemis(BaseFaculty):
         if window and len(window) > 1:
             # Compute stability across time window
             distances = [
-                np.linalg.norm(basin - prev)
+                fisher_rao_distance(basin, prev)  # FIXED (E8 Protocol v4.0)
                 for prev in window
             ]
             avg_drift = np.mean(distances)
@@ -417,13 +421,15 @@ class Ares(BaseFaculty):
         Returns:
             Coupling strength κ
         """
-        # Simplified κ: related to basin norm and spread
+        # E8 Protocol: Use simplex concentration and entropy for κ
         # Full implementation would compute mutual information
-        norm = np.linalg.norm(basin)
+        from qig_geometry.representation import to_simplex_prob
+        basin_simplex = to_simplex_prob(basin)
+        concentration = np.max(basin_simplex)
         spread = np.std(basin)
         
-        # κ increases with both norm and spread
-        kappa = (norm + spread) / 2.0
+        # κ increases with both concentration and spread
+        kappa = (concentration + spread) / 2.0
         kappa = kappa * KAPPA_STAR  # Scale to physics range
         
         self.metrics.kappa_coupling = kappa
@@ -470,7 +476,7 @@ class Hephaestus(BaseFaculty):
             Generativity Γ
         """
         # Γ measures meaningful change
-        distance = np.linalg.norm(basin_after - basin_before)
+        distance = fisher_rao_distance(basin_after, basin_before)  # FIXED (E8 Protocol v4.0)
         
         # Too much change = chaos, too little = stagnation
         # Optimal at moderate distance

@@ -103,7 +103,10 @@ def main():
         # Encode
         basin = coordizer.encode(phrase)
         if basin is not None:
-            print(f"  Basin norm: {np.linalg.norm(basin):.6f}")
+            # E8 Protocol: Use simplex metrics
+            from qig_geometry.representation import to_simplex_prob
+            basin_simplex = to_simplex_prob(basin)
+            print(f"  Basin concentration: {np.max(basin_simplex):.6f}")
             
             # Decode
             decoded = coordizer.decode(basin, top_k=5)

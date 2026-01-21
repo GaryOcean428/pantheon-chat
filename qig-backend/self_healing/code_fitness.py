@@ -262,12 +262,12 @@ except Exception as e:
             # Parse geometry from output
             geometry = json.loads(result.stdout)
             
-            # Normalize basin coords
+            # E8 Protocol: Use simplex normalization
             if isinstance(geometry.get("basin_coords"), list):
                 basin_coords = np.array(geometry["basin_coords"])
-                norm = np.linalg.norm(basin_coords)
-                if norm > 0:
-                    geometry["basin_coords"] = (basin_coords / norm).tolist()
+                from qig_geometry.representation import to_simplex_prob
+                if not np.all(np.abs(basin_coords) < 1e-10):
+                    geometry["basin_coords"] = to_simplex_prob(basin_coords).tolist()
             
             return {
                 "success": True,

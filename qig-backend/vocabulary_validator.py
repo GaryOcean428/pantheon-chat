@@ -164,9 +164,10 @@ class GeometricVocabFilter:
                     # Start from uniform basin
                     context_basin = np.zeros(64)
                 
-                # Get next character probability
-                # (simplified: use basin norm as proxy for predictability)
-                p_next = np.linalg.norm(context_basin) / 64.0
+                # E8 Protocol: Use simplex entropy for predictability
+                from qig_geometry.representation import to_simplex_prob
+                basin_simplex = to_simplex_prob(context_basin)
+                p_next = -np.sum(basin_simplex * np.log(basin_simplex + 1e-10)) / 10.0
                 char_probs.append(max(p_next, 0.01))  # Avoid log(0)
             
             # QFI ≈ variance of log probabilities

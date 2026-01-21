@@ -275,12 +275,15 @@ class LearnedPattern:
 
         if include_qig_metrics and self.basin_coords is not None:
             basin = self.basin_coords
-            basin_norm = np.linalg.norm(basin)
+            # E8 Protocol: Use simplex concentration instead of L2 norm
+            from qig_geometry.representation import to_simplex_prob
+            basin_simplex = to_simplex_prob(basin)
+            basin_concentration = float(np.max(basin_simplex))
             result['basin_coords'] = basin.tolist() if isinstance(basin, np.ndarray) else basin
             result['basin_dimension'] = len(basin) if hasattr(basin, '__len__') else 64
-            result['basin_norm'] = float(basin_norm) if basin_norm else 0.0
-            result['phi'] = float(np.clip(basin_norm / 10.0, 0, 1)) if basin_norm else 0.5
-            result['kappa'] = float(55.0 + 10.0 * np.tanh(basin_norm - 5)) if basin_norm else 55.0
+            result['basin_concentration'] = basin_concentration
+            result['phi'] = float(np.clip(basin_concentration * 10.0, 0, 1))
+            result['kappa'] = float(55.0 + 10.0 * np.tanh(basin_concentration * 10 - 5))
         else:
             result['basin_coords'] = None
             result['basin_dimension'] = 64

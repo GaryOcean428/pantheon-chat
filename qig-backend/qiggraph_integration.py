@@ -10,6 +10,11 @@ for pantheon-chat's Flask API patterns.
 
 Usage:
     from qiggraph_integration import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
         get_pantheon_graph,
         get_consciousness_router,
         create_olympus_constellation,
@@ -222,7 +227,10 @@ class PantheonState:
             result["recovery_count"] = self.qig_state.recovery_count
 
         if self.basin is not None:
-            result["basin_norm"] = float(np.linalg.norm(self.basin))
+            # E8 Protocol: Use simplex concentration
+            from qig_geometry.representation import to_simplex_prob
+            basin_simplex = to_simplex_prob(self.basin)
+            result["basin_concentration"] = float(np.max(basin_simplex))
 
         return result
 
@@ -274,7 +282,7 @@ class PantheonGraph:
             # Generate deterministic coordinates based on agent name
             np.random.seed(hash(agent_id) % (2**32))
             coords = np.random.randn(BASIN_DIM)
-            coords = coords / np.linalg.norm(coords)
+            coords = to_simplex_prob(coords)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
             attractor = BasinAttractor(
                 name=agent_id,
@@ -465,7 +473,7 @@ class OlympusConstellation:
                 if config["capability"] in ["reasoning", "creativity", "search"]:
                     np.random.seed(hash(agent_id) % (2**32))
                     coords = np.random.randn(BASIN_DIM)
-                    coords = coords / np.linalg.norm(coords)
+                    coords = to_simplex_prob(coords)  # FIXED: Simplex norm (E8 Protocol v4.0)
                     self.constellation.add_specialist(agent_id, coords)
 
             # Ocean as meta-observer

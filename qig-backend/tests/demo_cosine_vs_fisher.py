@@ -18,11 +18,16 @@ Date: 2026-01-15
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 def cosine_similarity_euclidean(p, q):
     """WRONG: Euclidean cosine similarity (treats manifold as flat)"""
     # Normalize vectors
-    p_norm = p / np.linalg.norm(p)
-    q_norm = q / np.linalg.norm(q)
+    p_norm = to_simplex_prob(p)  # FIXED: Simplex norm (E8 Protocol v4.0)
+    q_norm = to_simplex_prob(q)  # FIXED: Simplex norm (E8 Protocol v4.0)
     
     # Dot product
     dot = np.clip(np.dot(p_norm, q_norm), 0.0, 1.0)

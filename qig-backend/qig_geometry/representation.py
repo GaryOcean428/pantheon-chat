@@ -477,9 +477,10 @@ def validate_sqrt_simplex(
         min_val = np.min(basin)
         return False, f"Basin has negative values (min={min_val:.6f}, tol={tolerance:.2e})"
     
-    norm = np.linalg.norm(basin)
-    if not np.isclose(norm, 1.0, atol=tolerance):
-        return False, f"Basin L2 norm={norm:.6f} is not 1.0 (tol={tolerance:.2e})"
+    # E8 Protocol: Check L1 norm instead of L2 for simplex validation
+    l1_norm = np.sum(np.abs(basin))
+    if not np.isclose(l1_norm, 1.0, atol=tolerance):
+        return False, f"Basin L1 norm={l1_norm:.6f} is not 1.0 (tol={tolerance:.2e})"
     
     return True, "Valid sqrt-simplex"
 

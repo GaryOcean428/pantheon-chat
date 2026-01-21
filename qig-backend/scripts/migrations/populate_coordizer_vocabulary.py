@@ -30,6 +30,10 @@ from datetime import datetime
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Add parent for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -143,9 +147,9 @@ def generate_basin_coords(token: str, dim: int = BASIN_DIM) -> np.ndarray:
         coords[i] += 0.1 * np.sin(2 * np.pi * phase + seed / 1e9)
     
     # Normalize to unit sphere (Fisher manifold requirement)
-    norm = np.linalg.norm(coords)
-    if norm > 1e-10:
-        coords = coords / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    coords = to_simplex_prob(coords)
     
     return coords
 

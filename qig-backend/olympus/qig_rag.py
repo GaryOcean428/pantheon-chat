@@ -78,13 +78,13 @@ class QIGDocument:
         Uses outer product: rho = |psi><psi| where psi is the normalized basin.
         This preserves all 64 dimensions of geometric information.
         """
-        # Ensure basin is normalized (on unit sphere)
-        norm = np.linalg.norm(basin)
-        if norm < 1e-10:
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        if np.all(np.abs(basin) < 1e-10):
             # Return maximally mixed state for zero basin
             return np.eye(len(basin)) / len(basin)
         
-        psi = basin / norm
+        psi = to_simplex_prob(basin)
         
         # Density matrix as outer product
         rho = np.outer(psi, psi)

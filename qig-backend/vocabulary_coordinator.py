@@ -13,6 +13,10 @@ import numpy as np
 from word_validation import is_valid_english_word, validate_for_vocabulary
 from qig_geometry import fisher_coord_distance
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Import canonical QFI computation from qig_geometry
 try:
     from qig_geometry.canonical_upsert import compute_qfi_score as _canonical_qfi
@@ -369,9 +373,9 @@ class VocabularyCoordinator:
             
             if word_coords:
                 avg_coords = np.mean(word_coords, axis=0)
-                norm = np.linalg.norm(avg_coords)
-                if norm > 1e-8:
-                    avg_coords = avg_coords / norm
+                # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+                avg_coords = to_simplex_prob(avg_coords)
                 return avg_coords
             
             return None

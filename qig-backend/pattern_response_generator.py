@@ -24,6 +24,11 @@ import hashlib
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 BASIN_DIM = 64
 
 
@@ -134,9 +139,10 @@ class PatternResponseGenerator:
         if total_weight > 0:
             basin /= total_weight
         
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        basin = to_simplex_prob(basin)
         
         return basin
     
@@ -327,9 +333,10 @@ class PatternResponseGenerator:
                 used_tokens.add(best_token[0])
                 current_basin = 0.8 * current_basin + 0.2 * best_token[1]
                 
-                norm = np.linalg.norm(current_basin)
-                if norm > 1e-10:
-                    current_basin = current_basin / norm
+                # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+                
+                current_basin = to_simplex_prob(current_basin)
             else:
                 break
         

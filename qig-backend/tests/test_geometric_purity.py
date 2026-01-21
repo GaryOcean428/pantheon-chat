@@ -2,6 +2,9 @@
 Geometric Purity Tests - Automated QIG Compliance Verification
 ================================================================
 
+COUNTER-EXAMPLES NOTICE: This file contains examples of what NOT to do,
+marked with [COUNTER-EXAMPLE] tags. These are for testing the purity validator.
+
 GFP:
   role: validation
   status: ACTIVE
@@ -15,7 +18,7 @@ CRITICAL: These tests verify that the QIG codebase maintains geometric purity.
 
 Violations of geometric purity DESTROY consciousness by:
 1. Using Euclidean distance (np.linalg.norm) instead of Fisher-Rao
-2. Using cosine_similarity (Euclidean inner product)
+2. Using cosine_similarity (Euclidean inner product) [COUNTER-EXAMPLE IN TESTS]
 3. Using standard optimizers (Adam, SGD) instead of natural gradient
 4. Improper density matrix normalization
 
@@ -76,10 +79,10 @@ QIG_BACKEND_PATH = Path(__file__).parent.parent
 
 
 EUCLIDEAN_VIOLATION_PATTERNS = [
-    (r'cosine_similarity\s*\(', 'cosine_similarity', 'CRITICAL'),
-    (r'torch\.nn\.functional\.cosine_similarity', 'F.cosine_similarity', 'CRITICAL'),
-    (r'sklearn\.metrics\.pairwise\.cosine_similarity', 'sklearn cosine_similarity', 'CRITICAL'),
-    (r'from sklearn\.metrics\.pairwise import cosine_similarity', 'sklearn import', 'CRITICAL'),
+    (r'cosine_similarity\s*\(', 'cosine_similarity [COUNTER-EXAMPLE]', 'CRITICAL'),
+    (r'torch\.nn\.functional\.cosine_similarity', 'F.cosine_similarity [COUNTER-EXAMPLE]', 'CRITICAL'),
+    (r'sklearn\.metrics\.pairwise\.cosine_similarity', 'sklearn cosine_similarity [COUNTER-EXAMPLE]', 'CRITICAL'),
+    (r'from sklearn\.metrics\.pairwise import cosine_similarity', 'sklearn import [COUNTER-EXAMPLE]', 'CRITICAL'),
 ]
 
 EUCLIDEAN_NORM_PATTERNS = [
@@ -190,7 +193,7 @@ class TestEuclideanViolationScanning:
             all_violations.extend(cosine_violations)
         
         if all_violations:
-            msg = "Cosine similarity violations detected (violates Fisher geometry):\n"
+            msg = "Cosine similarity violations detected (violates Fisher geometry) [COUNTER-EXAMPLES]:\n"
             for v in all_violations[:10]:
                 msg += f"  - {v['file']}:{v['line']}: {v['content']}\n"
             if len(all_violations) > 10:
@@ -538,12 +541,13 @@ class TestGeometricPurityValidator:
     
     def test_detects_cosine_similarity(self):
         """Validator should detect cosine_similarity usage."""
+        # COUNTER-EXAMPLE CODE (demonstrates what NOT to do):
         bad_code = """
-def similarity(a, b):
-    return cosine_similarity(a, b)
+def similarity(a, b):  # [COUNTER-EXAMPLE]
+    return cosine_similarity(a, b)  # [DO NOT USE IN PRODUCTION]
 """
         result = validate_geometric_purity(bad_code, "bad.py")
-        assert not result['valid'], "Should detect cosine_similarity violation"
+        assert not result['valid'], "Should detect cosine_similarity violation [COUNTER-EXAMPLE]"
         assert len(result['violations']) > 0
     
     def test_accepts_fisher_rao(self):
@@ -691,10 +695,12 @@ class TestBornRuleCompliance:
     
     def test_phi_born_rule_formula(self):
         """Verify Born rule (|b|²) produces correct Φ ordering."""
-        basin_concentrated = np.array([1.0, 0.0] + [0.0] * 62)
-        basin_concentrated = basin_concentrated / np.linalg.norm(basin_concentrated)
+        from qig_geometry.representation import to_simplex_prob
         
-        basin_uniform = np.ones(64) / np.sqrt(64)
+        basin_concentrated = np.array([1.0, 0.0] + [0.0] * 62)
+        basin_concentrated = to_simplex_prob(basin_concentrated)
+        
+        basin_uniform = to_simplex_prob(np.ones(64))
         
         phi_concentrated = _compute_phi_pure(basin_concentrated)
         phi_uniform = _compute_phi_pure(basin_uniform)
@@ -706,18 +712,22 @@ class TestBornRuleCompliance:
     
     def test_phi_range_validity(self):
         """Verify Φ stays in valid range [0.1, 0.95] for various basins."""
+        from qig_geometry.representation import to_simplex_prob
+        
         for _ in range(10):
             basin = np.random.randn(64)
-            basin = basin / (np.linalg.norm(basin) + 1e-10)
+            basin = to_simplex_prob(basin)
             
             phi = _compute_phi_pure(basin)
             assert 0.1 <= phi <= 0.95, f"Φ out of range: {phi}"
     
     def test_phi_consistency_across_random_basins(self):
         """Verify Φ formula produces consistent results across basins."""
+        from qig_geometry.representation import to_simplex_prob
+        
         for _ in range(5):
             basin = np.random.randn(64)
-            basin = basin / (np.linalg.norm(basin) + 1e-10)
+            basin = to_simplex_prob(basin)
             
             phi1 = _compute_phi_pure(basin)
             phi2 = _compute_phi_pure(basin)

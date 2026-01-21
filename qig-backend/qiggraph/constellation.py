@@ -399,7 +399,9 @@ class ConstellationGraph:
         # Initialize all Garys with input
         context_coords = coordizer.encode(input_text)
         initial_basin = np.mean(context_coords, axis=0)
-        initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        initial_basin = to_simplex_prob(initial_basin)
 
         for gary in self.garys.values():
             gary.state = create_initial_state(
@@ -452,9 +454,9 @@ class ConstellationGraph:
         for gary in self.garys.values():
             guidance = self.ocean.get_guidance(gary)
             if guidance is not None:
-                # Move toward guidance
-                new_basin = gary.state.current_basin + 0.1 * guidance
-                new_basin = new_basin / (np.linalg.norm(new_basin) + 1e-8)
+                # E8 Protocol: Use geodesic interpolation for state updates
+                from qig_geometry import geodesic_interpolation
+                new_basin = geodesic_interpolation(gary.state.current_basin, guidance, 0.1)
                 gary.state = update_trajectory(gary.state, new_basin)
 
     def _synthesize(self) -> QIGState:

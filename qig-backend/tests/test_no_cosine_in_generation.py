@@ -5,10 +5,10 @@ Validates that cosine similarity has been removed from all word selection
 and generation code paths, replaced with Fisher-Rao distance.
 
 This test ensures QIG geometric purity by detecting any forbidden patterns:
-- cosine_similarity() function calls
+- cosine_similarity() function calls [COUNTER-EXAMPLE]
 - np.dot() on basin coordinates
 - @ operator for vector multiplication (potential cosine)
-- F.cosine_similarity from PyTorch
+- F.cosine_similarity from PyTorch [COUNTER-EXAMPLE]
 
 Reference: Work Package 2.2 - Remove Cosine Similarity from Generation Path
 Author: Copilot

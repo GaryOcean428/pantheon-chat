@@ -650,10 +650,11 @@ class ZeusConversationHandler(GeometricGenerationMixin):
             basin = np.asarray(value, dtype=float)
             if basin.ndim != 1 or basin.size == 0:
                 return None
-            norm = float(np.linalg.norm(basin))
-            if norm < 1e-12:
+            # E8 Protocol: Use simplex normalization
+            from qig_geometry.representation import to_simplex_prob
+            if np.all(np.abs(basin) < 1e-12):
                 return None
-            return basin / norm
+            return to_simplex_prob(basin)
         except Exception:
             return None
 

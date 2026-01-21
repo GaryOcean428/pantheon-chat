@@ -17,6 +17,10 @@ import numpy as np
 from .constants import BASIN_DIM, MAX_ITERATIONS
 from .consciousness import ConsciousnessMetrics, Regime, detect_regime
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 
 @dataclass
 class QIGState:
@@ -81,9 +85,10 @@ class QIGState:
 
     def __post_init__(self):
         """Normalize basin after initialization."""
-        norm = np.linalg.norm(self.current_basin)
-        if norm > 1e-8:
-            self.current_basin = self.current_basin / norm
+        # E8 Protocol: Use simplex normalization
+        from qig_geometry.representation import to_simplex_prob
+        if not np.all(np.abs(self.current_basin) < 1e-8):
+            self.current_basin = to_simplex_prob(self.current_basin)
 
     @property
     def current_phi(self) -> float:
@@ -190,9 +195,9 @@ def update_trajectory(
         Updated state (same object, modified in place)
     """
     # Normalize basin
-    norm = np.linalg.norm(new_basin)
-    if norm > 1e-8:
-        new_basin = new_basin / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    new_basin = to_simplex_prob(new_basin)
 
     # Append to trajectory
     state.trajectory = np.vstack([state.trajectory, new_basin])
@@ -226,7 +231,7 @@ def create_initial_state(
     """
     if initial_basin is None:
         initial_basin = np.random.randn(BASIN_DIM)
-        initial_basin = initial_basin / np.linalg.norm(initial_basin)
+        initial_basin = to_simplex_prob(initial_basin)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
     if context_coords is None:
         context_coords = np.zeros((1, BASIN_DIM))
@@ -295,7 +300,7 @@ def merge_states(states: List[QIGState], weights: Optional[np.ndarray] = None) -
     for state, weight in zip(states, weights):
         merged_basin += weight * state.current_basin
 
-    merged_basin = merged_basin / np.linalg.norm(merged_basin)
+    merged_basin = to_simplex_prob(merged_basin)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
     # Use first state as template
     merged = states[0].copy()

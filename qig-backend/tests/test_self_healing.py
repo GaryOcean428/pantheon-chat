@@ -204,10 +204,12 @@ def test_fisher_distance():
     
     # Create two unit vectors
     basin1 = np.random.randn(64)
-    basin1 = basin1 / np.linalg.norm(basin1)
+    # E8 Protocol: Use simplex normalization
+    from qig_geometry.representation import to_simplex_prob
+    basin1 = to_simplex_prob(basin1)
     
     basin2 = np.random.randn(64)
-    basin2 = basin2 / np.linalg.norm(basin2)
+    basin2 = to_simplex_prob(basin2)
     
     # Calculate distance
     distance = monitor._fisher_distance(basin1, basin2)

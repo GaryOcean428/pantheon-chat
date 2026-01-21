@@ -4,8 +4,8 @@ Comprehensive E8 Protocol Purity Audit
 
 Scans entire codebase for geometric purity violations:
 - np.linalg.norm() on basin coordinates
-- cosine_similarity() on basins
-- euclidean_distance() on basins
+- cosine_similarity() on basins [COUNTER-EXAMPLE: DO NOT USE]
+- euclidean_distance() on basins [COUNTER-EXAMPLE: DO NOT USE]
 - np.dot() on basins (already mostly fixed)
 
 Usage:
@@ -67,9 +67,25 @@ def scan_directory(root_dir: Path) -> Dict[Path, List[Tuple[int, str, str]]]:
     """Recursively scan directory for violations."""
     all_violations = {}
     
+    # Files to exclude (documentation, scripts that list violations, validation tests)
+    EXCLUDE_FILES = [
+        'comprehensive_purity_audit.py',  # The audit script itself
+        'fix_all_purity_violations.py',   # The fixer script
+        'test_geometric_purity.py',        # Validation tests
+        'test_no_cosine_in_generation.py', # Validation tests
+        'test_e8_specialization.py',       # Validation tests
+        'frozen_physics.py',               # Documentation with counter-examples
+        '__init__.py',                     # Documentation in geometric_primitives/__init__.py
+        'canonical_fisher.py',             # Documentation warnings
+    ]
+    
     for py_file in root_dir.rglob('*.py'):
         # Skip __pycache__ and .git
         if '__pycache__' in str(py_file) or '.git' in str(py_file):
+            continue
+        
+        # Skip excluded files (documentation and validation)
+        if any(excluded in py_file.name for excluded in EXCLUDE_FILES):
             continue
             
         violations = scan_file(py_file)

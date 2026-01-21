@@ -33,6 +33,11 @@ import uuid
 import sys
 
 from geometric_kernels import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob
+
     _normalize_to_manifold,
     _fisher_distance,
     _hash_to_bytes,
@@ -1153,7 +1158,7 @@ class SpawnAwareness:
             if self.geometric_deadends:
                 isolation = self.geometric_deadends[-1]["min_neighbor_distance"]
                 exploration_direction = np.random.randn(len(proposal_basin))
-                exploration_direction = exploration_direction / np.linalg.norm(exploration_direction)
+                exploration_direction = to_simplex_prob(exploration_direction)  # FIXED: Simplex norm (E8 Protocol v4.0)
                 proposal_basin = _normalize_to_manifold(
                     proposal_basin + exploration_direction * isolation * 0.3
                 )
