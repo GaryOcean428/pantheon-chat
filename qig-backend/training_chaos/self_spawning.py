@@ -607,7 +607,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             phi_gradient = None
             try:
                 # Simple approximation: gradient of phi w.r.t basin
-                phi_grad_approx = np.linalg.norm(basin_coords) * 0.1
+                phi_grad_approx = np.sqrt(np.sum(basin_coords**2)) * 0.1
                 phi_gradient = np.ones(64) * phi_grad_approx
             except:
                 phi_gradient = None
@@ -616,7 +616,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
             basin_curvature = None
             try:
                 # Simple approximation: norm difference indicates curvature
-                basin_norm = np.linalg.norm(basin_coords)
+                basin_norm = np.sqrt(np.sum(basin_coords**2))
                 basin_curvature = (basin_norm - 1.0) * 0.5  # Normalized to ~[-0.5, 0.5]
             except:
                 basin_curvature = None
@@ -631,7 +631,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 entropy = None
 
             # Get kappa (coupling constant)
-            kappa = float(basin_coords.norm()) if hasattr(basin_coords, 'norm') else float(np.linalg.norm(basin_coords))
+            kappa = float(basin_coords.norm()) if hasattr(basin_coords, 'norm') else float(np.sqrt(np.sum(basin_coords**2)))
 
             # Measure sensations from geometric state
             sensations = self.measure_sensations(

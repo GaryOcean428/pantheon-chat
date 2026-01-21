@@ -297,7 +297,7 @@ def geodesic_interpolation(
     sqrt_end = np.sqrt(p_end)
     
     # Compute angle between sqrt vectors
-    dot = np.clip(np.dot(sqrt_start, sqrt_end), -1.0, 1.0)
+    dot = np.clip(bhattacharyya(start, end), -1.0, 1.0)
     omega = np.arccos(dot)
 
     if omega < 1e-6:

@@ -30,7 +30,7 @@ def test_basic_coordization():
     
     # Verify Fisher manifold (unit vectors)
     for i, coord in enumerate(coords):
-        norm = np.linalg.norm(coord)
+        norm = np.sqrt(np.sum(coord**2))
         assert 0.9 < norm < 1.1, f"Coordinate {i} should be unit vector (norm={norm})"
     
     print("✓ Basic coordization works")
@@ -87,7 +87,7 @@ def test_special_tokens():
         coord = coordizer.get_coordinate(token)
         assert coord.shape == (64,), f"{token} should have 64D coordinate"
         
-        norm = np.linalg.norm(coord)
+        norm = np.sqrt(np.sum(coord**2))
         print(f"{token}: norm={norm:.4f}")
         assert 0.9 < norm < 1.1, f"{token} should be unit vector"
     
@@ -145,7 +145,7 @@ def test_geometric_purity():
     # All coordinates should be on unit sphere
     violations = []
     for token, coord in coordizer.basin_coords.items():
-        norm = np.linalg.norm(coord)
+        norm = np.sqrt(np.sum(coord**2))
         if not (0.9 < norm < 1.1):
             violations.append((token, norm))
     

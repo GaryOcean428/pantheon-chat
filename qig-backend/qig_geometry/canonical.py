@@ -324,7 +324,7 @@ def exp_map(v: np.ndarray, base: np.ndarray, eps: float = EPS) -> np.ndarray:
     sqrt_end = sqrt_end / sqrt_end_norm
     
     # Compute angle for SLERP
-    dot = np.clip(np.dot(sqrt_base, sqrt_end), -1.0, 1.0)
+    dot = np.clip(bhattacharyya(base, end), -1.0, 1.0)
     omega = np.arccos(dot)
     
     if omega < eps:
@@ -384,7 +384,7 @@ def geodesic_toward(
     sqrt_target = sqrt_map(target, eps=eps)
     
     # Compute angle between points
-    dot = np.clip(np.dot(sqrt_source, sqrt_target), -1.0, 1.0)
+    dot = np.clip(bhattacharyya(source, target), -1.0, 1.0)
     omega = np.arccos(dot)
     
     if omega < eps:

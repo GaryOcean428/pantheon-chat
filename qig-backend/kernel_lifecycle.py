@@ -33,10 +33,6 @@ from enum import Enum
 import numpy as np
 
 from pantheon_registry import (
-
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
-
     PantheonRegistry,
     GodContract,
     get_registry,

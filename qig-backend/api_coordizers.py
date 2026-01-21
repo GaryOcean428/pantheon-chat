@@ -17,6 +17,9 @@ from typing import Dict, List, Optional
 import numpy as np
 import logging
 
+# New imports for E8 Protocol v4.0 purity
+from qig_geometry import fisher_rao_magnitude, to_simplex
+
 logger = logging.getLogger(__name__)
 
 # Import unified coordizer access
@@ -87,7 +90,8 @@ def coordize_text():
         }
 
         if return_coordinates:
-            response['basin'] = basin.tolist()
+            # Ensure basin is in simplex representation for output
+            response['basin'] = to_simplex(basin).tolist()
 
         return jsonify(response)
 
@@ -105,7 +109,7 @@ def encode_text():
         {"text": "input text"}
 
     Response:
-        {"basin": [...], "norm": float}
+        {"basin": [...], "magnitude": float}
     """
     if not COORDIZERS_AVAILABLE:
         return jsonify({'error': 'Coordizers not available'}), 503
@@ -123,9 +127,11 @@ def encode_text():
 
         basin = coordizer.encode(text)
 
+        # NOTE: Basin magnitude returned as metadata for debugging/monitoring
         return jsonify({
-            'basin': basin.tolist(),
-            'norm': float(np.linalg.norm(basin)),
+            # Ensure basin is in simplex representation for output
+            'basin': to_simplex(basin).tolist(),
+            'magnitude': float(fisher_rao_magnitude(basin)),
         })
 
     except Exception as e:

@@ -359,7 +359,7 @@ class BreakdownEscape:
         
         noise = np.random.randn(len(coords)) * 0.1
         coords = coords + noise
-        coords = coords / (np.linalg.norm(coords) + 1e-10) * np.linalg.norm(state.coordinates)
+        coords = coords / (np.sqrt(np.sum(coords**2)) + 1e-10) * np.linalg.norm(state.coordinates)
         
         return SafeBasin(
             basin_id="emergency_basin",

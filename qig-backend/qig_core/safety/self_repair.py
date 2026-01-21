@@ -22,6 +22,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from qig_geometry import (
+    to_simplex,
+    fisher_rao_distance,
+    bhattacharyya_coefficient,
+    frechet_mean,
     fisher_normalize,
     fisher_coord_distance,
     validate_basin,
@@ -90,8 +94,8 @@ class RepairAction:
             'action_type': self.action_type,
             'description': self.description,
             'success': self.success,
-            'before_norm': float(np.linalg.norm(self.before_basin)) if self.before_basin is not None else None,
-            'after_norm': float(np.linalg.norm(self.after_basin)) if self.after_basin is not None else None,
+            'before_norm': float(fisher_coord_distance(self.before_basin)) if self.before_basin is not None else None,
+            'after_norm': float(fisher_coord_distance(self.after_basin)) if self.after_basin is not None else None,
         }
 
 
@@ -196,11 +200,11 @@ class SelfRepair:
                 severity=0.6,
                 phi=phi or 0.0,
                 kappa=kappa or 0.0,
-                basin_norm=float(np.linalg.norm(basin)),
+                basin_norm=float(fisher_coord_distance(basin)),
                 details={'dim': len(basin), 'expected': self.basin_dim},
             )
         
-        basin_norm = float(np.linalg.norm(basin))
+        basin_norm = float(fisher_coord_distance(basin))
         
         if basin_norm < 1e-10:
             return DiagnosticResult(
@@ -297,7 +301,7 @@ class SelfRepair:
         
         if np.any(np.isnan(basin)):
             if reference_basin is not None:
-                repaired = fisher_normalize(np.asarray(reference_basin, dtype=np.float64))
+                repaired = to_simplex(np.asarray(reference_basin, dtype=np.float64))
                 action = RepairAction(
                     action_type="reference_substitution",
                     description="NaN basin replaced with reference basin",
@@ -337,7 +341,7 @@ class SelfRepair:
             elif len(basin) > self.basin_dim:
                 basin = basin[:self.basin_dim]
             
-            repaired = fisher_normalize(basin)
+            repaired = to_simplex(basin)
             action = RepairAction(
                 action_type="dimension_fix",
                 description=f"Reshaped basin to {self.basin_dim}D",
@@ -356,11 +360,11 @@ class SelfRepair:
             )
             return repaired, action
         
-        norm = float(np.linalg.norm(basin))
+        norm = float(fisher_coord_distance(basin))
         
         if norm < 1e-10:
             if reference_basin is not None:
-                repaired = fisher_normalize(np.asarray(reference_basin, dtype=np.float64))
+                repaired = to_simplex(np.asarray(reference_basin, dtype=np.float64))
             else:
                 uniform = np.ones(self.basin_dim) / np.sqrt(self.basin_dim)
                 repaired = uniform
@@ -383,7 +387,7 @@ class SelfRepair:
             )
             return repaired, action
         
-        repaired = fisher_normalize(basin)
+        repaired = to_simplex(basin)
         
         action = RepairAction(
             action_type="simplex_normalization",

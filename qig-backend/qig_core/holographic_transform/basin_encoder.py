@@ -179,7 +179,7 @@ class BasinEncoder:
         if not sequence:
             # Empty sequence = random point
             coords = np.random.randn(self.dimension)
-            return coords / np.linalg.norm(coords)
+            return to_simplex_prob(coords)
 
         # Encode each element
         encodings = [self.encode_pattern(item) for item in sequence]

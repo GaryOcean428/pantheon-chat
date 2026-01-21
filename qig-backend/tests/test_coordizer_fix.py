@@ -29,7 +29,7 @@ def test_direct_pg_loader():
         # Test encode/decode
         import numpy as np
         basin = coordizer.encode("hello world consciousness")
-        print(f"  Encoded basin norm: {np.linalg.norm(basin):.4f}")
+        print(f"  Encoded basin norm: {np.sqrt(np.sum(basin**2)):.4f}")
         
         decoded = coordizer.decode(basin, top_k=5)
         print(f"  Decoded: {[t for t, s in decoded]}")

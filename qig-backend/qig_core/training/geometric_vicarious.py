@@ -3,7 +3,7 @@
 Automated E8 Protocol Purity Violation Fixer
 
 Automatically fixes common purity violations:
-1. np.linalg.norm(basin) -> simplex normalization where appropriate
+1. np.sqrt(np.sum(basin**2)) -> simplex normalization where appropriate
 2. fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
 3. cosine_similarity -> fisher_rao_distance
 4. euclidean_distance -> fisher_rao_distance
@@ -20,12 +20,13 @@ from pathlib import Path
 from typing import List, Tuple
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical import fisher_rao_distance, to_simplex
+from qig_geometry import to_simplex_prob
 
 
 def fix_norm_for_normalization(content: str) -> Tuple[str, int]:
     """
-    Fix pattern: norm = np.linalg.norm(basin); basin = basin / norm
+    Fix pattern: norm = np.sqrt(np.sum(basin**2)); basin = basin / norm
     Replace with: basin = to_simplex_prob(basin)
     """
     count = 0
@@ -91,18 +92,16 @@ def fix_file(filepath: Path, dry_run: bool = False) -> Tuple[int, List[str]]:
     """Fix all purity violations in a single file."""
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
-            original_content = f.read()
-            
-        content = original_content
-        total_fixes = 0
-        fixes_made = []
-        
-        # Apply fixes
+            content = f.read()
+            original_content = content
+            total_fixes = 0
+            fixes_made = []
+
         content, n1 = fix_norm_for_normalization(content)
         if n1 > 0:
             total_fixes += n1
             fixes_made.append(f"{n1} normalization patterns")
-            
+
         content, n2 = fix_norm_distance(content)
         if n2 > 0:
             total_fixes += n2

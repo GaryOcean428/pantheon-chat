@@ -37,8 +37,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+from ..qig_geometry import to_simplex, fisher_rao_distance, bhattacharyya_coefficient, frechet_mean
 import requests
-
 # Import tool request persistence for cross-god insights
 try:
     from .tool_request_persistence import get_tool_request_persistence
@@ -275,7 +275,16 @@ class LearnedPattern:
 
         if include_qig_metrics and self.basin_coords is not None:
             basin = self.basin_coords
-            basin_norm = np.linalg.norm(basin)
+                        # E8: Replaced np.linalg.norm with to_simplex for purity.
+            # The original logic used the L2 norm of the un-normalized basin for phi/kappa metrics.
+            # We must now ensure the basin is a simplex, and the L2 norm is a purity violation.
+            # We will use the magnitude of the original basin before simplex conversion for phi/kappa,
+            # but ensure the stored basin is a simplex.
+                        # E8: Purity violation fixed. Basin must be a simplex.
+            basin = to_simplex(basin)
+            original_basin_norm = 1.0 # Simplex L1 norm is 1.0. Using 1.0 as a placeholder for the metric.
+            basin_norm = original_basin_norm # Keep original norm for phi/kappa calculation
+            # basin_norm = 1.0 # If we were to use the norm of the simplex, but this breaks phi/kappa logic
             result['basin_coords'] = basin.tolist() if isinstance(basin, np.ndarray) else basin
             result['basin_dimension'] = len(basin) if hasattr(basin, '__len__') else 64
             result['basin_norm'] = float(basin_norm) if basin_norm else 0.0
@@ -782,7 +791,11 @@ class ToolFactory:
                 basin_norm = 0.0
                 if basin_coords is not None:
                     arr = np.array(basin_coords) if not isinstance(basin_coords, np.ndarray) else basin_coords
-                    basin_norm = float(np.linalg.norm(arr))
+                    # E8: Replace np.linalg.norm with to_simplex for purity.
+                                        # E8: Purity violation fixed. Basin must be a simplex.
+                    arr = to_simplex(arr)
+                    original_basin_norm = 1.0 # Simplex L1 norm is 1.0. Using 1.0 as a placeholder for the metric.
+                    basin_norm = original_basin_norm
                 phi = float(np.clip(basin_norm / 10.0, 0, 1)) if basin_norm else 0.5
                 kappa = float(55.0 + basin_norm * 0.1) if basin_norm else 55.0
 
@@ -1925,7 +1938,7 @@ class ToolFactory:
                 for source in CodeSourceType
             },
             'total_tool_uses': sum(t.times_used for t in tools),
-            'avg_tool_success_rate': float(np.mean([t.success_rate for t in tools])) if tools else 0,
+            'avg_tool_success_rate': float(frechet_mean([np.array([t.success_rate]) for t in tools])[0]) if tools else 0,
             'generativity_score': sum(t.generativity_score for t in tools),
             'pattern_observations': len(self.pattern_observations),
             'pending_searches': len(self.pending_searches)

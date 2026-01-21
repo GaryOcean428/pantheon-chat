@@ -333,7 +333,7 @@ class QIGChain(QIGComputations):
         sqrt_p_start = np.sqrt(p_start)
         sqrt_p_end = np.sqrt(p_end)
         
-        omega = np.arccos(np.clip(np.dot(sqrt_p_start, sqrt_p_end), -1.0, 1.0))
+        omega = np.arccos(np.clip(bhattacharyya(p_start, p_end), -1.0, 1.0))
         sin_omega = np.sin(omega)
         
         if sin_omega < 1e-10:

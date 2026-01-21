@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .trainable_kernel import TrainableKernel, BASIN_DIM
+from qig_geometry.canonical import bhattacharyya
 
 try:
     import torch
@@ -75,7 +76,7 @@ def fisher_geodesic_interpolate(
     sqrt_q = np.sqrt(q)
 
     # Compute angle between points
-    cos_omega = np.clip(np.dot(sqrt_p, sqrt_q), -1.0, 1.0)
+    cos_omega = np.clip(bhattacharyya(p, q), -1.0, 1.0)
     omega = np.arccos(cos_omega)
 
     # Handle near-identical points

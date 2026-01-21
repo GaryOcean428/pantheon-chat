@@ -146,7 +146,7 @@ class SoftReset:
         # Fisher-Rao distance on statistical manifold
         a_norm = fisher_normalize(current_basin_arr)
         b_norm = fisher_normalize(self.reference_basin)
-        dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
+        dot = np.clip(bhattacharyya(a, b), 0.0, 1.0)
         # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         basin_distance = float(np.arccos(dot))  # Fisher-Rao geodesic distance
         

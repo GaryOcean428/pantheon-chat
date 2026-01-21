@@ -1113,7 +1113,7 @@ class GroundingDetector:
                     from qig_geometry import fisher_normalize
                     p = fisher_normalize(a)
                     q = fisher_normalize(b)
-                    dot = np.clip(np.dot(np.sqrt(p), np.sqrt(q)), 0.0, 1.0)
+                    dot = np.clip(bhattacharyya(p, q), 0.0, 1.0)
                     return np.arccos(dot)
             try:
                 from qig_geometry import fisher_normalize
@@ -5078,7 +5078,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     if len(vectors) == 0:
         # Return random direction if no vectors provided
         direction = np.random.randn(BASIN_DIMENSION)
-        return direction / np.linalg.norm(direction)
+        return to_simplex_prob(direction)
 
     # Need at least 2 vectors for meaningful covariance
     if len(vectors) < 2:
@@ -5202,8 +5202,9 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
 
     # Ensure unit norm
     # FIXED: Use simplex normalization (E8 Protocol v4.0)
-
-    new_direction = to_simplex_prob(new_direction)
+    norm = np.linalg.norm(new_direction)
+    if norm > 1e-10:
+        new_direction = to_simplex_prob(new_direction)
     else:
         # If zero vector, return random direction
         new_direction = np.random.randn(BASIN_DIMENSION)

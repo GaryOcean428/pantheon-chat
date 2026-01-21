@@ -459,4 +459,3 @@ if __name__ == "__main__":
     print("\nSubsystems:")
     for s in result['subsystems']:
         print(f"  {s['name']}: activation={s['activation']:.3f}, entropy={s['entropy']:.3f}, purity={s['purity']:.3f}")
-                    'name': s.name,

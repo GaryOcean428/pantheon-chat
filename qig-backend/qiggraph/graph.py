@@ -18,11 +18,15 @@ from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 import numpy as np
 
-from .constants import (
-
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
+from qig_geometry.canonical import (
+    frechet_mean,
+    to_simplex,
+    fisher_rao_distance,
+    bhattacharyya_coefficient,
+)
 
+from .constants import (
     BASIN_DIM,
     MAX_ITERATIONS,
     PHI_BREAKDOWN_MIN,
@@ -213,7 +217,7 @@ class QIGGraph:
         if initial_basin is None:
             # Start at mean of input coordinates
             initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
-            initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+            initial_basin = to_simplex(initial_basin)
 
         state = create_initial_state(
             context_text=input_text,
@@ -490,7 +494,7 @@ class StreamingQIGGraph(QIGGraph):
 
         if initial_basin is None:
             initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
-            initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
+            initial_basin = to_simplex(initial_basin)
 
         state = create_initial_state(
             context_text=input_text,

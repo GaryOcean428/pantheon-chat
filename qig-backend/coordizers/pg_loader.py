@@ -723,7 +723,7 @@ class PostgresCoordizer(FisherCoordizer):
             # Compute exact Fisher-Rao distance
             # Fisher-Rao distance = arccos(Bhattacharyya coefficient)
             sqrt_coords = np.sqrt(coords + 1e-10)
-            bhattacharyya = np.clip(np.dot(sqrt_target, sqrt_coords), 0, 1)
+            bhattacharyya = np.clip(bhattacharyya(target, coords), 0, 1)
             fisher_distance = np.arccos(bhattacharyya)
             
             results.append((token, fisher_distance))

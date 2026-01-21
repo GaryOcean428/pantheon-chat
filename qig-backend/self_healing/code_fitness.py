@@ -23,6 +23,7 @@ import subprocess
 import json
 import os
 from .geometric_monitor import GeometricHealthMonitor
+from .e8_protocol import to_simplex, fisher_rao_distance
 
 
 class CodeFitnessEvaluator:
@@ -112,7 +113,7 @@ class CodeFitnessEvaluator:
         # 5. Compute fitness components
         phi_change = new_geometry["phi"] - baseline.phi
         
-        basin_drift = self.monitor._fisher_distance(
+        basin_drift = fisher_rao_distance(
             np.array(new_geometry["basin_coords"]),
             baseline.basin_coords
         )
@@ -265,9 +266,7 @@ except Exception as e:
             # Normalize basin coords
             if isinstance(geometry.get("basin_coords"), list):
                 basin_coords = np.array(geometry["basin_coords"])
-                norm = np.linalg.norm(basin_coords)
-                if norm > 0:
-                    geometry["basin_coords"] = (basin_coords / norm).tolist()
+                geometry["basin_coords"] = to_simplex(basin_coords).tolist()
             
             return {
                 "success": True,

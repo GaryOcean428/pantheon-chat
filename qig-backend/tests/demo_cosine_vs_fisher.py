@@ -29,7 +29,7 @@ def cosine_similarity_euclidean(p, q):
     q_norm = to_simplex_prob(q)  # FIXED: Simplex norm (E8 Protocol v4.0)
     
     # Dot product
-    dot = np.clip(np.dot(p_norm, q_norm), 0.0, 1.0)
+    dot = np.clip(bhattacharyya(p, q), 0.0, 1.0)
     
     # Convert to distance via arccos
     dist = np.arccos(dot)

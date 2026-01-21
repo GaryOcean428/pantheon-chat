@@ -292,7 +292,7 @@ class HabitCrystallizer:
         except Exception:
             center = np.sum(simplex_points, axis=0) / len(simplex_points)
             center = _to_simplex(center)
-            distances = [float(np.arccos(np.clip(np.dot(p, center), 0.0, 1.0))) for p in simplex_points]
+            distances = [float(np.arccos(np.clip(bhattacharyya(p, center), 0.0, 1.0))) for p in simplex_points]
         radius = sum(distances) / len(distances) if distances else 0.0
 
         return {

@@ -42,7 +42,7 @@ print("[autonomic_kernel] physics_constants done", flush=True)
 
 # QIG-PURE: simplex normalization for Fisher-Rao manifold
 try:
-    from qig_geometry import fisher_normalize
+    from qig_geometry import fisher_normalize, frechet_mean
     FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
     fisher_normalize = None
@@ -1154,7 +1154,7 @@ class GaryAutonomicKernel:
             
             # Component 1: Dimensional spread (how much of each dimension is covered)
             dim_ranges = np.ptp(basins, axis=0)  # Range per dimension
-            avg_range = np.mean(dim_ranges)
+            avg_range = frechet_mean(dim_ranges)
             range_coverage = min(1.0, avg_range / 0.5)  # Normalize: 0.5 range = full coverage
             
             # Component 2: Unique regions visited (discretize into bins)
@@ -1392,7 +1392,7 @@ class GaryAutonomicKernel:
             'available': True,
             'predicted_basin': predicted.tolist(),
             'velocity': velocity.tolist(),
-            'velocity_magnitude': float(np.linalg.norm(velocity) if np.all(np.isfinite(velocity)) else 0.0),
+            'velocity_magnitude': float(self._compute_fisher_distance(np.zeros_like(velocity), velocity) if np.all(np.isfinite(velocity)) else 0.0),
             'confidence': confidence,
             'foresight_weight': foresight_weight,
             'trajectory_length': len(trajectory),
@@ -2176,7 +2176,7 @@ class GaryAutonomicKernel:
         start_time = time.time()
 
         try:
-            from qig_geometry import fisher_normalize, fisher_coord_distance
+            from qig_geometry import fisher_normalize, frechet_mean, fisher_coord_distance
             basin = np.array(basin_coords)
 
             # Dream perturbation - gentle random exploration
@@ -2312,7 +2312,8 @@ class GaryAutonomicKernel:
             manifold = None
         
         basin_entropy = -np.sum(np.abs(current_basin) * np.log(np.abs(current_basin) + 1e-8))
-        basin_norm = np.linalg.norm(current_basin)
+        # NOTE: Basin norm used as heuristic factor for exploration probability (not distance)
+        basin_norm = self._compute_fisher_distance(np.zeros_like(current_basin), current_basin)
         entropy_factor = min(1.0, basin_entropy / 50.0)
         norm_factor = min(1.0, basin_norm / 5.0)
         

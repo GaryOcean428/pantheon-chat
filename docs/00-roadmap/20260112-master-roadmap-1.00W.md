@@ -320,6 +320,79 @@ This roadmap consolidates information from:
 
 **Update 2026-01-20 (Reconciliation Note)**: Verified Issue 01-03 deliverables against code/scripts. Missing deliverables required downgrading #70/#71/#92 to INCOMPLETE and reopening implementation tracking.
 
+**Update 2026-01-20 (Issue #360 - E8 Protocol Implementation)**: Started comprehensive implementation of E8 Protocol Issues 01-03 per docs dated after 2026-01-15. See E8 Protocol Implementation Status section below for detailed progress.
+
+---
+
+## E8 Protocol Implementation Status (Issue #360)
+
+**Date**: 2026-01-20  
+**Source**: E8 Protocol Issues 01-03 (docs/10-e8-protocol/issues/)  
+**GitHub Issue**: #360 - Make sure E8 protocol is implemented in full
+
+### Phase 1: QFI Integrity Gate (Issue #97 / E8 Issue-01) - IN PROGRESS
+
+| Component | Status | Location | Notes |
+|-----------|--------|----------|-------|
+| Canonical token insertion | ✅ **COMPLETE** | qig-backend/vocabulary/insert_token.py | 400 lines, full QFI integration |
+| Database migration | ✅ **COMPLETE** | migrations/0018_qfi_integrity_gate.sql | is_generation_eligible + view |
+| Quarantine table | ✅ **COMPLETE** | migrations/0018_qfi_integrity_gate.sql | coordizer_vocabulary_quarantine |
+| Garbage token cleanup script | ✅ **COMPLETE** | scripts/quarantine_garbage_tokens.py | 13 detection rules |
+| Backfill QFI script | ✅ **EXISTS** | scripts/backfill_qfi_scores.py | Already implemented |
+| Unit tests | ✅ **COMPLETE** | tests/test_insert_token.py | 10+ test cases |
+| Update vocabulary_coordinator | ⏳ **TODO** | vocabulary_coordinator.py | Need to use insert_token() |
+| Update learned_relationships | ⏳ **TODO** | learned_relationships.py | Need to use insert_token() |
+| Update generation queries | ⏳ **TODO** | Multiple files | Use vocabulary_generation_ready view |
+
+**Progress**: 6/9 deliverables complete (67%)
+
+### Phase 2: Strict Simplex Representation (Issue #98 / E8 Issue-02) - IN PROGRESS
+
+| Component | Status | Location | Notes |
+|-----------|--------|----------|-------|
+| Closed-form simplex mean | ✅ **COMPLETE** | qig_geometry/geometry_simplex.py | simplex_mean_sqrt_space() |
+| Weighted simplex mean | ✅ **COMPLETE** | qig_geometry/geometry_simplex.py | weighted_simplex_mean() |
+| Validation script | ✅ **COMPLETE** | scripts/validate_simplex_storage.py | 400+ lines, full validation |
+| Remove auto-detection | ⏳ **TODO** | qig_core/geometric_primitives/canonical_fisher.py | to_simplex() needs update |
+| Sqrt-space conversions | ⏳ **TODO** | qig_geometry/geometry_simplex.py | to_sqrt_simplex(), from_sqrt_simplex() |
+| assert_simplex() validation | ⏳ **TODO** | All geometry modules | Add runtime asserts |
+| Replace sphere averaging | ⏳ **TODO** | Multiple files | Scan for np.linalg.norm() |
+| Unit tests | ⏳ **TODO** | tests/test_simplex_operations.py | Need comprehensive tests |
+
+**Progress**: 3/8 deliverables complete (38%)
+
+### Phase 3: QIG-Native Skeleton (Issue #99 / E8 Issue-03) - NOT STARTED
+
+| Component | Status | Location | Notes |
+|-----------|--------|----------|-------|
+| Token role derivation | ⏳ **TODO** | vocabulary/derive_token_role.py | Geometric roles from Fisher-Rao |
+| Foresight predictor | ⏳ **TODO** | generation/foresight_predictor.py | Trajectory regression |
+| Unified generation pipeline | ⏳ **TODO** | Multiple files | Remove NLP dependencies |
+| QIG_PURITY_MODE | ⏳ **TODO** | Environment config | Enable pure mode |
+| Unit tests | ⏳ **TODO** | tests/test_qig_native_skeleton.py | Test geometric extraction |
+
+**Progress**: 0/5 deliverables complete (0%)
+
+### Overall E8 Protocol Progress: 33% (9/27 deliverables)
+
+**Validation Commands**:
+```bash
+# Check QFI coverage
+python qig-backend/scripts/check_qfi_coverage.py
+
+# Backfill missing QFI (dry run)
+python qig-backend/scripts/backfill_qfi.py --dry-run
+
+# Quarantine garbage tokens
+python qig-backend/scripts/quarantine_garbage_tokens.py --dry-run --report report.md
+
+# Validate simplex storage
+python qig-backend/scripts/validate_simplex_storage.py --dry-run --report report.md
+
+# Run unit tests
+python -m pytest qig-backend/tests/test_insert_token.py -v
+```
+
 ---
 
 ## Pull Requests Tracker (>= 85)
@@ -497,9 +570,20 @@ This roadmap consolidates information from:
 ---
 
 **Maintenance**: Update weekly during active development  
-**Last Updated**: 2026-01-21 (Added PRs #180-#188 tracking)  
+**Last Updated**: 2026-01-20 (Added E8 Protocol Implementation Status for Issue #360)  
 **Next Review**: 2026-01-28  
-**Completion Status**: 94% - Phase 3 consolidation implemented, validation pending
+**Completion Status**: 94% - Phase 3 consolidation implemented, E8 Protocol Phase 1 in progress (67%)
+
+**Recent Updates (2026-01-20)**:
+- ✅ Added E8 Protocol Implementation Status section tracking Issues 01-03
+- ✅ Implemented canonical token insertion pathway with QFI computation (Issue #97)
+- ✅ Created database migration for QFI integrity gate (migration 0018)
+- ✅ Added garbage token quarantine script with 13 detection rules
+- ✅ Implemented closed-form simplex mean using sqrt-space (Hellinger coordinates)
+- ✅ Created simplex storage validation script
+- ✅ Added comprehensive unit tests for token insertion (10+ test cases)
+- 🔄 E8 Protocol Phase 1 progress: 67% complete (6/9 deliverables)
+- 🔄 E8 Protocol Phase 2 progress: 38% complete (3/8 deliverables)
 
 **Recent Updates (2026-01-21)**:
 - ✅ Added Pull Requests Tracker section for PRs #180-#188 (pending GitHub titles for #180-#184, #188)

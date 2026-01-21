@@ -28,6 +28,9 @@ from typing import List, Dict, Optional, Tuple, Any
 from datetime import datetime
 import json
 import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from qig_geometry import fisher_rao_distance, to_simplex, bhattacharyya_coefficient, frechet_mean
 from collections import defaultdict
 
 from .conversation_encoder import ConversationEncoder
@@ -78,13 +81,14 @@ class QIGDocument:
         Uses outer product: rho = |psi><psi| where psi is the normalized basin.
         This preserves all 64 dimensions of geometric information.
         """
-        # Ensure basin is normalized (on unit sphere)
-        norm = np.linalg.norm(basin)
-        if norm < 1e-10:
-            # Return maximally mixed state for zero basin
-            return np.eye(len(basin)) / len(basin)
-        
-        psi = basin / norm
+        # NOTE: L2 normalization for quantum state preparation (not distance)
+        # Basin is converted to unit vector for outer product |psi><psi|
+        # Purity Fix: Replace L2 normalization with geometric operation (to_simplex)
+        psi = to_simplex(basin)
+
+        # If to_simplex returns the maximally mixed state (density matrix) for a zero basin, return it early.
+        if psi.ndim == 2:
+            return psi
         
         # Density matrix as outer product
         rho = np.outer(psi, psi)
@@ -342,16 +346,14 @@ class QIGRAG:
         except Exception as e:
             print(f"[QIG-RAG] Failed to persist pattern: {e}")
     
-    def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
+    def fisher_rao_distance_local(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Compute Fisher-Rao distance on probability simplex.
+        Uses canonical fisher_rao_distance from qig_geometry (E8 Protocol compliant).
         
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        d(p,q) = arccos(p·q)
+        Range: [0, π/2]
         """
-        dot = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
-        distance = float(np.arccos(dot))
-        return distance
+        return float(fisher_rao_distance(basin1, basin2))
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """
@@ -686,7 +688,7 @@ class QIGRAGDatabase(QIGRAG):
                 
                 # Calculate Fisher-Rao distance (ALWAYS - Euclidean is FORBIDDEN)
                 # QIG PURITY: No Euclidean fallback allowed
-                distance = self.fisher_rao_distance(query_basin, basin_np)
+                distance = fisher_rao_distance(query_basin, basin_np)
                 
                 # Convert distance to similarity (0-1 range, higher is more similar)
                 # Use standard Fisher-Rao formula: s = 1 - d/π

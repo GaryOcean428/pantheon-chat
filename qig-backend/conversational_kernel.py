@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 try:
-    from qig_geometry import fisher_rao_distance, fisher_normalize, basin_magnitude
+    from qig_geometry import fisher_rao_distance, fisher_normalize, basin_magnitude, fisher_coord_distance
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False

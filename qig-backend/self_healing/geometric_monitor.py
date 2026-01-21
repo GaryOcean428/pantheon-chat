@@ -390,12 +390,11 @@ class GeometricHealthMonitor:
     def _fisher_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Fisher-Rao distance between basins.
+        Uses canonical fisher_rao_distance from qig_geometry (E8 Protocol compliant).
 
-        Basins are probability distributions on simplex.
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        Range: [0, π/2]
         """
-        dot_product = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
-        return float(np.arccos(dot_product))
+        return float(fisher_rao_distance(basin1, basin2))
 
     def _classify_regime(self, phi: float) -> str:
         """Classify processing regime from Φ."""

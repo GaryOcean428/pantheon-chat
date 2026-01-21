@@ -103,7 +103,7 @@ def main():
         # Encode
         basin = coordizer.encode(phrase)
         if basin is not None:
-            print(f"  Basin norm: {np.linalg.norm(basin):.6f}")
+            print(f"  Basin norm: {np.sqrt(np.sum(basin**2)):.6f}")
             
             # Decode
             decoded = coordizer.decode(basin, top_k=5)

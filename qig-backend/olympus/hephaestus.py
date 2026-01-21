@@ -12,6 +12,12 @@ from .base_god import BaseGod, KAPPA_STAR, BASIN_DIMENSION
 from qig_geometry import fisher_rao_distance
 import random
 
+# Import Fisher-Rao distance for geometric purity
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from qig_geometry import fisher_rao_distance
+
 
 class Hephaestus(BaseGod):
     """

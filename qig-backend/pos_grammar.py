@@ -217,10 +217,9 @@ class POSGrammar:
         for word in candidates:
             if word in basin_coords_map:
                 word_basin = basin_coords_map[word]
-                # Fisher-Rao distance on probability simplex
-                # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-                dot = np.clip(np.dot(basin, word_basin), 0.0, 1.0)
-                similarity = 1.0 - np.arccos(dot) / (np.pi / 2.0)
+                # Use canonical Fisher-Rao distance (E8 Protocol compliant)
+                fisher_dist = fisher_rao_distance(basin, word_basin)
+                similarity = 1.0 - fisher_dist / (np.pi / 2.0)
                 scored.append((word, similarity))
         
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -284,7 +283,7 @@ def load_grammar_from_db():
                     if isinstance(basin_str, str):
                         clean = basin_str.strip('[](){}')
                         coords = np.array([float(x) for x in clean.split(',')])
-                        norm = np.linalg.norm(coords)
+                        norm = np.sqrt(np.sum(coords**2))
                         basin_coords_map[token.lower()] = coords / (norm + 1e-10) if norm > 0 else coords
                 except:
                     pass

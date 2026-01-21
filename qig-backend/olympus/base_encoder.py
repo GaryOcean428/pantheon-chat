@@ -21,6 +21,11 @@ import numpy as np
 from qigkernels.physics_constants import BASIN_DIM
 from qig_geometry import fisher_rao_distance
 
+# Import Fisher-Rao distance for E8 Protocol purity
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from qig_geometry import fisher_rao_distance
+
 try:
     import psycopg2
     from psycopg2.extras import execute_values
@@ -276,6 +281,7 @@ class BaseEncoder(ABC):
 
         Uses canonical fisher_rao_distance from qig_geometry module.
         UPDATED 2026-01-20: Consolidated to canonical implementation per E8 Protocol v4.0
+        Range: [0, π/2]
         """
         return fisher_rao_distance(basin1, basin2)
 

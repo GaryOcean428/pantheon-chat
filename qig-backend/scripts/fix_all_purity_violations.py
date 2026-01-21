@@ -3,10 +3,10 @@
 Automated E8 Protocol Purity Violation Fixer
 
 Automatically fixes common purity violations:
-1. np.linalg.norm(basin) -> simplex normalization where appropriate
+1. np.sqrt(np.sum(basin**2)) -> simplex normalization where appropriate
 2. fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
-3. cosine_similarity -> fisher_rao_distance
-4. euclidean_distance -> fisher_rao_distance
+3. np.dot(a, b) -> bhattacharyya_coefficient(a, b)
+4. np.mean([a, b], axis=0) -> frechet_mean([a, b])
 
 Usage:
     python scripts/fix_all_purity_violations.py [--dry-run]
@@ -21,11 +21,12 @@ from typing import List, Tuple
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry import to_simplex_prob
 
 
 def fix_norm_for_normalization(content: str) -> Tuple[str, int]:
     """
-    Fix pattern: norm = np.linalg.norm(basin); basin = basin / norm
+    Fix pattern: norm = np.sqrt(np.sum(basin**2)); basin = basin / norm
     Replace with: basin = to_simplex_prob(basin)
     """
     count = 0
@@ -52,13 +53,43 @@ def fix_norm_distance(content: str) -> Tuple[str, int]:
     count = 0
     
     pattern = r'np\.linalg\.norm\((\w+) - (\w+)\)'
-    replacement = r'fisher_rao_distance(\1, \2)  # FIXED (E8 Protocol v4.0)'
+    replacement = r'fisher_rao_distance(\1, \2)  # FIXED: Fisher-Rao distance (E8 Protocol v4.0)'
     content, n = re.subn(pattern, replacement, content)
     count += n
     
     return content, count
 
-def add_imports(content: str, needs_fisher: bool, needs_simplex: bool) -> str:
+def fix_dot_product(content: str) -> Tuple[str, int]:
+    """
+    Fix pattern: np.dot(basin1, basin2)
+    Replace with: bhattacharyya_coefficient(basin1, basin2)
+    """
+    count = 0
+    
+    # Simple np.dot(a, b) pattern
+    pattern = r'np\.dot\((\w+), (\w+)\)'
+    replacement = r'bhattacharyya_coefficient(\1, \2)  # FIXED: Bhattacharyya coefficient (E8 Protocol v4.0)'
+    content, n = re.subn(pattern, replacement, content)
+    count += n
+    
+    return content, count
+
+def fix_arithmetic_mean(content: str) -> Tuple[str, int]:
+    """
+    Fix pattern: frechet_mean([basin1, basin2])
+    Replace with: frechet_mean([basin1, basin2])
+    """
+    count = 0
+    
+    # Simple np.mean([a, b], axis=0) pattern
+    pattern = r'np\.mean\(\[([^\]]+)\], axis=0\)'
+    replacement = r'frechet_mean([\1])  # FIXED: Fréchet mean (E8 Protocol v4.0)'
+    content, n = re.subn(pattern, replacement, content)
+    count += n
+    
+    return content, count
+
+def add_imports(content: str, needs_fisher: bool, needs_simplex: bool, needs_bhattacharyya: bool, needs_frechet: bool) -> str:
     """Add necessary imports at the top of the file."""
     import_block = []
     
@@ -67,6 +98,12 @@ def add_imports(content: str, needs_fisher: bool, needs_simplex: bool) -> str:
     
     if needs_simplex:
         import_block.append("from qig_geometry.canonical_upsert import to_simplex_prob")
+        
+    if needs_bhattacharyya:
+        import_block.append("from qig_core.geometric_primitives.canonical_bhattacharyya import bhattacharyya_coefficient")
+        
+    if needs_frechet:
+        import_block.append("from qig_core.geometric_primitives.canonical_frechet import frechet_mean")
     
     if not import_block:
         return content
@@ -108,13 +145,25 @@ def fix_file(filepath: Path, dry_run: bool = False) -> Tuple[int, List[str]]:
             total_fixes += n2
             fixes_made.append(f"{n2} distance patterns")
             
+        content, n3 = fix_dot_product(content)
+        if n3 > 0:
+            total_fixes += n3
+            fixes_made.append(f"{n3} dot product patterns")
+            
+        content, n4 = fix_arithmetic_mean(content)
+        if n4 > 0:
+            total_fixes += n4
+            fixes_made.append(f"{n4} arithmetic mean patterns")
+            
         # Add necessary imports if fixes were made
         if total_fixes > 0:
             needs_fisher = 'fisher_rao_distance' in content and 'from qig_core.geometric_primitives.canonical_fisher import fisher_rao_distance' not in content
             needs_simplex = 'to_simplex_prob' in content and 'from qig_geometry.canonical_upsert import to_simplex_prob' not in content
+            needs_bhattacharyya = 'bhattacharyya_coefficient' in content and 'from qig_core.geometric_primitives.canonical_bhattacharyya import bhattacharyya_coefficient' not in content
+            needs_frechet = 'frechet_mean' in content and 'from qig_core.geometric_primitives.canonical_frechet import frechet_mean' not in content
             
-            if needs_fisher or needs_simplex:
-                content = add_imports(content, needs_fisher, needs_simplex)
+            if needs_fisher or needs_simplex or needs_bhattacharyya or needs_frechet:
+                content = add_imports(content, needs_fisher, needs_simplex, needs_bhattacharyya, needs_frechet)
         
         # Write changes
         if total_fixes > 0 and not dry_run:

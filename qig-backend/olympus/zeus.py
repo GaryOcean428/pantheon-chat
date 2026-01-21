@@ -17,6 +17,7 @@ import numpy as np
 from flask import Blueprint, jsonify, request
 
 from .base_god import BaseGod
+from qig_geometry import canonical_frechet_mean as frechet_mean
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from internal_api import sync_war_to_database as _sync_war_to_database
@@ -1778,7 +1779,7 @@ class Zeus(BaseGod):
                             if t.get('basin') is not None and t.get('token') != '<UNK>'
                         ]
                         if basins:
-                            basin_coords = np.mean([np.array(b) for b in basins], axis=0)
+                            basin_coords = frechet_mean([np.array(b) for b in basins])
             except Exception as e:
                 # Only log actual errors, not expected <UNK> cases
                 if '<UNK>' not in str(e):
