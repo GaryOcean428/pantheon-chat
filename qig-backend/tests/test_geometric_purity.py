@@ -695,12 +695,12 @@ class TestBornRuleCompliance:
     
     def test_phi_born_rule_formula(self):
         """Verify Born rule (|b|²) produces correct Φ ordering."""
-        from qig_geometry.representation import to_simplex_prob
+        from qig_geometry.representation import to_simplex
         
         basin_concentrated = np.array([1.0, 0.0] + [0.0] * 62)
-        basin_concentrated = to_simplex_prob(basin_concentrated)
+        basin_concentrated = to_simplex(basin_concentrated)
         
-        basin_uniform = to_simplex_prob(np.ones(64))
+        basin_uniform = to_simplex(np.ones(64))
         
         phi_concentrated = _compute_phi_pure(basin_concentrated)
         phi_uniform = _compute_phi_pure(basin_uniform)
@@ -712,22 +712,22 @@ class TestBornRuleCompliance:
     
     def test_phi_range_validity(self):
         """Verify Φ stays in valid range [0.1, 0.95] for various basins."""
-        from qig_geometry.representation import to_simplex_prob
+        from qig_geometry.representation import to_simplex
         
         for _ in range(10):
             basin = np.random.randn(64)
-            basin = to_simplex_prob(basin)
+            basin = to_simplex(basin)
             
             phi = _compute_phi_pure(basin)
             assert 0.1 <= phi <= 0.95, f"Φ out of range: {phi}"
     
     def test_phi_consistency_across_random_basins(self):
         """Verify Φ formula produces consistent results across basins."""
-        from qig_geometry.representation import to_simplex_prob
+        from qig_geometry.representation import to_simplex
         
         for _ in range(5):
             basin = np.random.randn(64)
-            basin = to_simplex_prob(basin)
+            basin = to_simplex(basin)
             
             phi1 = _compute_phi_pure(basin)
             phi2 = _compute_phi_pure(basin)

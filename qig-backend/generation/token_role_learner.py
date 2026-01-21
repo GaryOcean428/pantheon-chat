@@ -85,7 +85,8 @@ def compute_effective_dimension(basin: np.ndarray) -> float:
     """
     basin = np.asarray(basin, dtype=np.float64).flatten()
     basin = np.maximum(basin, 0) + 1e-10
-    p = basin / basin.sum()
+    # Born rule: p = |b|² (squared amplitudes)
+    p = basin**2 / (basin**2).sum()
     
     # Shannon entropy
     positive_probs = p[p > 1e-10]
