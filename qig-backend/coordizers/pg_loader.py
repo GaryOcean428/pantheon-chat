@@ -18,6 +18,10 @@ from .base import FisherCoordizer
 from qig_geometry import compute_unknown_basin, geodesic_interpolation, fisher_normalize, compute_qfi_score
 from qig_geometry.canonical import fisher_rao_distance
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Import BPE garbage detection for vocabulary filtering
 try:
     from word_validation import is_bpe_garbage
@@ -343,9 +347,9 @@ class PostgresCoordizer(FisherCoordizer):
 
             if len(coords) != 64:
                 return None
-            norm = np.linalg.norm(coords)
-            if norm > 1e-10:
-                coords = coords / norm
+            # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+            coords = to_simplex_prob(coords)
             return coords
         except Exception:
             return None
@@ -513,9 +517,10 @@ class PostgresCoordizer(FisherCoordizer):
             basin = geodesic_interpolation(basin, coords_list[i], t)
             cumulative_weight += weights[i]
 
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+
+        basin = to_simplex_prob(basin)
         return basin
 
     def decode(self, basin: np.ndarray, top_k: int = 5, god_name: Optional[str] = None) -> List[Tuple[str, float]]:
@@ -537,9 +542,9 @@ class PostgresCoordizer(FisherCoordizer):
             top_k: Number of top candidates to return
             god_name: Optional god name for domain-weighted generation
         """
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        basin = to_simplex_prob(basin)
 
         # Use generation vocabulary (coordizer_vocabulary with token_role filter) - FULL vocabulary access
         search_tokens = self.generation_words if self.generation_words else self.word_tokens
@@ -640,9 +645,9 @@ class PostgresCoordizer(FisherCoordizer):
             List of (word, fisher_rao_distance) tuples, sorted by distance ascending
         """
         # Normalize basin
-        norm = np.linalg.norm(target_basin)
-        if norm > 1e-10:
-            target_basin = target_basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        target_basin = to_simplex_prob(target_basin)
         
         # Use generation vocabulary for decoding
         conn = self._get_connection()

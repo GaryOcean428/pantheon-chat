@@ -29,6 +29,10 @@ from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 import time
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # Import QIG primitives
 try:
     from qig_core.geometric_primitives.fisher_metric import (

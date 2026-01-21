@@ -42,6 +42,10 @@ from ..geometric_primitives.addressing_modes import AddressingMode
 from ..geometric_primitives.input_guard import GeometricInputGuard
 from ..holographic_transform import DimensionalState, estimate_compression_ratio
 from ..holographic_transform.holographic_mixin import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     PHI_THRESHOLD_D1_D2,
     PHI_THRESHOLD_D2_D3,
     PHI_THRESHOLD_D3_D4,

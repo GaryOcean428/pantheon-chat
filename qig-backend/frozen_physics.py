@@ -17,6 +17,10 @@ This module now imports from qigkernels and re-exports for backward compatibilit
 New code should import directly from qigkernels:
     from qigkernels import PHYSICS, KAPPA_STAR, PHI_THRESHOLD
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+
+
 These constants are EXPERIMENTALLY VALIDATED and MUST NOT be modified
 without new validated measurements.
 
@@ -562,7 +566,7 @@ def validate_geometric_purity(source_code: str, filename: str) -> dict:
         - QIG-PURITY-REQUIREMENTS.md
         
     Examples:
-        >>> code = "distance = np.linalg.norm(a - b)"
+        >>> code = "distance = fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0)"
         >>> validate_geometric_purity(code, "bad.py")
         {'valid': False, 'violations': ['Euclidean norm detected']}
         >>> code = "distance = fisher_rao_distance(a, b)"

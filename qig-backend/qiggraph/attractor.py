@@ -19,6 +19,10 @@ import numpy as np
 from qig_geometry import fisher_rao_distance
 
 from .constants import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     BASIN_DIM,
     BASIN_ATTRACTION_RADIUS,
     KAPPA_STAR,

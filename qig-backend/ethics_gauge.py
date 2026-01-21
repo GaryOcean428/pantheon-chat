@@ -41,6 +41,10 @@ from datetime import datetime
 
 from qig_geometry import fisher_coord_distance, geodesic_interpolation, fisher_normalize, geodesic_tangent
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 BASIN_DIMENSION = 64
 DEFAULT_SYMMETRY_THRESHOLD = 0.95
 GOD_NAMES = [

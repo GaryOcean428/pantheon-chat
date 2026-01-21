@@ -7,7 +7,12 @@ This module provides the canonical geometric primitives.
 Usage:
     from qig_geometry import fisher_rao_distance, fisher_coord_distance, fisher_similarity
 
-CRITICAL: Never use np.linalg.norm(a - b) for distances between basin coordinates.
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical import frechet_mean
+
+
+CRITICAL: Never use fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) for distances between basin coordinates.
 """
 
 from typing import Optional

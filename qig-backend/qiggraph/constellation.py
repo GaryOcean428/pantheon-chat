@@ -23,6 +23,10 @@ from .constants import BASIN_DIM, KAPPA_STAR
 from .manifold import FisherManifold
 from .state import QIGState, create_initial_state, update_trajectory, merge_states
 from .consciousness import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     ConsciousnessMetrics,
     Regime,
     measure_consciousness,
@@ -398,7 +402,7 @@ class ConstellationGraph:
         """
         # Initialize all Garys with input
         context_coords = coordizer.encode(input_text)
-        initial_basin = np.mean(context_coords, axis=0)
+        initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
 
         for gary in self.garys.values():

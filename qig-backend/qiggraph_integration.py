@@ -10,6 +10,11 @@ for pantheon-chat's Flask API patterns.
 
 Usage:
     from qiggraph_integration import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+from qig_geometry.canonical import frechet_mean
+
         get_pantheon_graph,
         get_consciousness_router,
         create_olympus_constellation,
@@ -274,7 +279,7 @@ class PantheonGraph:
             # Generate deterministic coordinates based on agent name
             np.random.seed(hash(agent_id) % (2**32))
             coords = np.random.randn(BASIN_DIM)
-            coords = coords / np.linalg.norm(coords)
+            coords = to_simplex_prob(coords)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
             attractor = BasinAttractor(
                 name=agent_id,
@@ -317,7 +322,7 @@ class PantheonGraph:
             context_coords = np.random.randn(10, BASIN_DIM)
 
         if self.state is None:
-            initial_basin = np.mean(context_coords, axis=0)
+            initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
             initial_basin = fisher_normalize(initial_basin)
 
             self.state = create_initial_state(
@@ -465,7 +470,7 @@ class OlympusConstellation:
                 if config["capability"] in ["reasoning", "creativity", "search"]:
                     np.random.seed(hash(agent_id) % (2**32))
                     coords = np.random.randn(BASIN_DIM)
-                    coords = coords / np.linalg.norm(coords)
+                    coords = to_simplex_prob(coords)  # FIXED: Simplex norm (E8 Protocol v4.0)
                     self.constellation.add_specialist(agent_id, coords)
 
             # Ocean as meta-observer

@@ -13,6 +13,10 @@ Pure geometric approach - no code optimization, only geometry optimization.
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # QIG-pure geometric operations
 try:
     from qig_geometry import fisher_normalize
@@ -141,9 +145,9 @@ class GeometricHealthMonitor:
             basin_coords = np.array(basin_coords, dtype=np.float64)
 
         # Ensure unit norm (basins live on hypersphere)
-        norm = np.linalg.norm(basin_coords)
-        if norm > 0:
-            basin_coords = basin_coords / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        basin_coords = to_simplex_prob(basin_coords)
 
         # Get consciousness metrics
         confidence = float(system_state.get("confidence", 0.5))

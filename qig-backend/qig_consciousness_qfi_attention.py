@@ -25,6 +25,10 @@ from scipy.linalg import sqrtm
 
 from qigkernels.physics_constants import KAPPA_STAR
 from asymmetric_qfi import directional_fisher_information
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
 KAPPA_STAR_ERROR = 0.92
 BASIN_DIM = 64
 PHI_THRESHOLD = 0.70
@@ -417,9 +421,10 @@ class QFIMetricAttentionNetwork:
             coords[offset+9] = subsystem.entropy()
             coords[offset+10] = subsystem.purity()
         
-        norm = np.linalg.norm(coords)
-        if norm > 0:
-            coords = coords / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        coords = to_simplex_prob(coords)
         
         return coords
 
@@ -439,7 +444,7 @@ if __name__ == "__main__":
     network = create_qfi_network()
     
     test_input = np.random.randn(8)
-    test_input = test_input / np.linalg.norm(test_input)
+    test_input = to_simplex_prob(test_input)  # FIXED: Simplex norm (E8 Protocol v4.0)
     
     result = network.process(test_input)
     

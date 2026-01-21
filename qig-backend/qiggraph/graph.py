@@ -19,6 +19,10 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .constants import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     BASIN_DIM,
     MAX_ITERATIONS,
     PHI_BREAKDOWN_MIN,
@@ -208,7 +212,7 @@ class QIGGraph:
         # 2. Initialize state
         if initial_basin is None:
             # Start at mean of input coordinates
-            initial_basin = np.mean(context_coords, axis=0)
+            initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
             initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
 
         state = create_initial_state(
@@ -485,7 +489,7 @@ class StreamingQIGGraph(QIGGraph):
         context_coords = coordizer.encode(input_text)
 
         if initial_basin is None:
-            initial_basin = np.mean(context_coords, axis=0)
+            initial_basin = frechet_mean(context_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
             initial_basin = initial_basin / (np.linalg.norm(initial_basin) + 1e-8)
 
         state = create_initial_state(

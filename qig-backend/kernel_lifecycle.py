@@ -33,6 +33,10 @@ from enum import Enum
 import numpy as np
 
 from pantheon_registry import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     PantheonRegistry,
     GodContract,
     get_registry,
@@ -225,7 +229,7 @@ def compute_frechet_mean_simplex(basins: List[np.ndarray], max_iter: int = 50) -
     sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
     
     # Compute mean in sqrt-space (closed form)
-    sqrt_mean = np.mean(sqrt_basins, axis=0)
+    sqrt_mean = frechet_mean(sqrt_basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
     
     # Normalize
     sqrt_mean = sqrt_mean / (np.sum(sqrt_mean) + 1e-10)

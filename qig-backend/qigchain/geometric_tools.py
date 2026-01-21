@@ -18,6 +18,10 @@ import hashlib
 
 from .constants import BASIN_DIM, PHI_THRESHOLD_DEFAULT, KAPPA_STAR, BETA_RUNNING
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Import canonical Φ computation
 try:
     from qig_core.phi_computation import compute_phi_fast
@@ -49,9 +53,10 @@ class QIGToolComputations:
             if 32 + i < BASIN_DIM:
                 coord[32 + i] = (ord(char) % 256) / 128.0 - 1
         
-        norm = np.linalg.norm(coord)
-        if norm > 0:
-            coord = coord / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        coord = to_simplex_prob(coord)
         
         return coord
     

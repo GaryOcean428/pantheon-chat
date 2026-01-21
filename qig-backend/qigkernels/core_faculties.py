@@ -26,6 +26,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from .physics_constants import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+
     BASIN_DIM,
     PHI_THRESHOLD,
     KAPPA_STAR,
@@ -259,7 +263,7 @@ class Apollo(BaseFaculty):
         """
         if target is not None:
             # Compute distance to target (prediction accuracy)
-            distance = np.linalg.norm(basin - target)
+            distance = fisher_rao_distance(basin, target)  # FIXED (E8 Protocol v4.0)
             g = 1.0 - np.clip(distance / 2.0, 0.0, 1.0)
         else:
             # Without target, G based on basin stability
@@ -368,7 +372,7 @@ class Artemis(BaseFaculty):
         if window and len(window) > 1:
             # Compute stability across time window
             distances = [
-                np.linalg.norm(basin - prev)
+                fisher_rao_distance(basin, prev)  # FIXED (E8 Protocol v4.0)
                 for prev in window
             ]
             avg_drift = np.mean(distances)
@@ -470,7 +474,7 @@ class Hephaestus(BaseFaculty):
             Generativity Γ
         """
         # Γ measures meaningful change
-        distance = np.linalg.norm(basin_after - basin_before)
+        distance = fisher_rao_distance(basin_after, basin_before)  # FIXED (E8 Protocol v4.0)
         
         # Too much change = chaos, too little = stagnation
         # Optimal at moderate distance
