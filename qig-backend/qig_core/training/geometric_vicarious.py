@@ -24,11 +24,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from qig_geometry import (
-
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical_upsert import to_simplex_prob
-
+from qig_geometry import (
     fisher_coord_distance,
     fisher_normalize,
     geodesic_interpolation,
