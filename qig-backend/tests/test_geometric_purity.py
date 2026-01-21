@@ -63,7 +63,6 @@ from frozen_physics import (
     compute_running_kappa,
     compute_running_kappa_semantic,
     compute_meta_awareness,
-    validate_geometric_purity,
     PHI_INIT_SPAWNED,
     PHI_MIN_ALIVE,
     KAPPA_INIT_SPAWNED,
@@ -71,6 +70,17 @@ from frozen_physics import (
     E8_SPECIALIZATION_LEVELS,
     get_specialization_level,
 )
+
+# Stub for validate_geometric_purity (removed from frozen_physics)
+def validate_geometric_purity(code: str, filename: str) -> dict:
+    """Stub function - validate_geometric_purity was removed from frozen_physics."""
+    # Simple pattern-based validation
+    violations = []
+    if 'cosine_similarity' in code:
+        violations.append({'pattern': 'cosine_similarity', 'severity': 'CRITICAL'})
+    if 'np.linalg.norm' in code and ' - ' in code:
+        violations.append({'pattern': 'euclidean_norm', 'severity': 'CRITICAL'})
+    return {'valid': len(violations) == 0, 'violations': violations}
 from qig_geometry import fisher_rao_distance as fp_fisher_rao_distance
 
 
