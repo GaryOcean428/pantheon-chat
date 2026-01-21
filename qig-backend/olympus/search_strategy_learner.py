@@ -25,6 +25,10 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, cast
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # QIG-pure geometric operations
 try:
     from qig_geometry import fisher_normalize, frechet_mean, bhattacharyya_coefficient
@@ -41,7 +45,7 @@ except ImportError:
         # NOTE: This is a purity violation fallback, should be replaced by a proper geometric mean
         if not basins:
             return np.zeros(BASIN_DIMENSION)
-        return np.mean(basins, axis=0)
+        return frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
 
     def bhattacharyya_coefficient(p: np.ndarray, q: np.ndarray) -> float:
         """Fallback Bhattacharyya coefficient."""

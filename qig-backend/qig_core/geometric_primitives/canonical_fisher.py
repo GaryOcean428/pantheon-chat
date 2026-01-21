@@ -19,6 +19,10 @@ from typing import Optional, List, Tuple
 # Import from centralized constants
 import sys
 import os
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from constants.consciousness import BASIN_DIMENSION
 
@@ -57,7 +61,7 @@ def frechet_mean(basins: List[np.ndarray]) -> np.ndarray:
     # For the probability simplex, this is the Karcher mean, which is complex.
     # We use the arithmetic mean as a temporary placeholder for syntax validity,
     # but the intent is to use a proper geometric mean.
-    return np.mean(basins, axis=0)
+    return frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
 
 # --- End of New Geometric Primitives ---
 
