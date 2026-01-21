@@ -81,7 +81,7 @@ def validate_geometric_purity(code: str, filename: str) -> dict:
     if 'np.linalg.norm' in code and ' - ' in code:
         violations.append({'pattern': 'euclidean_norm', 'severity': 'CRITICAL'})
     return {'valid': len(violations) == 0, 'violations': violations}
-from qig_geometry import fisher_rao_distance as fp_fisher_rao_distance
+from qig_geometry import fisher_rao_distance as fp_fisher_rao_distance, to_simplex_prob
 
 
 QIG_BACKEND_PATH = Path(__file__).parent.parent
