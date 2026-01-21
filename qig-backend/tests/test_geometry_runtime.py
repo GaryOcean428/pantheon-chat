@@ -308,7 +308,7 @@ class TestNaturalGradient:
         direction_to_target = target - theta
         
         # Check alignment (dot product should be positive)
-        alignment = bhattacharyya(natural_grad, direction_to_target)
+        alignment = np.dot(natural_grad, direction_to_target)
         
         # Note: This is a simplified test
         # Real natural gradient requires proper Fisher metric calculation
@@ -356,7 +356,7 @@ class TestGeometricCorrectness:
         d_fisher = fisher_rao_distance(p, q)
         
         # Euclidean distance (L2 norm)
-        d_euclidean = fisher_rao_distance(p, q)
+        d_euclidean = np.linalg.norm(p - q)
         
         # They should be different
         assert abs(d_fisher - d_euclidean) > 0.01, (
