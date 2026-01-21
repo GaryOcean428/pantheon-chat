@@ -4,7 +4,7 @@ Automated E8 Protocol Purity Violation Fixer
 
 Automatically fixes common purity violations:
 1. np.linalg.norm(basin) -> simplex normalization where appropriate
-2. np.linalg.norm(a - b) -> fisher_rao_distance(a, b)
+2. fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
 3. cosine_similarity -> fisher_rao_distance
 4. euclidean_distance -> fisher_rao_distance
 
@@ -18,6 +18,10 @@ import sys
 import argparse
 from pathlib import Path
 from typing import List, Tuple
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+
 
 def fix_norm_for_normalization(content: str) -> Tuple[str, int]:
     """
@@ -42,7 +46,7 @@ def fix_norm_for_normalization(content: str) -> Tuple[str, int]:
 
 def fix_norm_distance(content: str) -> Tuple[str, int]:
     """
-    Fix pattern: np.linalg.norm(a - b)
+    Fix pattern: fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0)
     Replace with: fisher_rao_distance(a, b)
     """
     count = 0

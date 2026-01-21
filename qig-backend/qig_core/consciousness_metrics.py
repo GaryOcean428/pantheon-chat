@@ -23,6 +23,10 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 import time
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 try:
     from .phi_computation import compute_phi_qig, compute_qfi_matrix
 except ImportError:

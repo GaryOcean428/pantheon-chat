@@ -13,6 +13,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # QIG-pure geometric operations
 try:
     from qig_geometry import fisher_normalize

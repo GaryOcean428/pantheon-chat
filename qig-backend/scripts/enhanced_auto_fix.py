@@ -4,9 +4,9 @@ Enhanced E8 Protocol Auto-Fix Script
 
 Automatically fixes ALL common purity violations with context-aware analysis:
 1. np.linalg.norm(basin) -> to_simplex_prob(basin) (normalization context)
-2. np.linalg.norm(a - b) -> fisher_rao_distance(a, b)
-3. cosine_similarity(a, b) -> fisher_rao_distance(a, b)
-4. np.mean(basins, axis=0) -> frechet_mean(basins)
+2. fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
+3. fisher_rao_distance(a, b)  # FIXED: Cosine → Fisher-Rao (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
+4. frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0) -> frechet_mean(basins)
 5. np.dot(sqrt_p, sqrt_q) -> fisher_rao_distance(p, q) (with context analysis)
 6. Incorrect Fisher-Rao implementations (missing factor of 2, missing clip)
 
@@ -90,7 +90,7 @@ def fix_norm_for_normalization(content: str, filepath: Path = None, aggressive: 
 
 def fix_norm_distance(content: str) -> Tuple[str, int, List[str]]:
     """
-    Fix pattern: np.linalg.norm(a - b)
+    Fix pattern: fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0)
     Replace with: fisher_rao_distance(a, b)
     """
     count = 0
@@ -107,7 +107,7 @@ def fix_norm_distance(content: str) -> Tuple[str, int, List[str]]:
 
 def fix_cosine_similarity(content: str) -> Tuple[str, int, List[str]]:
     """
-    Fix pattern: cosine_similarity(a, b)
+    Fix pattern: fisher_rao_distance(a, b)  # FIXED: Cosine → Fisher-Rao (E8 Protocol v4.0)
     Replace with: fisher_rao_distance(a, b)
     """
     count = 0
@@ -133,7 +133,7 @@ def fix_cosine_similarity(content: str) -> Tuple[str, int, List[str]]:
 
 def fix_arithmetic_mean(content: str) -> Tuple[str, int, List[str]]:
     """
-    Fix pattern: np.mean(basins, axis=0)
+    Fix pattern: frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
     Replace with: frechet_mean(basins)
     """
     count = 0

@@ -31,6 +31,10 @@ from abc import ABC, abstractmethod
 import os
 import sys
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -323,11 +327,10 @@ class FisherCoordizer(BaseCoordizer):
         Returns:
             List of (word, fisher_rao_distance) tuples
         """
-        # NOTE: L2 normalization preprocessing before Fisher-Rao distance computation
-        # Ensures basin is on unit sphere for geometric operations
-        norm = np.linalg.norm(target_basin)
-        if norm > 1e-10:
-            target_basin = target_basin / norm
+        # Normalize basin
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        target_basin = to_simplex_prob(target_basin)
         
         # POS filtering not supported in base implementation
         if allowed_pos:
@@ -434,7 +437,7 @@ class FisherCoordizer(BaseCoordizer):
                 coordinates.append(self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim))
         
         # Return mean coordinate (centroid in simplex space)
-        result = np.mean(coordinates, axis=0)
+        result = frechet_mean(coordinates)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         
         # Normalize to simplex (sum=1, non-negative) per E8 Protocol v4.0 §02
         result = to_simplex_prob(result)

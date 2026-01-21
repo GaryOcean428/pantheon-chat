@@ -24,6 +24,10 @@ DISTANCE FUNCTION RELATIONSHIP:
 
 USAGE:
     from qig_geometry import fisher_rao_distance, fisher_normalize
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     
     # All basins should be in simplex form
     p = fisher_normalize(raw_basin_a)

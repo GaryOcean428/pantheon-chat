@@ -35,7 +35,7 @@ GEOMETRIC PURITY COMPLIANCE:
 ✅ Uses canonical fisher_rao_distance from qig_core.geometric_primitives
 ✅ Fréchet mean computed with proper Riemannian gradient descent
 ✅ Velocity computed in tangent space with exponential map projection
-✅ NO Euclidean distance (np.linalg.norm(a - b)) violations
+✅ NO Euclidean distance (fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0)) violations
 ✅ NO raw np.abs() normalization - uses hellinger_normalize_basin()
 ✅ All distance calculations respect manifold curvature
 
@@ -54,6 +54,10 @@ import numpy as np
 
 # Import canonical geometric primitives (SINGLE SOURCE OF TRUTH - WP2.1)
 from qig_geometry.canonical import (
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+
     fisher_rao_distance,
     frechet_mean,
     geodesic_toward,

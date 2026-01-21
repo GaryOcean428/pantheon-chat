@@ -25,6 +25,10 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # Import Fisher-Rao distance for geometric purity (2026-01-15)
 try:
     from qig_geometry import fisher_rao_distance
@@ -292,7 +296,7 @@ class MushroomMode:
         
         # Compute geometric centroid (arithmetic mean as approximation)
         # For true Fréchet mean, use trajectory_decoder.frechet_mean()
-        centroid = np.mean(coords, axis=0)
+        centroid = frechet_mean(coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         
         # Use Fisher-Rao distance (geometric) instead of Euclidean
         distances = [fisher_rao_distance(c, centroid) for c in coords]

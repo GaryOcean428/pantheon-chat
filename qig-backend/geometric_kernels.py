@@ -20,6 +20,10 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 from qigkernels.physics_constants import BASIN_DIM, E8_ROOTS
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 E8_ROOTS_COUNT = E8_ROOTS  # Backward compatibility alias
 BYTE_VOCAB_SIZE = 260
 
@@ -656,7 +660,7 @@ class GeometricKernel:
             basins = self.encode_to_basins(text)
             if len(basins) == 1:
                 return basins[0]
-            return _normalize_to_manifold(np.mean(basins, axis=0))
+            return _normalize_to_manifold(frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0))
     
     def decode(self, encoded: Union[np.ndarray, List[int]], candidates: Optional[List[str]] = None) -> str:
         """

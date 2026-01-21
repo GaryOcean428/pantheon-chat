@@ -15,6 +15,10 @@ from pathlib import Path
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Add qig-backend to path for imports
 _qig_backend = Path(__file__).parent.parent
 if str(_qig_backend) not in sys.path:
@@ -86,9 +90,9 @@ def generate_god_basin(god_name: str) -> np.ndarray:
                 basin[i*8 + 8] = 0.6 if i*8 + 8 < 64 else 0.6
 
     # Normalize to unit sphere (Fisher-Rao manifold)
-    norm = np.linalg.norm(basin)
-    if norm > 1e-10:
-        basin = basin / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    basin = to_simplex_prob(basin)
     return basin
 
 

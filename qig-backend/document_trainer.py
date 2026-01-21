@@ -27,6 +27,10 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 BASIN_DIM = 64
 
 class DocumentTrainer:
@@ -183,9 +187,10 @@ class DocumentTrainer:
         if total_weight > 0:
             basin /= total_weight
         
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        basin = to_simplex_prob(basin)
         
         return basin
     
@@ -454,9 +459,10 @@ class FallbackEncoder:
             for j, b in enumerate(char_hash[:BASIN_DIM]):
                 basin[j] += (b / 255.0 - 0.5) * (1.0 / (i + 1))
         
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        basin = to_simplex_prob(basin)
         
         return basin
 
