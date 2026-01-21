@@ -36,10 +36,10 @@ import numpy as np  # Required for Fisher-Rao calculations (arccos, clip, etc.)
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical import (
     fisher_rao_distance,
-    to_simplex,
-    bhattacharyya_coefficient,
+    bhattacharyya as bhattacharyya_coefficient,
     frechet_mean
 )
+from qig_geometry.geometry_ops import to_simplex
 
 # Import from qigkernels (single source of truth)
 from qigkernels.physics_constants import (
