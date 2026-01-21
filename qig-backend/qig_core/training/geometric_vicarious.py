@@ -108,9 +108,10 @@ def fix_file(filepath: Path, dry_run: bool = False) -> Tuple[int, List[str]]:
         # NOT for distance measurement. This is geometrically correct for manifold operations.
         tangent = direction - np.dot(direction, current_basin) * current_basin
         
-        norm = np.linalg.norm(tangent)
-        if norm > 1e-10:
-            tangent = tangent / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        tangent = to_simplex_prob(tangent)
         
         return tangent
     
