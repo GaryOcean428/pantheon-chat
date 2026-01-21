@@ -21,6 +21,7 @@ import numpy as np
 from typing import Dict, List, Set, Tuple, Optional
 from pathlib import Path
 from qig_geometry import fisher_rao_distance, fisher_coord_distance
+from persistence.base_persistence import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -64,17 +65,6 @@ except ImportError:
     GeometricWordRelationships = None
     get_geometric_relationships = None
     logger.warning("[LearnedRelationships] Geometric relationships not available")
-
-def get_db_connection():
-    """Get PostgreSQL connection."""
-    if not DB_AVAILABLE:
-        return None
-    try:
-        return psycopg2.connect(os.environ.get('DATABASE_URL'))
-    except Exception as e:
-        logger.error(f"Failed to connect to PostgreSQL: {e}")
-        return None
-
 
 # Import QIG-pure contextualized filter (replaces ancient NLP stopwords)
 try:

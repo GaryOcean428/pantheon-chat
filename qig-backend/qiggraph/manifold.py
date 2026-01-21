@@ -96,36 +96,8 @@ class FisherManifold:
     def fisher_rao_distance(self,
                            basin1: np.ndarray,
                            basin2: np.ndarray) -> float:
-        """
-        Proper Fisher-Rao distance using metric tensor.
-
-        d_FR(θ1, θ2) = √((θ2-θ1)ᵀ F(θ_mid) (θ2-θ1))
-
-        Uses metric evaluated at midpoint for symmetric distance.
-
-        Args:
-            basin1: First point (dim,)
-            basin2: Second point (dim,)
-
-        Returns:
-            Fisher-Rao geodesic distance
-        """
-        # Ensure simplex representation before distance calculation
-        basin1 = self.to_simplex(basin1)
-        basin2 = self.to_simplex(basin2)
-        
-        diff = basin2 - basin1
-
-        # Compute metric at midpoint (Riemannian geodesic approximation)
-        midpoint = (basin1 + basin2) / 2
-        F = self.compute_metric(midpoint)
-
-        # d_FR = √(diffᵀ F diff)
-        # For diagonal F: d_FR = √(Σ F_ii * diff_i²)
-        distance_sq = diff @ F @ diff
-        distance = np.sqrt(np.maximum(distance_sq, 0.0))
-
-        return float(distance)
+        from qig_geometry.canonical import fisher_rao_distance as _canonical_fr
+        return _canonical_fr(basin1, basin2)
 
     def bhattacharyya_coefficient(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """

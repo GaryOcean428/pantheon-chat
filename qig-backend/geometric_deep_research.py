@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
+from qig_geometry.canonical import fisher_rao_distance
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -50,25 +51,6 @@ except ImportError:
         """Normalize to probability simplex."""
         p = np.maximum(np.asarray(v), 0) + 1e-10
         return p / p.sum()
-
-def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-    """
-    Fisher-Rao distance between basin coordinates.
-    
-    Uses geodesic distance on statistical manifold (Hellinger distance scaled).
-    """
-    p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
-    q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
-    
-    p = np.clip(p, 1e-10, 1.0)
-    q = np.clip(q, 1e-10, 1.0)
-    
-    bhattacharyya = np.sum(np.sqrt(p * q))
-    bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
-    
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    return float(np.arccos(bhattacharyya))
-
 
 def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
     """

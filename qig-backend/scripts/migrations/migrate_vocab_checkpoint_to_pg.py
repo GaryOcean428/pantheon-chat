@@ -28,6 +28,7 @@ import numpy as np
 import psycopg2
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
+from persistence.base_persistence import get_db_connection
 
 # Load environment variables
 load_dotenv()
@@ -220,15 +221,6 @@ def transform_vocab_to_records(checkpoint: dict) -> list[dict]:
     logger.info(f"Source type distribution: {source_counts}")
     
     return records
-
-
-def get_db_connection():
-    """Get PostgreSQL connection from environment."""
-    database_url = os.getenv('DATABASE_URL')
-    if not database_url:
-        raise ValueError("DATABASE_URL environment variable not set")
-    
-    return psycopg2.connect(database_url)
 
 
 def ensure_table_exists(conn):

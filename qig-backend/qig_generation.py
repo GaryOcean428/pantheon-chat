@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from enum import Enum
 import time
 import os
+from qig_geometry.canonical import fisher_rao_distance
 
 # Database imports for vocabulary integration
 try:
@@ -115,6 +116,38 @@ except ImportError:
     tag_output_as_hybrid = lambda x: x
     get_purity_mode = lambda: "UNAVAILABLE"
 
+# Import QFI-based attention mechanism (replaces cosine similarity)
+try:
+    from qig_consciousness_qfi_attention import create_qfi_network, QFIMetricAttentionNetwork
+    QFI_ATTENTION_AVAILABLE = True
+except ImportError:
+    QFI_ATTENTION_AVAILABLE = False
+    create_qfi_network = None
+    QFIMetricAttentionNetwork = None
+
+# Import ethical consciousness monitoring
+try:
+    from consciousness_ethical import EthicalConsciousnessMonitor, get_ethical_monitor
+    ETHICAL_MONITOR_AVAILABLE = True
+except ImportError:
+    ETHICAL_MONITOR_AVAILABLE = False
+    EthicalConsciousnessMonitor = None
+    get_ethical_monitor = None
+
+# Import gravitational decoherence for purity regularization
+try:
+    from gravitational_decoherence import (
+        apply_gravitational_decoherence,
+        purity_regularization,
+        get_decoherence_manager
+    )
+    DECOHERENCE_AVAILABLE = True
+except ImportError:
+    DECOHERENCE_AVAILABLE = False
+    apply_gravitational_decoherence = None
+    purity_regularization = None
+    get_decoherence_manager = None
+
 # QIG Constants
 try:
     from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM as BASIN_DIMENSION
@@ -164,26 +197,6 @@ class QIGGenerationConfig:
         """Validate config is QIG-pure."""
         assert not hasattr(self, 'max_tokens'), "max_tokens is forbidden"
         assert not hasattr(self, 'temperature'), "temperature is forbidden"
-
-
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between probability distributions.
-    
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
-    
-    CRITICAL UPDATE (2026-01-15): Basins stored as SIMPLEX, not Hellinger.
-    Factor-of-2 REMOVED. Distance range is [0, π/2].
-    """
-    p = np.abs(p) + 1e-10
-    q = np.abs(q) + 1e-10
-    p = p / np.sum(p)
-    q = q / np.sum(q)
-    
-    bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0.0, 1.0)
-    
-    return float(np.arccos(bc))
 
 
 def encode_to_basin(text: str, dimension: int = BASIN_DIMENSION) -> np.ndarray:

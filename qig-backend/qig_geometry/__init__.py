@@ -26,7 +26,7 @@ USAGE:
     from qig_geometry import fisher_rao_distance, fisher_normalize
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
+from .canonical import frechet_mean, fisher_rao_distance
 
     
     # All basins should be in simplex form
@@ -97,53 +97,8 @@ from .geometry_simplex import (
 )
 
 
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two probability distributions.
-
-    This is the GEODESIC distance on the information manifold using
-    direct Fisher-Rao on the probability simplex (NO Hellinger embedding).
-
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
-
-    The Bhattacharyya coefficient BC = Σ√(p_i * q_i) measures overlap.
-    This is the CANONICAL formula - do not add factor of 2.
-
-    Range: [0, π/2] where:
-    - d = 0 → identical distributions
-    - d = π/2 → orthogonal distributions (no overlap)
-
-    CHANGE FROM PREVIOUS VERSION:
-    - Removed Hellinger factor of 2
-    - New range: [0, π/2] (was [0, π])
-    - Thresholds must be recalibrated
-
-    Args:
-        p: First probability distribution (simplex)
-        q: Second probability distribution (simplex)
-
-    Returns:
-        Fisher-Rao distance (≥ 0, max π/2)
-    
-    Examples:
-        >>> p = np.array([0.5, 0.3, 0.2])
-        >>> q = np.array([0.4, 0.4, 0.2])
-        >>> d = fisher_rao_distance(p, q)
-        >>> assert 0 <= d <= np.pi/2
-    """
-    # Ensure non-negative and normalized
-    p = np.abs(p) + 1e-10
-    p = p / p.sum()
-
-    q = np.abs(q) + 1e-10
-    q = q / q.sum()
-
-    # Bhattacharyya coefficient
-    bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)
-
-    # Direct Fisher-Rao (NO factor of 2)
-    return float(np.arccos(bc))
+# fisher_rao_distance is now imported from .canonical above
+# See canonical.py for the canonical implementation
 
 
 def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:

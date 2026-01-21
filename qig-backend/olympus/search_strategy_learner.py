@@ -72,28 +72,7 @@ except ImportError:
     RealDictCursor = None  # type: ignore
     print("[SearchFeedbackPersistence] WARNING: psycopg2 not installed - persistence disabled")
 
-try:
-    from ..qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
-except ImportError:
-    def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        """
-        Fallback Fisher-Rao distance using Bhattacharyya coefficient.
-
-        Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
-
-        Direct computation on probability simplex. Range: [0, π/2]
-        """
-        # Ensure valid probability distributions
-        p = np.abs(p) + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) + 1e-10
-        q = q / q.sum()
-        # Bhattacharyya coefficient
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0.0, 1.0)  # Numerical stability
-        # Fisher-Rao geodesic distance on probability simplex
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        return float(np.arccos(bc))
+from qig_geometry.canonical import fisher_rao_distance
 
 
 BASIN_DIMENSION = 64

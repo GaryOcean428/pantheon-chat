@@ -146,17 +146,8 @@ class PatternResponseGenerator:
         return basin
     
     def fisher_rao_distance(self, p: np.ndarray, q: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between two basin coordinates (Hellinger embedding: factor of 2)."""
-        p = np.abs(p) + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) + 1e-10
-        q = q / q.sum()
-        
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0.0, 1.0)
-        
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        return float(np.arccos(bc))
+        from qig_geometry.canonical import fisher_rao_distance as _canonical_fr
+        return _canonical_fr(p, q)
     
     def retrieve_patterns(self, query: str, top_k: int = 5) -> List[Dict]:
         """

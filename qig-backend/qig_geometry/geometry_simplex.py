@@ -15,6 +15,7 @@ Storage ALWAYS uses probability simplex (sum=1, non-negative).
 
 import numpy as np
 from typing import List, Optional, Tuple
+from .canonical import fisher_rao_distance
 
 EPS = 1e-12
 
@@ -83,44 +84,6 @@ def validate_simplex(
         return False, f"sum_not_one_{total:.6f}"
     
     return True, "valid_simplex"
-
-
-def fisher_rao_distance(p_in: np.ndarray, q_in: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance on probability simplex.
-    
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
-    
-    Range: [0, π/2] for probability distributions
-    
-    Args:
-        p_in: First probability distribution
-        q_in: Second probability distribution
-        
-    Returns:
-        Fisher-Rao distance in radians [0, π/2]
-    """
-    p_in = np.asarray(p_in, dtype=np.float64).flatten()
-    q_in = np.asarray(q_in, dtype=np.float64).flatten()
-    
-    if p_in.shape != q_in.shape:
-        raise ValueError(
-            f"fisher_rao_distance: dimension mismatch {p_in.shape} vs {q_in.shape}"
-        )
-    
-    # Ensure valid simplex (clamp and normalize)
-    p = to_simplex_prob(p_in)
-    q = to_simplex_prob(q_in)
-    
-    # Bhattacharyya coefficient: BC = Σ√(p_i * q_i)
-    bc = np.sum(np.sqrt(p * q))
-    
-    # Clamp for numerical stability
-    bc = np.clip(bc, 0.0, 1.0)
-    
-    # Fisher-Rao distance on probability simplex
-    # Range: [0, π/2]
-    return float(np.arccos(bc))
 
 
 def geodesic_interpolation_simplex(

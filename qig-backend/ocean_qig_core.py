@@ -1103,26 +1103,13 @@ class GroundingDetector:
         min_distance = float('inf')
         nearest_concept = None
 
+        # Import canonical Fisher-Rao distance and normalization
+        from qig_geometry.canonical import fisher_rao_distance, to_simplex_prob
+        
         for concept_id, concept_basin in self.known_concepts.items():
             # Fisher-Rao distance: d = arccos(p·q) for probability simplex
-            try:
-                from qig_geometry import fisher_rao_distance
-            except ImportError:
-                def fisher_rao_distance(a, b):
-                    """Canonical Fisher-Rao distance."""
-                    from qig_geometry import fisher_normalize
-                    p = fisher_normalize(a)
-                    q = fisher_normalize(b)
-                    dot = np.clip(bhattacharyya(p, q), 0.0, 1.0)
-                    return np.arccos(dot)
-            try:
-                from qig_geometry import fisher_normalize
-            except ImportError:
-                def fisher_normalize(v):
-                    p = np.maximum(np.asarray(v), 0) + 1e-10
-                    return p / p.sum()
-            query_norm = fisher_normalize(query_basin)
-            concept_norm = fisher_normalize(concept_basin)
+            query_norm = to_simplex_prob(query_basin)
+            concept_norm = to_simplex_prob(concept_basin)
             # Use Fisher-Rao distance for similarity
             # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
             distance = fisher_rao_distance(query_norm, concept_norm)

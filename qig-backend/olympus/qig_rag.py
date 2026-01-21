@@ -346,15 +346,6 @@ class QIGRAG:
         except Exception as e:
             print(f"[QIG-RAG] Failed to persist pattern: {e}")
     
-    def fisher_rao_distance_local(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
-        """
-        Compute Fisher-Rao distance on probability simplex.
-        Uses canonical fisher_rao_distance from qig_geometry (E8 Protocol compliant).
-        
-        Range: [0, π/2]
-        """
-        return float(fisher_rao_distance(basin1, basin2))
-    
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """
         Compute Bures distance between density matrices.
@@ -523,6 +514,7 @@ class QIGRAG:
 # ========================================
 
 import uuid
+from qig_geometry.canonical import fisher_rao_distance
 
 class QIGRAGDatabase(QIGRAG):
     """PostgreSQL-backed geometric memory with pgvector support."""

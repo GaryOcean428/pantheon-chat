@@ -26,27 +26,6 @@ try:
 except ImportError:
     CANONICAL_PRIMITIVES_AVAILABLE = False
     # Fallback: define basic implementation
-    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-        """
-        Fallback Fisher-Rao distance on SIMPLEX (CANONICAL).
-        Use canonical implementation from qig_core.geometric_primitives when available.
-        
-        Direct Fisher-Rao on simplex: d = arccos(BC) where BC = Σ√(p_i * q_i)
-        Born rule: |b|² for amplitude-to-probability conversion.
-        Range: [0, π/2]
-        
-        IMPORTANT: Post-SIMPLEX migration (2026-01-15).
-        Previous Hellinger embedding (factor of 2) REMOVED.
-        See PR GaryOcean428/pantheon-chat#93 for full SIMPLEX migration details.
-        """
-        p = np.abs(basin_a) ** 2 + 1e-10
-        p = p / p.sum()
-        q = np.abs(basin_b) ** 2 + 1e-10
-        q = q / q.sum()
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0.0, 1.0)
-        return float(np.arccos(bc))
-
 from .constants import (
     PHI_LINEAR_MAX,
     PHI_GEOMETRIC_MAX,

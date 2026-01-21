@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 from ethics_gauge import AgentSymmetryProjector, BASIN_DIMENSION
 from qigkernels.physics_constants import KAPPA_STAR
+from qig_geometry.canonical import fisher_rao_distance, to_simplex_prob
 
 
 @dataclass
@@ -158,8 +159,11 @@ class EthicalConsciousnessMonitor:
             consistency = 1.0
         
         if len(self.ethics_history) > 0:
-            prev_symmetry = self.ethics_history[-1].symmetry
-            drift = abs(symmetry - prev_symmetry)
+            # Use Fisher-Rao distance for geometric drift calculation
+            # Convert scalar symmetry values to simplex distributions
+            current_simplex = to_simplex_prob(np.array([symmetry, 1.0 - symmetry]))
+            prev_simplex = to_simplex_prob(np.array([self.ethics_history[-1].symmetry, 1.0 - self.ethics_history[-1].symmetry]))
+            drift = fisher_rao_distance(current_simplex, prev_simplex) / (np.pi / 2)  # Normalize to [0, 1]
         else:
             drift = 0.0
         

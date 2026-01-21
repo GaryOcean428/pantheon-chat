@@ -25,6 +25,7 @@ from pathlib import Path
 
 import psycopg2
 from dotenv import load_dotenv
+from persistence.base_persistence import get_db_connection
 
 # Load environment
 load_dotenv(dotenv_path=Path(__file__).parent.parent.parent / '.env')
@@ -51,14 +52,6 @@ def is_bpe_fragment(token: str) -> bool:
     if not token.isalpha():
         return True
     return False
-
-
-def get_db_connection():
-    """Get PostgreSQL connection."""
-    db_url = os.getenv('DATABASE_URL')
-    if not db_url:
-        raise ValueError("DATABASE_URL not set")
-    return psycopg2.connect(db_url)
 
 
 def analyze_vocabulary(conn):

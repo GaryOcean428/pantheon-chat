@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
+from persistence.base_persistence import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -130,18 +131,6 @@ def _fallback_validate_simplex(p: np.ndarray, tolerance: float = SIMPLEX_TOLERAN
         return False, f"sum_not_one_{total:.6f}"
     
     return True, "valid_simplex"
-
-
-def get_db_connection():
-    """Get PostgreSQL connection."""
-    if not DB_AVAILABLE:
-        raise RuntimeError("Database not available - psycopg2 not installed")
-    
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        raise RuntimeError("DATABASE_URL environment variable not set")
-    
-    return psycopg2.connect(database_url)
 
 
 def insert_token(

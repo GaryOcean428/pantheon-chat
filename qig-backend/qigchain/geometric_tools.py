@@ -114,22 +114,8 @@ class QIGToolComputations:
         return float(np.clip(phi, 0.1, 0.95))
     
     def fisher_rao_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
-        """
-        Fisher-Rao geodesic distance on probability simplex.
-        Proper QIG metric, NOT Euclidean.
-        Factor of 2 for Hellinger embedding consistency.
-        """
-        p1 = np.abs(basin1) + 1e-10
-        p1 = p1 / p1.sum()
-        
-        p2 = np.abs(basin2) + 1e-10
-        p2 = p2 / p2.sum()
-        
-        inner = np.sum(np.sqrt(p1 * p2))
-        inner = np.clip(inner, 0.0, 1.0)
-        
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        return float(np.arccos(inner))
+        from qig_geometry.canonical import fisher_rao_distance as _canonical_fr
+        return _canonical_fr(basin1, basin2)
     
     def bures_distance(self, rho1: np.ndarray, rho2: np.ndarray) -> float:
         """Compute Bures distance between density matrices."""

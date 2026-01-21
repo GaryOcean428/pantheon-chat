@@ -30,18 +30,7 @@ from qig_geometry.canonical import frechet_mean
 
 
 # Import Fisher-Rao distance for geometric purity (2026-01-15)
-try:
-    from qig_geometry import fisher_rao_distance
-except ImportError:
-    # Fallback if qig_geometry not available
-    def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        p = np.abs(p) + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) + 1e-10
-        q = q / q.sum()
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
-        return float(np.arccos(bc))
+from qig_geometry.canonical import fisher_rao_distance
 
 from qigkernels.physics_constants import (
     KAPPA_STAR,

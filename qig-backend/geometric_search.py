@@ -16,6 +16,7 @@ import asyncio
 import logging
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
+from qig_geometry.canonical import fisher_rao_distance
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -74,25 +75,6 @@ def compute_fisher_metric(basin: np.ndarray) -> np.ndarray:
 # Use canonical implementations if available
 if not CANONICAL_PRIMITIVES_AVAILABLE:
     # Fallback implementations (should not be used in production)
-    def fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-        """
-        FALLBACK: Compute Fisher-Rao distance between two basin coordinates.
-        
-        WARNING: This is a fallback. Use canonical implementation from
-        qig_core.geometric_primitives when available.
-        """
-        p = np.abs(basin_a) / (np.sum(np.abs(basin_a)) + 1e-10)
-        q = np.abs(basin_b) / (np.sum(np.abs(basin_b)) + 1e-10)
-        
-        p = np.clip(p, 1e-10, 1.0)
-        q = np.clip(q, 1e-10, 1.0)
-        
-        bhattacharyya = np.sum(np.sqrt(p * q))
-        bhattacharyya = np.clip(bhattacharyya, 0.0, 1.0)
-        
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        return float(np.arccos(bhattacharyya))
-
     def geodesic_interpolate(start: np.ndarray, end: np.ndarray, t: float) -> np.ndarray:
         """
         FALLBACK: Geodesic interpolation on Fisher manifold.
