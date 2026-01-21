@@ -114,6 +114,7 @@ ALLOWED_FILES = {
     'baselines/',  # Euclidean optimizers allowed for comparison studies.
     'legacy/',     # Legacy code not in production.
     '__pycache__/',
+    'scripts/',    # Tooling scripts are exempt from purity checks.
 }
 
 ALLOWED_NORM_CONTEXTS = {
