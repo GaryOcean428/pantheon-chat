@@ -259,7 +259,7 @@ class TrainedKernelManager:
                     self.state.metrics_history.append(metrics)
 
                 # Update trajectory
-                new_basin = np.mean(self.state.context_coords[-5:], axis=0)
+                new_basin = frechet_mean(self.state.context_coords[-5:])
                 new_basin = fisher_normalize(new_basin)
                 self.state = update_trajectory(self.state, new_basin)
 

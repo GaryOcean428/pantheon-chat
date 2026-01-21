@@ -207,7 +207,7 @@ class TestValidation:
         """Test density matrix validation with valid matrix."""
         # Create valid density matrix (pure state)
         psi = np.random.randn(4) + 1j * np.random.randn(4)
-        psi = psi / np.linalg.norm(psi)
+        psi = to_simplex_prob(psi)
         rho = np.outer(psi, psi.conj())
         validate_density_matrix(rho)  # should not raise
     
@@ -225,7 +225,7 @@ class TestGeometry:
         """Test quantum fidelity computation."""
         # Pure state - should have fidelity 1 with itself
         psi = np.random.randn(4) + 1j * np.random.randn(4)
-        psi = psi / np.linalg.norm(psi)
+        psi = to_simplex_prob(psi)
         rho = np.outer(psi, psi.conj())
         
         fidelity = quantum_fidelity(rho, rho)

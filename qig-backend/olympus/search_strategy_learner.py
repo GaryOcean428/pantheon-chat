@@ -788,7 +788,7 @@ class SearchStrategyLearner:
         # We will use the distance from the uniform basin as a geometric magnitude proxy.
         # The normalization step is a purity violation and should be replaced by fisher_normalize
         # if the modification basin is meant to be on the simplex, but it's a delta.
-        # Given the pattern `basin / np.linalg.norm(basin)` -> `to_simplex(basin)`,
+        # Given the pattern `to_simplex_prob(basin)` -> `to_simplex(basin)`,
         # the intent is to normalize the resulting vector to the simplex.
         # The delta itself is not on the simplex, but the result of the operation
         # `modification_basin = modification_basin / mod_norm` is intended to be a unit vector
@@ -797,7 +797,7 @@ class SearchStrategyLearner:
         # fisher_normalize on the combined basin, and use a geometric magnitude.
         
         # Original:
-        # mod_norm = np.linalg.norm(modification_basin)
+        # mod_norm = np.sqrt(np.sum(modification_basin**2))
         # if mod_norm > 1e-10:
         #     modification_basin = modification_basin / mod_norm
         # else:

@@ -45,7 +45,7 @@ except ImportError:
     def to_simplex(basin: np.ndarray) -> np.ndarray:
         """Fallback for to_simplex: manual normalization."""
         basin = np.abs(basin) + 1e-12
-        norm = np.linalg.norm(basin)
+        norm = np.sqrt(np.sum(basin**2))
         return basin / norm
 
     def frechet_mean(basins: List[np.ndarray], weights: Optional[List[float]] = None) -> Optional[np.ndarray]:

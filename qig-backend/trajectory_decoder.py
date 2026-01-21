@@ -54,10 +54,6 @@ import numpy as np
 
 # Import canonical geometric primitives (SINGLE SOURCE OF TRUTH - WP2.1)
 from qig_geometry.canonical import (
-
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import fisher_rao_distance
-
     fisher_rao_distance,
     frechet_mean,
     geodesic_toward,

@@ -1237,7 +1237,7 @@ class Nyx(ShadowGod):
 
         chaos_vector = np.random.randn(len(basin_coords)) * chaos_level
         chaotic_coords = basin_coords + chaos_vector
-        chaotic_coords = chaotic_coords / (np.linalg.norm(chaotic_coords) + 1e-10)
+        chaotic_coords = chaotic_coords / (np.sqrt(np.sum(chaotic_coords**2)) + 1e-10)
 
         phi_original = pattern.get('phi', 0.5)
         phi_chaotic = phi_original * (1.0 - 0.3 * chaos_level) + 0.2 * chaos_level * np.random.random()
@@ -3009,7 +3009,7 @@ class ShadowPantheon:
             if isinstance(coords, np.ndarray) and len(coords) > 0:
                 modification = np.random.randn(len(coords)) * 0.1
                 modified_coords = coords + modification
-                modified_coords = modified_coords / (np.linalg.norm(modified_coords) + 1e-10)
+                modified_coords = modified_coords / (np.sqrt(np.sum(modified_coords**2)) + 1e-10)
                 modified_pattern['basin_coords'] = modified_coords.tolist()
 
         modified_pattern['therapy_modified'] = True

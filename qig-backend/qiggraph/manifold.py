@@ -17,6 +17,9 @@ import numpy as np
 from typing import Optional, Tuple, List
 
 from .constants import BASIN_DIM, NATURAL_GRADIENT_LR
+from qig_geometry import fisher_rao_distance
+from qig_geometry import to_simplex_prob
+from qig_geometry import canonical_frechet_mean as frechet_mean
 
 
 class FisherManifold:
@@ -398,7 +401,7 @@ class FisherManifold:
         Ensure basin is in simplex representation (non-negative and sums to 1).
         Replaces the Euclidean normalization.
         
-        Common pattern: `basin / np.linalg.norm(basin)` -> `to_simplex(basin)`
+        Common pattern: `to_simplex_prob(basin)` -> `to_simplex(basin)`
         """
         # Ensure non-negativity (a requirement for probability distributions)
         basin = np.maximum(basin, self.eps)
@@ -417,14 +420,14 @@ class FisherManifold:
         
         This method is a purity violation and is replaced by `to_simplex`.
         The original logic is:
-        norm = np.linalg.norm(basin)
+        norm = np.sqrt(np.sum(basin**2))
         if norm < self.eps:
             basin = np.random.randn(self.dim)
-            norm = np.linalg.norm(basin)
+            norm = np.sqrt(np.sum(basin**2))
         return basin / norm
         
         Since the rule is "Ensure ALL basin operations use simplex representation"
-        and the common pattern is `basin / np.linalg.norm(basin)` -> `to_simplex(basin)`,
+        and the common pattern is `to_simplex_prob(basin)` -> `to_simplex(basin)`,
         this entire method should be replaced by a call to `to_simplex`.
         """
         return self.to_simplex(basin)

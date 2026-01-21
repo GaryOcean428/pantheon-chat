@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from .foam_phase import Bubble
+from qig_geometry.canonical import bhattacharyya
 
 
 class Geodesic:
@@ -167,8 +168,8 @@ class TackingPhase:
         UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
         # Normalize
-        a = coords_a / (np.linalg.norm(coords_a) + 1e-10)
-        b = coords_b / (np.linalg.norm(coords_b) + 1e-10)
+        a = coords_a / (np.sqrt(np.sum(coords_a**2)) + 1e-10)
+        b = coords_b / (np.sqrt(np.sum(coords_b**2)) + 1e-10)
 
         # Compute geodesic distance on sphere
         dot = np.clip(np.dot(a, b), 0.0, 1.0)
@@ -190,7 +191,7 @@ class TackingPhase:
         end_norm = end / (np.linalg.norm(end) + 1e-10)
 
         # Compute angle
-        dot = np.clip(np.dot(start_norm, end_norm), -1.0, 1.0)
+        dot = np.clip(bhattacharyya(start, end), -1.0, 1.0)
         omega = np.arccos(dot)
 
         if omega < 1e-6:

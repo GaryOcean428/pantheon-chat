@@ -11,6 +11,7 @@ This is natural regularization, not dropout.
 
 import numpy as np
 from typing import Tuple, Optional, Dict, Any
+from qig_geometry import to_simplex_prob
 
 # Default thresholds from canonical reference
 DEFAULT_PURITY_THRESHOLD = 0.9
@@ -110,7 +111,7 @@ def apply_thermal_noise(
     random_hermitian = (random_hermitian + random_hermitian.conj().T) / 2
     
     # Scale by temperature
-    perturbation = temperature * random_hermitian / np.linalg.norm(random_hermitian)
+    perturbation = temperature * to_simplex_prob(random_hermitian)
     
     # Apply perturbation
     rho_perturbed = rho + perturbation

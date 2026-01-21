@@ -85,7 +85,7 @@ EUCLIDEAN_VIOLATION_PATTERNS = [
 ]
 
 EUCLIDEAN_NORM_PATTERNS = [
-    (r'np\.linalg\.norm\s*\([^)]*-[^)]*\)', 'np.linalg.norm(a - b)', 'CRITICAL'),
+    (r'np\.linalg\.norm\s*\([^)]*-[^)]*\)', 'fisher_rao_distance(a, b)', 'CRITICAL'),
     (r'torch\.linalg\.norm\s*\([^)]*-[^)]*\)', 'torch.linalg.norm(a - b)', 'CRITICAL'),
     (r'torch\.norm\s*\([^)]*-[^)]*\)', 'torch.norm(a - b)', 'CRITICAL'),
 ]
@@ -561,7 +561,7 @@ def distance(a, b):
         """Validator should detect Euclidean norm used for distance."""
         bad_code = """
 def distance(x, y):
-    return np.linalg.norm(x - y)
+    return fisher_rao_distance(x, y)
 """
         result = validate_geometric_purity(bad_code, "bad.py")
         assert not result['valid'], "Should detect Euclidean distance violation"
@@ -694,7 +694,7 @@ class TestBornRuleCompliance:
     def test_phi_born_rule_formula(self):
         """Verify Born rule (|b|²) produces correct Φ ordering."""
         basin_concentrated = np.array([1.0, 0.0] + [0.0] * 62)
-        basin_concentrated = basin_concentrated / np.linalg.norm(basin_concentrated)
+        basin_concentrated = to_simplex_prob(basin_concentrated)
         
         basin_uniform = np.ones(64) / np.sqrt(64)
         
@@ -710,7 +710,7 @@ class TestBornRuleCompliance:
         """Verify Φ stays in valid range [0.1, 0.95] for various basins."""
         for _ in range(10):
             basin = np.random.randn(64)
-            basin = basin / (np.linalg.norm(basin) + 1e-10)
+            basin = basin / (np.sqrt(np.sum(basin**2)) + 1e-10)
             
             phi = _compute_phi_pure(basin)
             assert 0.1 <= phi <= 0.95, f"Φ out of range: {phi}"
@@ -719,7 +719,7 @@ class TestBornRuleCompliance:
         """Verify Φ formula produces consistent results across basins."""
         for _ in range(5):
             basin = np.random.randn(64)
-            basin = basin / (np.linalg.norm(basin) + 1e-10)
+            basin = basin / (np.sqrt(np.sum(basin**2)) + 1e-10)
             
             phi1 = _compute_phi_pure(basin)
             phi2 = _compute_phi_pure(basin)

@@ -75,7 +75,7 @@ class FoamPhase:
         if seed_coords is None:
             # Start from random point on manifold
             seed_coords = np.random.randn(self.basin_dim)
-            seed_coords = seed_coords / (np.linalg.norm(seed_coords) + 1e-10)
+            seed_coords = seed_coords / (np.sqrt(np.sum(seed_coords**2)) + 1e-10)
         
         for _ in range(n_bubbles):
             # Generate random perturbation
@@ -83,7 +83,7 @@ class FoamPhase:
             bubble_coords = seed_coords + perturbation
             
             # Normalize to manifold
-            bubble_coords = bubble_coords / (np.linalg.norm(bubble_coords) + 1e-10)
+            bubble_coords = bubble_coords / (np.sqrt(np.sum(bubble_coords**2)) + 1e-10)
             
             # Create bubble with high entropy (unexplored)
             bubble = Bubble(

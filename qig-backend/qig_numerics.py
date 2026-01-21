@@ -14,6 +14,8 @@ geometrically rather than fighting floating point limits.
 
 import numpy as np
 from typing import Union, Optional, Tuple
+from qig_geometry.canonical import bhattacharyya
+from qig_geometry import fisher_rao_distance
 
 # Physics constants
 BASIN_DIM = 64
@@ -234,7 +236,7 @@ def safe_logarithmic_map(base: np.ndarray, target: np.ndarray, eps: float = EPSI
     target = project_to_sphere(target, eps)
     
     # Dot product gives cosine of geodesic distance
-    dot = np.clip(np.dot(base, target), -1.0, 1.0)
+    dot = np.clip(bhattacharyya(base, target), -1.0, 1.0)
     
     # Handle near-identical points
     if dot > 1.0 - eps:

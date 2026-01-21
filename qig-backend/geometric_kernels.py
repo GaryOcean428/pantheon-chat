@@ -660,7 +660,7 @@ class GeometricKernel:
             basins = self.encode_to_basins(text)
             if len(basins) == 1:
                 return basins[0]
-            return _normalize_to_manifold(frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0))
+            return _normalize_to_manifold(frechet_mean(basins))  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
     
     def decode(self, encoded: Union[np.ndarray, List[int]], candidates: Optional[List[str]] = None) -> str:
         """

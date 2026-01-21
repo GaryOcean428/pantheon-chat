@@ -17,6 +17,7 @@ import asyncio
 import os
 from datetime import datetime
 from typing import Dict, List
+from qig_geometry import to_simplex_prob
 
 try:
     import aiohttp  # type: ignore
@@ -179,7 +180,7 @@ def correct_basin_drift(basin_coords):
     correction = np.array({(-drift_vector * correction_factor).tolist()})
     corrected = basin_coords + correction
     # Renormalize to unit sphere
-    return corrected / np.linalg.norm(corrected)
+    return to_simplex_prob(corrected)
 """
 
         # Test patch

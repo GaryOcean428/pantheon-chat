@@ -257,7 +257,6 @@ class ConversationalKernelMixin:
         
         for token, token_basin in coordizer.basin_coords.items():
             if token not in special_tokens:
-<<<<<<< HEAD
                 # Use canonical Fisher-Rao distance (MANDATORY per E8 Protocol v4.0)
                 dist = fisher_rao_distance(basin, token_basin)
                 distances[token] = dist

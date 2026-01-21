@@ -50,7 +50,7 @@ class MockCoordizer:
         for i, token in enumerate(tokens):
             # Create diverse basin coordinates
             coord = np.random.randn(64)
-            coord = coord / (np.linalg.norm(coord) + 1e-10)
+            coord = coord / (np.sqrt(np.sum(coord**2)) + 1e-10)
             coord = np.abs(coord)  # Make simplex-compatible
             coord = coord / coord.sum()
             
@@ -63,7 +63,7 @@ class MockCoordizer:
             return self.coordinates[token]
         # Generate new coordinate for unknown token
         coord = np.random.randn(64)
-        coord = coord / (np.linalg.norm(coord) + 1e-10)
+        coord = coord / (np.sqrt(np.sum(coord**2)) + 1e-10)
         coord = np.abs(coord)
         coord = coord / coord.sum()
         self.coordinates[token] = coord

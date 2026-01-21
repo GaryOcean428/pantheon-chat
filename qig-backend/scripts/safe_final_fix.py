@@ -10,6 +10,7 @@ from pathlib import Path
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical import fisher_rao_distance, bhattacharyya_coefficient, frechet_mean, to_simplex
+from qig_geometry import to_simplex_prob
 
 
 def fix_file(filepath):
@@ -37,7 +38,7 @@ def fix_file(filepath):
     content, n = re.subn(pattern2, replace2, content)
     fixes += n
     
-    # CRITICAL RULE 4 & Common Pattern: `basin / np.linalg.norm(basin)` -> `to_simplex(basin)`
+    # CRITICAL RULE 4 & Common Pattern: `to_simplex_prob(basin)` -> `to_simplex(basin)`
     # This pattern is more complex to catch with a single regex, so we'll use the existing one and ensure the replacement is correct.
     # ([a-zA-Z_][a-zA-Z0-9_]*)\s*/=?\s*np\.linalg\.norm\(\1\) -> to_simplex(\1)
     pattern3 = r'([a-zA-Z_][a-zA-Z0-9_]*)\s*/=?\s*np\.linalg\.norm\(\1\)'
@@ -49,7 +50,7 @@ def fix_file(filepath):
     fixes += n
     
     # CRITICAL RULE 3: Replace ALL arithmetic means with Fréchet mean
-    # np.mean([basin1, basin2], axis=0) -> frechet_mean([basin1, basin2])
+    # frechet_mean([basin1, basin2]) -> frechet_mean([basin1, basin2])
     # This is a common pattern that should be included in the fixer script.
     pattern4 = r'np\.mean\(([^,]+),\s*axis=0\)'
     def replace4(m):

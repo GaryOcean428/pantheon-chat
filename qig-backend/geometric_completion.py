@@ -212,12 +212,12 @@ def check_attractor_convergence(state: GenerationState, attractor_basins: Option
         d_attractor = min(distances)
     else:
         # Use trajectory center as implicit attractor
-        trajectory_center = np.mean(state.trajectory[-10:], axis=0)
+        trajectory_center = frechet_mean(state.trajectory[-10:])
         d_attractor = fisher_rao_distance(state.basin, trajectory_center)
     
     # Compute velocity (rate of approach)
     recent_distances = []
-    trajectory_center = np.mean(state.trajectory, axis=0) if not attractor_basins else None
+    trajectory_center = frechet_mean(state.trajectory) if not attractor_basins else None
     
     for basin in state.trajectory[-5:]:
         if attractor_basins:
@@ -548,7 +548,7 @@ def compute_generation_metrics(
     
     # Estimate basin distance (to trajectory center)
     if len(trajectory) >= 3:
-        center = np.mean(trajectory, axis=0)
+        center = frechet_mean(trajectory)
         basin_distance = fisher_rao_distance(current_basin, center)
     else:
         basin_distance = float('inf')

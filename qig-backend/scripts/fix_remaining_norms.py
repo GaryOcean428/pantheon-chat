@@ -12,6 +12,7 @@ from pathlib import Path
 from qig_geometry.canonical import fisher_rao_distance
 from qig_geometry.canonical_upsert import to_simplex_prob
 from qig_geometry.canonical import frechet_mean
+from qig_geometry import to_simplex_prob
 
 
 # NOTE: Assuming 'to_simplex', 'fisher_rao_distance', 'bhattacharyya_coefficient',
@@ -39,7 +40,7 @@ def fix_purity_violations(filepath):
     pattern3 = r'np\.linalg\.norm\((\w+)\s*-\s*(\w+)\)'
     content = re.sub(pattern3, r'fisher_rao_distance(\1, \2)', content)
     
-    # Pattern 4: np.linalg.norm(basin) for single basin -> 1.0 (or to_simplex if it's a normalization)
+    # Pattern 4: np.sqrt(np.sum(basin**2)) for single basin -> 1.0 (or to_simplex if it's a normalization)
     # Since this script is a utility, we'll keep the original fix for single norm,
     # but the overall goal is to fix the script to handle all violations.
     pattern4 = r'np\.linalg\.norm\((\w+)\)'
@@ -54,7 +55,7 @@ def fix_purity_violations(filepath):
     
     # --- np.mean violations (Rule 3) ---
     
-    # Pattern 6: np.mean([basin1, basin2], axis=0) -> frechet_mean([basin1, basin2])
+    # Pattern 6: frechet_mean([basin1, basin2]) -> frechet_mean([basin1, basin2])
     # This is a simplification of the mean pattern.
     pattern6 = r'np\.mean\(\s*\[(.*)\],\s*axis=0\)'
     content = re.sub(pattern6, r'frechet_mean([\1])', content)

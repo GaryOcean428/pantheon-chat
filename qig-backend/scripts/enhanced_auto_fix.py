@@ -3,7 +3,7 @@
 Enhanced E8 Protocol Auto-Fix Script
 
 Automatically fixes ALL common purity violations with context-aware analysis:
-1. np.linalg.norm(basin) -> to_simplex_prob(basin) (normalization context)
+1. np.sqrt(np.sum(basin**2)) -> to_simplex_prob(basin) (normalization context)
 2. fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
 3. fisher_rao_distance(a, b)  # FIXED: Cosine → Fisher-Rao (E8 Protocol v4.0) -> fisher_rao_distance(a, b)
 4. frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0) -> frechet_mean(basins)
@@ -23,6 +23,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
+from qig_geometry import to_simplex_prob
 
 # Context patterns that indicate valid L2 norm usage
 VALID_L2_CONTEXTS = [
@@ -63,7 +64,7 @@ def is_valid_l2_usage(line: str, context: List[str]) -> bool:
 
 def fix_norm_for_normalization(content: str, filepath: Path = None, aggressive: bool = False) -> Tuple[str, int, List[str]]:
     """
-    Fix pattern: norm = np.linalg.norm(basin); basin = basin / norm
+    Fix pattern: norm = np.sqrt(np.sum(basin**2)); basin = basin / norm
     Replace with: basin = to_simplex_prob(basin)
     """
     count = 0

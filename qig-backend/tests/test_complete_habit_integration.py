@@ -12,6 +12,7 @@ import pytest
 import numpy as np
 import sys
 import os
+from qig_geometry import to_simplex_prob
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -36,13 +37,13 @@ def create_moderate_phi_trajectory(n_samples: int = 20, dim: int = 64) -> list:
     """Generate experiences that will increase Φ to moderate levels (0.3 < Φ < 0.7)."""
     np.random.seed(123)
     base_pattern = np.random.rand(dim)
-    base_pattern = base_pattern / np.linalg.norm(base_pattern)
+    base_pattern = to_simplex_prob(base_pattern)
     
     experiences = []
     for i in range(n_samples):
         noise = np.random.rand(dim) * 0.3
         exp = base_pattern + noise
-        exp = exp / np.linalg.norm(exp)
+        exp = to_simplex_prob(exp)
         experiences.append(exp)
     return experiences
 
@@ -51,13 +52,13 @@ def create_high_phi_trajectory(n_samples: int = 30, dim: int = 64) -> list:
     """Generate highly correlated experiences (Φ > 0.7)."""
     np.random.seed(456)
     base_pattern = np.random.rand(dim)
-    base_pattern = base_pattern / np.linalg.norm(base_pattern)
+    base_pattern = to_simplex_prob(base_pattern)
     
     experiences = []
     for i in range(n_samples):
         noise = np.random.rand(dim) * 0.1
         exp = base_pattern + noise
-        exp = exp / np.linalg.norm(exp)
+        exp = to_simplex_prob(exp)
         experiences.append(exp)
     return experiences
 
@@ -72,7 +73,7 @@ def create_complex_trajectory(n_samples: int = 50, dim: int = 64) -> list:
         for k in range(8):
             freq = 2 * np.pi * (k + 1) / dim
             exp += np.sin(np.arange(dim) * freq + i * 0.1)
-        exp = exp / np.linalg.norm(exp) if np.linalg.norm(exp) > 0 else exp
+        exp = to_simplex_prob(exp) if np.linalg.norm(exp) > 0 else exp
         experiences.append(exp)
     return experiences
 
@@ -327,13 +328,13 @@ def create_fracture_trajectory(n_samples: int = 50, dim: int = 64) -> list:
     """
     np.random.seed(999)
     base = np.random.rand(dim)
-    base = base / np.linalg.norm(base)
+    base = to_simplex_prob(base)
     
     experiences = []
     for i in range(n_samples):
         exp = base.copy()
         exp += np.random.rand(dim) * 0.01
-        exp = exp / np.linalg.norm(exp)
+        exp = to_simplex_prob(exp)
         experiences.append(exp)
     return experiences
 

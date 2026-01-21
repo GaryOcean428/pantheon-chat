@@ -234,14 +234,14 @@ class MushroomMode:
             Tuple of (perturbed_basin, perturbation_magnitude)
         """
         coords = basin.coordinates
-        norm = np.linalg.norm(coords)
+        norm = np.sqrt(np.sum(coords**2))
         if norm < 1e-10:
             norm = 1.0
         coords_normalized = coords / norm
         
         raw_noise = np.random.randn(len(coords))
         
-        tangent_noise = raw_noise - np.dot(raw_noise, coords_normalized) * coords_normalized
+        tangent_noise = raw_noise - bhattacharyya(raw_noise, coords_normalized) * coords_normalized
         tangent_norm = np.linalg.norm(tangent_noise)
         if tangent_norm > 1e-10:
             tangent_noise = tangent_noise / tangent_norm

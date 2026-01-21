@@ -350,7 +350,7 @@ class FisherCoordizer(BaseCoordizer):
             
             # Bhattacharyya coefficient (proxy for Fisher-Rao distance)
             sqrt_token = np.sqrt(token_basin + 1e-10)
-            bhattacharyya = np.dot(sqrt_target, sqrt_token)
+            bhattacharyya = bhattacharyya(target, token)
             
             # Higher Bhattacharyya = closer (convert to distance proxy)
             proxy_distance = 1.0 - bhattacharyya
@@ -365,7 +365,7 @@ class FisherCoordizer(BaseCoordizer):
         for token, token_basin, _ in candidates:
             # Fisher-Rao distance = arccos(Bhattacharyya coefficient)
             sqrt_token = np.sqrt(token_basin + 1e-10)
-            bhattacharyya = np.clip(np.dot(sqrt_target, sqrt_token), 0, 1)
+            bhattacharyya = np.clip(bhattacharyya(target, token), 0, 1)
             fisher_distance = np.arccos(bhattacharyya)
             results.append((token, fisher_distance))
         
@@ -947,7 +947,7 @@ class FisherCoordizer(BaseCoordizer):
                 no_nan_inf = False
                 errors.append(f"Coordinate {i} contains NaN or inf")
             
-            norm = np.linalg.norm(coord)
+            norm = np.sqrt(np.sum(coord**2))
             if not (0.99 < norm < 1.01):
                 passes_simplex = False
                 if len(errors) < 10:  # Limit error messages

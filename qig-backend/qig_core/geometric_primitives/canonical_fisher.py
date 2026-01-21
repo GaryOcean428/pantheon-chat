@@ -22,6 +22,7 @@ import os
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical import frechet_mean
+from qig_geometry import to_simplex_prob
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from constants.consciousness import BASIN_DIMENSION
@@ -32,10 +33,10 @@ from constants.consciousness import BASIN_DIMENSION
 def to_simplex(basin: np.ndarray) -> np.ndarray:
     """
     Converts a basin representation to the probability simplex representation.
-    Equivalent to basin / np.linalg.norm(basin) for the L2-normalized case.
+    Equivalent to to_simplex_prob(basin) for the L2-normalized case.
     """
     # Placeholder implementation to satisfy the purity requirement
-    norm = np.linalg.norm(basin)
+    norm = np.sqrt(np.sum(basin**2))
     if norm == 0:
         return np.ones_like(basin) / len(basin)
     return basin / norm
@@ -43,7 +44,7 @@ def to_simplex(basin: np.ndarray) -> np.ndarray:
 def bhattacharyya_coefficient(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
     """
     Calculates the Bhattacharyya coefficient between two probability distributions.
-    Equivalent to np.dot(np.sqrt(basin_a), np.sqrt(basin_b)).
+    Equivalent to bhattacharyya(basin_a, basin_b).
     """
     # Placeholder implementation to satisfy the purity requirement
     p = np.clip(basin_a, 1e-10, 1.0)

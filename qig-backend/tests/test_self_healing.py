@@ -7,6 +7,7 @@ Basic integration tests for the 3-layer architecture.
 import numpy as np
 import sys
 import os
+from qig_geometry import to_simplex_prob
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -204,10 +205,10 @@ def test_fisher_distance():
     
     # Create two unit vectors
     basin1 = np.random.randn(64)
-    basin1 = basin1 / np.linalg.norm(basin1)
+    basin1 = to_simplex_prob(basin1)
     
     basin2 = np.random.randn(64)
-    basin2 = basin2 / np.linalg.norm(basin2)
+    basin2 = to_simplex_prob(basin2)
     
     # Calculate distance
     distance = monitor._fisher_distance(basin1, basin2)

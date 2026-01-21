@@ -95,7 +95,7 @@ def test_sqrt_simplex_properties():
     assert np.all(sqrt_basin >= 0)
     
     # sqrt-space should be on unit hemisphere (norm ≈ 1)
-    norm = np.linalg.norm(sqrt_basin)
+    norm = np.sqrt(np.sum(sqrt_basin**2))
     assert np.isclose(norm, 1.0, atol=1e-6)
 
 

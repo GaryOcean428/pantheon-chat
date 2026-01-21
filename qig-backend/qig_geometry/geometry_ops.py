@@ -2,6 +2,8 @@
 # It should contain the geometric operations required by other modules.
 
 import numpy as np
+from qig_geometry import fisher_rao_distance
+from qig_geometry import canonical_frechet_mean as frechet_mean
 
 def to_simplex(p):
     """Projects a vector to the probability simplex."""
@@ -16,7 +18,7 @@ def frechet_mean(basins):
     """Compute the Fréchet mean of a set of basins."""
     # This is a simplified implementation. A proper implementation would involve
     # an iterative optimization process.
-    return to_simplex(np.mean(basins, axis=0))
+    return to_simplex(frechet_mean(basins))
 
 def bhattacharyya_coefficient(p, q):
     """Compute the Bhattacharyya coefficient between two probability distributions."""

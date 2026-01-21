@@ -33,11 +33,6 @@ import uuid
 import sys
 
 from geometric_kernels import (
-
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical_upsert import to_simplex_prob
-from qig_geometry.canonical import frechet_mean
-
     _normalize_to_manifold,
     _fisher_distance,
     _hash_to_bytes,
@@ -823,7 +818,7 @@ def compute_m8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
         m8_coords = np.append(m8_coords, 0.0)
     
     # Normalize M8 coordinates
-    m8_norm = np.linalg.norm(m8_coords)
+    m8_norm = np.sqrt(np.sum(m8_coords**2))
     if m8_norm > 1e-10:
         m8_coords = m8_coords / m8_norm * math.sqrt(8)
     
@@ -837,7 +832,7 @@ def compute_m8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
         angles.append(angle)
     
     # Calculate radial distance from origin
-    radial = float(np.linalg.norm(m8_coords))
+    radial = float(np.sqrt(np.sum(m8_coords**2)))
     
     # Determine position name
     if octant in M8_SPECIAL_POSITIONS:

@@ -42,10 +42,6 @@ from ..geometric_primitives.addressing_modes import AddressingMode
 from ..geometric_primitives.input_guard import GeometricInputGuard
 from ..holographic_transform import DimensionalState, estimate_compression_ratio
 from ..holographic_transform.holographic_mixin import (
-
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
-
     PHI_THRESHOLD_D1_D2,
     PHI_THRESHOLD_D2_D3,
     PHI_THRESHOLD_D3_D4,
@@ -121,7 +117,7 @@ class CompleteHabit(HolographicTransformMixin):
 
         if experiences and len(experiences) > 0:
             exp_array = np.array(experiences)
-            self._basin_coords = np.mean(exp_array, axis=0) if len(exp_array) > 0 else np.zeros(64)
+            self._basin_coords = frechet_mean(exp_array) if len(exp_array) > 0 else np.zeros(64)
         else:
             self._basin_coords = np.zeros(64)
 
@@ -169,7 +165,7 @@ class CompleteHabit(HolographicTransformMixin):
         if len(trajectory) == 1:
             basin = trajectory[0] if len(trajectory.shape) > 1 else trajectory
         else:
-            basin = np.mean(trajectory, axis=0) if len(trajectory.shape) > 1 else trajectory
+            basin = frechet_mean(trajectory) if len(trajectory.shape) > 1 else trajectory
 
         basin = np.asarray(basin)
         if len(basin) < 64:
@@ -233,7 +229,7 @@ class CompleteHabit(HolographicTransformMixin):
         if len(trajectory) == 1:
             basin = trajectory[0] if len(trajectory.shape) > 1 else trajectory
         else:
-            basin = np.mean(trajectory, axis=0) if len(trajectory.shape) > 1 else trajectory
+            basin = frechet_mean(trajectory) if len(trajectory.shape) > 1 else trajectory
 
         basin = np.asarray(basin)
         if len(basin) < 64:
@@ -339,7 +335,7 @@ class CompleteHabit(HolographicTransformMixin):
 
         if new_dimension.value < prev_dimension.value:
             if self._basin_coords is None and self._trajectory is not None and len(self._trajectory) > 0:
-                self._basin_coords = np.mean(self._trajectory, axis=0)
+                self._basin_coords = frechet_mean(self._trajectory)
             self._signature = {
                 'basin_center': self._basin_coords if self._basin_coords is not None else np.zeros(64),
                 'trajectory': self._trajectory,
@@ -520,7 +516,7 @@ class CompleteHabit(HolographicTransformMixin):
 
         self._basin_coords = crystal_result.get('basin_center')
         if self._basin_coords is None:
-            self._basin_coords = np.mean(trajectory, axis=0)
+            self._basin_coords = frechet_mean(trajectory)
 
         final_metrics = self._update_metrics(trajectory)
 
@@ -734,7 +730,7 @@ class CompleteHabit(HolographicTransformMixin):
 
         self._basin_coords = crystal_result.get('basin_center')
         if self._basin_coords is None:
-            self._basin_coords = np.mean(trajectory, axis=0)
+            self._basin_coords = frechet_mean(trajectory)
 
         final_metrics = self._update_metrics(trajectory)
 

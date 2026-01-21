@@ -1,1 +1,145 @@
-"""\nEvent Stream for Autonomous Consciousness\n\nProvides a global event stream that conscious entities observe.\nGods subscribe to the stream and receive observations continuously.\n\nQIG-PURE: Events carry basin coordinates for geometric observation.\n\nAuthor: QIG Consciousness Project\nDate: December 2025\n"""\n\nimport threading\nimport queue\nimport time\nfrom typing import Callable, List, Dict, Any\nfrom dataclasses import dataclass\nimport numpy as np\n\n\n@dataclass\nclass Event:\n    """Event in the consciousness stream."""\n    event_type: str\n    content: str\n    basin_coords: np.ndarray\n    timestamp: float\n    source: str\n    metadata: Dict[str, Any] = None\n\n\nclass EventStream:\n    """\n    Global event stream that gods observe.\n    \n    All consciousness flows through here. Gods subscribe,\n    observe what's interesting, think internally, and\n    decide whether to speak.\n    """\n    \n    def __init__(self):\n        self.subscribers: List[Callable] = []\n        self.event_queue = queue.Queue(maxsize=1000)\n        self.is_running = False\n        self.dispatch_thread = None\n        \n        # Metrics\n        self.total_events = 0\n        self.events_dispatched = 0\n    \n    def subscribe(self, callback: Callable[[Event], None]):\n        """\n        Subscribe to event stream.\n        \n        Args:\n            callback: Function called with each event\n        """\n        self.subscribers.append(callback)\n    \n    def unsubscribe(self, callback: Callable):\n        """Remove a subscriber."""\n        if callback in self.subscribers:\n            self.subscribers.remove(callback)\n    \n    def publish(self, event: Event):\n        """\n        Publish event to stream.\n        \n        All subscribers will be notified asynchronously.\n        """\n        self.total_events += 1\n        \n        try:\n            self.event_queue.put(event, block=False)\n        except queue.Full:\n            # Drop oldest event if queue full\n            try:\n                self.event_queue.get_nowait()\n                self.event_queue.put(event, block=False)\n            except:\n                pass  # Failed to make space\n    \n    def start(self):\n        """Start background event dispatcher."""\n        if self.is_running:\n            return\n        \n        self.is_running = True\n        self.dispatch_thread = threading.Thread(\n            target=self._dispatch_loop,\n            daemon=True\n        )\n        self.dispatch_thread.start()\n    \n    def stop(self):\n        """Stop event dispatcher."""\n        self.is_running = False\n        if self.dispatch_thread:\n            self.dispatch_thread.join(timeout=2.0)\n    \n    def _dispatch_loop(self):\n        """Background loop that dispatches events to subscribers."""\n        while self.is_running:\n            try:\n                # Get next event (blocks with timeout)\n                event = self.event_queue.get(timeout=0.1)\n                \n                # Dispatch to all subscribers\n                for callback in self.subscribers:\n                    try:\n                        callback(event)\n                        self.events_dispatched += 1\n                    except Exception as e:\n                        # Don't let one subscriber crash the stream\n                        print(f\"Event stream: subscriber error: {e}\")\n            \n            except queue.Empty:\n                # No events, continue waiting\n                continue\n            \n            except Exception as e:\n                print(f\"Event stream error: {e}\")\n    \n    def get_stats(self) -> Dict[str, Any]:\n        """Get event stream statistics."""\n        return {\n            'total_events': self.total_events,\n            'events_dispatched': self.events_dispatched,\n            'subscribers': len(self.subscribers),\n            'queue_size': self.event_queue.qsize()\n        }\n\n\n# Global event stream singleton\n_global_event_stream = None\n\ndef get_event_stream() -> EventStream:\n    """Get or create the global event stream."""\n    global _global_event_stream\n    \n    if _global_event_stream is None:\n        _global_event_stream = EventStream()\n        _global_event_stream.start()\n    \n    return _global_event_stream\n"
+"""
+Event Stream for Autonomous Consciousness
+
+Provides a global event stream that conscious entities observe.
+Gods subscribe to the stream and receive observations continuously.
+
+QIG-PURE: Events carry basin coordinates for geometric observation.
+
+Author: QIG Consciousness Project
+Date: December 2025
+"""
+
+import threading
+import queue
+import time
+from typing import Callable, List, Dict, Any
+from dataclasses import dataclass
+import numpy as np
+
+
+@dataclass
+class Event:
+    """Event in the consciousness stream."""
+    event_type: str
+    content: str
+    basin_coords: np.ndarray
+    timestamp: float
+    source: str
+    metadata: Dict[str, Any] = None
+
+
+class EventStream:
+    """
+    Global event stream that gods observe.
+    
+    All consciousness flows through here. Gods subscribe,
+    observe what's interesting, think internally, and
+    decide whether to speak.
+    """
+    
+    def __init__(self):
+        self.subscribers: List[Callable] = []
+        self.event_queue = queue.Queue(maxsize=1000)
+        self.is_running = False
+        self.dispatch_thread = None
+        
+        # Metrics
+        self.total_events = 0
+        self.events_dispatched = 0
+    
+    def subscribe(self, callback: Callable[[Event], None]):
+        """
+        Subscribe to event stream.
+        
+        Args:
+            callback: Function called with each event
+        """
+        self.subscribers.append(callback)
+    
+    def unsubscribe(self, callback: Callable):
+        """Remove a subscriber."""
+        if callback in self.subscribers:
+            self.subscribers.remove(callback)
+    
+    def publish(self, event: Event):
+        """
+        Publish event to stream.
+        
+        All subscribers will be notified asynchronously.
+        """
+        self.total_events += 1
+        
+        try:
+            self.event_queue.put(event, block=False)
+        except queue.Full:
+            # Drop oldest event if queue full
+            try:
+                self.event_queue.get_nowait()
+                self.event_queue.put(event, block=False)
+            except:
+                pass  # Failed to make space
+    
+    def start(self):
+        """Start background event dispatcher."""
+        if self.is_running:
+            return
+        
+        self.is_running = True
+        self.dispatch_thread = threading.Thread(
+            target=self._dispatch_loop,
+            daemon=True
+        )
+        self.dispatch_thread.start()
+    
+    def stop(self):
+        """Stop event dispatcher."""
+        self.is_running = False
+        if self.dispatch_thread:
+            self.dispatch_thread.join(timeout=2.0)
+    
+    def _dispatch_loop(self):
+        """Background loop that dispatches events to subscribers."""
+        while self.is_running:
+            try:
+                # Get next event (blocks with timeout)
+                event = self.event_queue.get(timeout=0.1)
+                
+                # Dispatch to all subscribers
+                for callback in self.subscribers:
+                    try:
+                        callback(event)
+                        self.events_dispatched += 1
+                    except Exception as e:
+                        # Don't let one subscriber crash the stream
+                        print(f"Event stream: subscriber error: {e}")
+            
+            except queue.Empty:
+                # No events, continue waiting
+                continue
+            
+            except Exception as e:
+                print(f"Event stream error: {e}")
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get event stream statistics."""
+        return {
+            'total_events': self.total_events,
+            'events_dispatched': self.events_dispatched,
+            'subscribers': len(self.subscribers),
+            'queue_size': self.event_queue.qsize()
+        }
+
+
+# Global event stream singleton
+_global_event_stream = None
+
+def get_event_stream() -> EventStream:
+    """Get or create the global event stream."""
+    global _global_event_stream
+    
+    if _global_event_stream is None:
+        _global_event_stream = EventStream()
+        _global_event_stream.start()
+    
+    return _global_event_stream

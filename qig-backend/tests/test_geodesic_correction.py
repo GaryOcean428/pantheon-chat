@@ -42,7 +42,7 @@ def test_compute_orthogonal_complement():
     
     # Check that it's actually orthogonal to the main direction
     mean_direction = np.mean(vectors, axis=0)
-    mean_direction = mean_direction / np.linalg.norm(mean_direction)
+    mean_direction = to_simplex_prob(mean_direction)
     
     dot_product = abs(np.dot(orthogonal, mean_direction))
     
