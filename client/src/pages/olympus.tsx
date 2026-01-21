@@ -300,7 +300,7 @@ export default function OlympusPage() {
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
-              <Swords className="h-5 w-5 text-amber-500" />
+              <Sword className="h-5 w-5 text-amber-500" />
               Active War: {status.zeus.war_mode}
             </CardTitle>
             <CardDescription>

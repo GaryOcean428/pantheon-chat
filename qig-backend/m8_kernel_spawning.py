@@ -2467,12 +2467,18 @@ class M8KernelSpawner:
         # Sort by contribution (lowest first)
         kernel_contributions.sort(key=lambda x: x[1])
         
-        # Try to import Fisher-Rao distance once, outside the loop
+        # Import Fisher-Rao distance (REQUIRED per E8 Protocol v4.0)
         try:
-            from qig_numerics import fisher_rao_distance
-            use_fisher_rao = True
+            from qig_geometry import fisher_rao_distance
         except ImportError:
-            use_fisher_rao = False
+            # Fallback to qig_numerics if qig_geometry not available
+            try:
+                from qig_numerics import fisher_rao_distance
+            except ImportError:
+                raise ImportError(
+                    "fisher_rao_distance is required from qig_geometry or qig_numerics. "
+                    "Euclidean fallback is not permitted per E8 Protocol v4.0"
+                )
         
         # Prune bottom N
         pruned_count = 0
@@ -2490,13 +2496,8 @@ class M8KernelSpawner:
                             continue
                         other_basin = other_kernel.basin_coordinates if hasattr(other_kernel, 'basin_coordinates') else None
                         if other_basin is not None:
-                            # Use Fisher-Rao distance for geometric purity
-                            if use_fisher_rao:
-                                distance = fisher_rao_distance(np.array(kernel_basin), np.array(other_basin))
-                            else:
-                                # NOTE: Fallback to Euclidean ONLY if Fisher-Rao unavailable (emergency path)
-                                # This should rarely execute - fisher_rao_distance should always be available
-                                distance = np.linalg.norm(np.array(kernel_basin) - np.array(other_basin))
+                            # Use Fisher-Rao distance for geometric purity (MANDATORY)
+                            distance = fisher_rao_distance(np.array(kernel_basin), np.array(other_basin))
                             if distance < min_distance:
                                 min_distance = distance
                                 nearest_id = other_id

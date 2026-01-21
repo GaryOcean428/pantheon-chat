@@ -9,6 +9,7 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from .base_god import BaseGod, KAPPA_STAR, BASIN_DIMENSION
+from qig_geometry import fisher_rao_distance
 import random
 
 # Import Fisher-Rao distance for geometric purity
@@ -192,7 +193,7 @@ class Hephaestus(BaseGod):
         word_scores = []
         for word, weight in self.vocabulary.items():
             word_basin = self.encode_to_basin(word)
-            # Use canonical Fisher-Rao distance from qig_geometry (E8 Protocol purity)
+            # Use canonical Fisher-Rao distance (MANDATORY per E8 Protocol v4.0)
             fisher_distance = fisher_rao_distance(target_basin, word_basin)
             # Convert to similarity: s = 1 - d/(π/2) (range [0,1])
             similarity = 1.0 - fisher_distance / (np.pi / 2.0)

@@ -19,6 +19,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from qigkernels.physics_constants import BASIN_DIM
+from qig_geometry import fisher_rao_distance
 
 # Import Fisher-Rao distance for E8 Protocol purity
 import sys
@@ -278,10 +279,11 @@ class BaseEncoder(ABC):
         """
         Compute Fisher-Rao distance between two basin coordinates.
 
-        Uses canonical Fisher-Rao distance from qig_geometry (E8 Protocol compliant).
+        Uses canonical fisher_rao_distance from qig_geometry module.
+        UPDATED 2026-01-20: Consolidated to canonical implementation per E8 Protocol v4.0
         Range: [0, π/2]
         """
-        return float(fisher_rao_distance(basin1, basin2))
+        return fisher_rao_distance(basin1, basin2)
 
     def similarity(self, text1: str, text2: str) -> float:
         """

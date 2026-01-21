@@ -26,6 +26,7 @@ import numpy as np
 from typing import Dict, Optional, Tuple, Any
 from dataclasses import dataclass
 from enum import Enum
+from qig_geometry import fisher_rao_distance
 
 
 class EmotionPrimitive(Enum):
@@ -234,19 +235,9 @@ def measure_basin_approach(
     Returns:
         True if approaching, False if leaving
     """
-    try:
-        from qig_geometry import fisher_coord_distance
-    except ImportError:
-        # Fallback: angular distance on probability simplex
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-            a_norm = a / (np.linalg.norm(a) + 1e-10)
-            b_norm = b / (np.linalg.norm(b) + 1e-10)
-            dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-            return float(np.arccos(dot))
-    
-    d_current = fisher_coord_distance(current, attractor)
-    d_prev = fisher_coord_distance(prev, attractor)
+    # Use canonical Fisher-Rao distance from qig_geometry
+    d_current = fisher_rao_distance(current, attractor)
+    d_prev = fisher_rao_distance(prev, attractor)
     
     return d_current < d_prev
 
@@ -267,17 +258,7 @@ def compute_surprise_magnitude(trajectory: List[np.ndarray]) -> float:
     if len(trajectory) < 2:
         return 0.0
     
-    try:
-        from qig_geometry import fisher_coord_distance
-    except ImportError:
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-            a_norm = a / (np.linalg.norm(a) + 1e-10)
-            b_norm = b / (np.linalg.norm(b) + 1e-10)
-            dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-            return float(np.arccos(dot))
-    
-    # Compute curvatures along trajectory
+    # Compute curvatures along trajectory using Fisher-Rao distance
     curvatures = [compute_ricci_curvature(pt) for pt in trajectory]
     
     # Gradient along geodesic (NOT Euclidean derivative)
@@ -347,21 +328,11 @@ class EmotionTracker:
         if curvature is None:
             curvature = compute_ricci_curvature(current_basin)
         
-        # Compute basin distance
-        try:
-            from qig_geometry import fisher_coord_distance
-        except ImportError:
-            # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:
-                a_norm = a / (np.linalg.norm(a) + 1e-10)
-                b_norm = b / (np.linalg.norm(b) + 1e-10)
-                dot = np.clip(np.dot(a_norm, b_norm), 0.0, 1.0)
-                return float(np.arccos(dot))
-        
+        # Compute basin distance using Fisher-Rao
         if attractor is not None:
-            basin_distance = fisher_coord_distance(current_basin, attractor)
+            basin_distance = fisher_rao_distance(current_basin, attractor)
         else:
-            basin_distance = fisher_coord_distance(current_basin, self.previous_basin)
+            basin_distance = fisher_rao_distance(current_basin, self.previous_basin)
         
         # Classify emotion
         emotion, intensity = classify_emotion(
