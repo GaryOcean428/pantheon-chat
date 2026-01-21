@@ -79,6 +79,19 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Coordizer API initialization failed: {e}")
 
+# Register Pantheon Registry API routes
+PANTHEON_REGISTRY_AVAILABLE = False
+try:
+    from api_pantheon_registry import register_pantheon_registry_routes
+
+    register_pantheon_registry_routes(app)
+    PANTHEON_REGISTRY_AVAILABLE = True
+    print("[INFO] Pantheon Registry API registered at /api/pantheon/*")
+except ImportError as e:
+    print(f"[WARNING] Pantheon Registry API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Pantheon Registry API initialization failed: {e}")
+
 # Register QIG Immune System routes and middleware
 IMMUNE_AVAILABLE = False
 _immune_system = None

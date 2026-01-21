@@ -1101,6 +1101,16 @@ class GroundingDetector:
         for concept_id, concept_basin in self.known_concepts.items():
             # Fisher-Rao distance: d = arccos(p·q) for probability simplex
             try:
+                from qig_geometry import fisher_rao_distance
+            except ImportError:
+                def fisher_rao_distance(a, b):
+                    """Canonical Fisher-Rao distance."""
+                    from qig_geometry import fisher_normalize
+                    p = fisher_normalize(a)
+                    q = fisher_normalize(b)
+                    dot = np.clip(np.dot(np.sqrt(p), np.sqrt(q)), 0.0, 1.0)
+                    return np.arccos(dot)
+            try:
                 from qig_geometry import fisher_normalize
             except ImportError:
                 def fisher_normalize(v):
@@ -1108,9 +1118,9 @@ class GroundingDetector:
                     return p / p.sum()
             query_norm = fisher_normalize(query_basin)
             concept_norm = fisher_normalize(concept_basin)
-            dot = np.clip(np.dot(query_norm, concept_norm), 0.0, 1.0)
+            # Use Fisher-Rao distance for similarity
             # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            distance = np.arccos(dot)
+            distance = fisher_rao_distance(query_norm, concept_norm)
 
             if distance < min_distance:
                 min_distance = distance
@@ -5070,6 +5080,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
         # Return direction orthogonal to the single vector
         mean = vectors[0]
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5085,6 +5096,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     if np.any(np.isnan(cov)) or np.any(np.isinf(cov)):
         # Fallback to random orthogonal direction
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5100,6 +5112,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     except np.linalg.LinAlgError:
         # Fallback if eigenvalue decomposition fails
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5109,6 +5122,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
        np.any(np.isnan(eigenvectors)) or np.any(np.isinf(eigenvectors)):
         # Fallback to random orthogonal direction
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5133,6 +5147,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
             max_eigenvalue = np.max(eigenvalues)
         except np.linalg.LinAlgError:
             random_dir = np.random.randn(BASIN_DIMENSION)
+            # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
             mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
             random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
             return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5146,6 +5161,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
         print(f"[FisherMetric] ⚠️ No stable eigenvalues! Using identity matrix fallback.")
         # Fallback to random orthogonal direction
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
