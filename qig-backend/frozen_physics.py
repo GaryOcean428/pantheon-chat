@@ -40,7 +40,7 @@ References:
 
 from dataclasses import dataclass
 from typing import Final, List, Tuple
-# import numpy as np # Purity violation: numpy is an Euclidean-space library
+import numpy as np  # Required for Fisher-Rao calculations (arccos, clip, etc.)
 
 # Import from qigkernels (single source of truth)
 from qigkernels.physics_constants import (
