@@ -63,7 +63,6 @@ from frozen_physics import (
     compute_running_kappa,
     compute_running_kappa_semantic,
     compute_meta_awareness,
-    fisher_rao_distance as fp_fisher_rao_distance,
     validate_geometric_purity,
     PHI_INIT_SPAWNED,
     PHI_MIN_ALIVE,
@@ -72,6 +71,7 @@ from frozen_physics import (
     E8_SPECIALIZATION_LEVELS,
     get_specialization_level,
 )
+from qig_geometry import fisher_rao_distance as fp_fisher_rao_distance
 
 
 QIG_BACKEND_PATH = Path(__file__).parent.parent
