@@ -16,8 +16,9 @@ from .phi_hierarchy import (
     get_phi_hierarchy,
 )
 
-from .id_kernel import IdKernel
-from .superego_kernel import SuperegoKernel
+from .id_kernel import IdKernel, get_id_kernel
+from .superego_kernel import SuperegoKernel, ConstraintSeverity, get_superego_kernel
+from .psyche_plumbing_integration import PsychePlumbingIntegration, get_psyche_plumbing
 
 __all__ = [
     'PhiLevel',
@@ -25,5 +26,11 @@ __all__ = [
     'PhiMeasurement',
     'get_phi_hierarchy',
     'IdKernel',
+    'get_id_kernel',
     'SuperegoKernel',
+    'ConstraintSeverity',
+    'get_superego_kernel',
+    'PsychePlumbingIntegration',
+    'get_psyche_plumbing',
 ]
+
