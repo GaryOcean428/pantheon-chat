@@ -290,12 +290,17 @@ def validate_simplex_storage(
                 f.write("|-------|-------|-----------|-----------|-----------|-----------|----------|\n")
                 
                 for item in invalid_details[:100]:  # Limit to first 100 for readability
+                    qfi_val = item.get('qfi_score')
+                    qfi_str = f"{qfi_val:.6f}" if qfi_val is not None else 'NULL'
+                    basin_sum = item.get('basin_sum')
+                    basin_sum_str = f"{basin_sum:.6f}" if basin_sum is not None else 'N/A'
+                    basin_min = item.get('basin_min')
+                    basin_min_str = f"{basin_min:.6f}" if basin_min is not None else 'N/A'
+                    basin_max = item.get('basin_max')
+                    basin_max_str = f"{basin_max:.6f}" if basin_max is not None else 'N/A'
                     f.write(
                         f"| `{item['token']}` | {item['issue']} | "
-                        f"{item.get('qfi_score', 'N/A') if item.get('qfi_score') else 'NULL'} | "
-                        f"{item.get('basin_sum', 'N/A'):.6f if item.get('basin_sum') is not None else 'N/A'} | "
-                        f"{item.get('basin_min', 'N/A'):.6f if item.get('basin_min') is not None else 'N/A'} | "
-                        f"{item.get('basin_max', 'N/A'):.6f if item.get('basin_max') is not None else 'N/A'} | "
+                        f"{qfi_str} | {basin_sum_str} | {basin_min_str} | {basin_max_str} | "
                         f"{item.get('dimension', BASIN_DIMENSION)} |\n"
                     )
                 
