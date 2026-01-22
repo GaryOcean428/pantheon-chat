@@ -13,9 +13,6 @@ Context: Work Package 2.4 - Two-Step Retrieval Integration
 import numpy as np
 import pytest
 import time
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from constrained_geometric_realizer import ConstrainedGeometricRealizer
 from qig_geometry.canonical import fisher_rao_distance, BASIN_DIM
