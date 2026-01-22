@@ -21,7 +21,7 @@ from kernel_training_service import (
     PantheonKernelTrainer,
     SafetyGuard,
     SafetyGuardState,
-    TrainingSession,
+    PantheonTrainingSession,
     PHI_THRESHOLD,
     PHI_EMERGENCY,
     KAPPA_STAR,
@@ -210,12 +210,12 @@ class TestSafetyGuard:
         assert should_rollback == False
 
 
-class TestTrainingSession:
-    """Test TrainingSession functionality."""
+class TestPantheonTrainingSession:
+    """Test PantheonTrainingSession functionality."""
     
     def test_initialization(self):
-        """Test TrainingSession initialization."""
-        session = TrainingSession(god_name="Apollo")
+        """Test PantheonTrainingSession initialization."""
+        session = PantheonTrainingSession(god_name="Apollo")
         
         assert session.god_name == "Apollo"
         assert session.phase == "phase2"
@@ -228,7 +228,7 @@ class TestTrainingSession:
     
     def test_phase1_initialization(self):
         """Test Phase 1 session initialization."""
-        session = TrainingSession(god_name="Zeus", phase="phase1")
+        session = PantheonTrainingSession(god_name="Zeus", phase="phase1")
         
         assert session.phase == "phase1"
 

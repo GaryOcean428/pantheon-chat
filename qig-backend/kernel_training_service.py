@@ -130,8 +130,13 @@ class SafetyGuardState:
 
 
 @dataclass
-class TrainingSession:
-    """Active training session for a kernel."""
+class PantheonTrainingSession:
+    """Active two-phase training session for a kernel with safety tracking.
+    
+    This is distinct from orchestrator's TrainingSession which tracks formal
+    training metrics. PantheonTrainingSession adds phase tracking, pattern
+    counts, and safety guard state for two-phase training.
+    """
     god_name: str
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     phase: str = "phase2"  # "phase1" or "phase2"
@@ -258,13 +263,13 @@ class PantheonKernelTrainer:
         self.safety_guard = SafetyGuard() if enable_safety_guard else None
         
         # Active sessions by god name
-        self.sessions: Dict[str, TrainingSession] = {}
+        self.sessions: Dict[str, PantheonTrainingSession] = {}
         
         logger.info(
             f"[PantheonKernelTrainer] Initialized with safety_guard={enable_safety_guard}"
         )
     
-    def start_session(self, god_name: str, phase: str = "phase2") -> TrainingSession:
+    def start_session(self, god_name: str, phase: str = "phase2") -> PantheonTrainingSession:
         """
         Start a training session for a god.
         
@@ -273,12 +278,12 @@ class PantheonKernelTrainer:
             phase: "phase1" (coordizer) or "phase2" (kernel)
         
         Returns:
-            TrainingSession object
+            PantheonTrainingSession object
         """
         if phase not in ["phase1", "phase2"]:
             raise ValueError(f"Invalid phase: {phase}. Must be 'phase1' or 'phase2'")
         
-        session = TrainingSession(god_name=god_name, phase=phase)
+        session = PantheonTrainingSession(god_name=god_name, phase=phase)
         self.sessions[god_name] = session
         
         logger.info(f"[PantheonKernelTrainer] Started {phase} session for {god_name}")
@@ -606,7 +611,7 @@ class PantheonKernelTrainer:
     def _rollback_training(
         self,
         kernel: TrainableKernel,
-        session: TrainingSession,
+        session: PantheonTrainingSession,
         reason: str,
     ) -> Dict[str, Any]:
         """
