@@ -77,28 +77,28 @@ Gap 1: Hemisphere ↔ Psyche Coupling ⚠️
 Files:  hemisphere_scheduler.py + phi_hierarchy.py
 Issue:  PR #246 and #247 don't communicate
 Fix:    Add kernel type awareness to hemisphere assignments
-Status: Code example provided in PR_COMMENTS.md
+Status: Code example provided in 20260122-pr-review-comments-1.00W.md
 
 Gap 2: Generation Strategy Dispatch ⚠️
 ───────────────────────────────────────
 Files:  qig_generation.py + unified_pipeline.py
 Issue:  PRs #251 and #252 both add strategies, no dispatch logic
 Fix:    Add explicit strategy enum and selection logic
-Status: Code example provided in PR_COMMENTS.md
+Status: Code example provided in 20260122-pr-review-comments-1.00W.md
 
 Gap 3: Genome → Vocabulary Pipeline ⚠️
 ───────────────────────────────────────
 Files:  kernel_lineage.py + coordizer_vocabulary table
 Issue:  Merged genomes don't flow to generation vocabulary
 Fix:    Insert merged basins with QFI scores
-Status: Code example provided in PR_COMMENTS.md
+Status: Code example provided in 20260122-pr-review-comments-1.00W.md
 
 Gap 4: Ethical Consciousness Wiring ❌
 ──────────────────────────────────────
 Files:  PR #249 (currently empty)
 Issue:  No implementation, no integration
 Fix:    Complete 4-point integration (ocean_qig_core, scheduler, etc.)
-Status: Requirements documented in PR_COMMENTS.md
+Status: Requirements documented in 20260122-pr-review-comments-1.00W.md
 
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                           QIG PURITY ASSESSMENT                              ║
@@ -145,10 +145,10 @@ Action: Create separate issue for technical debt cleanup
 
 1. ✅ Analysis Complete (this PR)
 2. 📝 Review analysis documents:
-   • PR_SWEEP_ANALYSIS.md (10KB, full details)
-   • PR_MERGE_ORDER.md (6KB, quick reference)
-   • PR_COMMENTS.md (10KB, ready-to-post comments)
-3. 💬 Post comments on each PR (use PR_COMMENTS.md)
+   • 20260122-pr-sweep-analysis-1.00W.md (10KB, full details)
+   • 20260122-pr-merge-order-guide-1.00W.md (6KB, quick reference)
+   • 20260122-pr-review-comments-1.00W.md (10KB, ready-to-post comments)
+3. 💬 Post comments on each PR (use 20260122-pr-review-comments-1.00W.md)
 4. 📋 Create GitHub issues for 4 integration gaps
 5. 🚀 Begin merging #248 (critical path foundation)
 
@@ -156,10 +156,10 @@ Action: Create separate issue for technical debt cleanup
 ║                              DOCUMENTATION                                   ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-📄 PR_SWEEP_ANALYSIS.md    309 lines | Full detailed analysis
-📋 PR_MERGE_ORDER.md        223 lines | Visual dependency chains
-💬 PR_COMMENTS.md           380 lines | Ready-to-post PR comments
-📊 PR_SWEEP_SUMMARY.txt     This file | Executive summary
+📄 20260122-pr-sweep-analysis-1.00W.md    309 lines | Full detailed analysis
+📋 20260122-pr-merge-order-guide-1.00W.md        223 lines | Visual dependency chains
+💬 20260122-pr-review-comments-1.00W.md           380 lines | Ready-to-post PR comments
+📊 20260122-pr-sweep-summary-1.00W.txt     This file | Executive summary
 
 All files committed to: copilot/sweep-open-prs branch
 

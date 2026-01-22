@@ -43,14 +43,14 @@
 ## Documentation Delivered
 
 ### Quick Start: Read This First
-📊 **`PR_SWEEP_SUMMARY.txt`** (183 lines, 14KB)
+📊 **`20260122-pr-sweep-summary-1.00W.txt`** (183 lines, 14KB)
 - Visual ASCII art tables
 - Executive summary
 - Quick-scan status
 - Immediate next steps
 
 ### Full Analysis: Comprehensive Details
-📄 **`PR_SWEEP_ANALYSIS.md`** (309 lines, 11KB)
+📄 **`20260122-pr-sweep-analysis-1.00W.md`** (309 lines, 11KB)
 - Full findings for all 9 PRs
 - Integration gaps with code fixes
 - Conflict analysis matrix
@@ -58,7 +58,7 @@
 - Validation checklists
 
 ### Quick Reference: Fast Lookup
-📋 **`PR_MERGE_ORDER.md`** (223 lines, 7KB)
+📋 **`20260122-pr-merge-order-guide-1.00W.md`** (223 lines, 7KB)
 - Visual dependency map
 - Critical merge rules
 - Suggested timeline
@@ -66,7 +66,7 @@
 - Per-PR validation lists
 
 ### Ready to Use: Copy-Paste Comments
-💬 **`PR_COMMENTS.md`** (357 lines, 11KB)
+💬 **`20260122-pr-review-comments-1.00W.md`** (357 lines, 11KB)
 - Individual comment for each PR
 - Status and recommendations
 - Integration gaps noted
@@ -123,22 +123,22 @@ All others → #249 (Ethical - Complete!) → #253 (Dead Code)
 ### Gap 1: Hemisphere ↔ Psyche Coupling ⚠️
 **PRs Affected:** #246 + #247  
 **Issue:** Hemispheres don't use psyche types  
-**Fix:** Add kernel type awareness (code in `PR_COMMENTS.md`)
+**Fix:** Add kernel type awareness (code in `20260122-pr-review-comments-1.00W.md`)
 
 ### Gap 2: Generation Strategy Dispatch ⚠️
 **PRs Affected:** #251 + #252  
 **Issue:** Both add strategies, no dispatch  
-**Fix:** Add strategy enum (code in `PR_COMMENTS.md`)
+**Fix:** Add strategy enum (code in `20260122-pr-review-comments-1.00W.md`)
 
 ### Gap 3: Genome → Vocabulary Pipeline ⚠️
 **PRs Affected:** #250 + #248  
 **Issue:** Merged genomes don't flow to vocabulary  
-**Fix:** Insert with QFI scores (code in `PR_COMMENTS.md`)
+**Fix:** Insert with QFI scores (code in `20260122-pr-review-comments-1.00W.md`)
 
 ### Gap 4: Ethical Consciousness Wiring ❌
 **PR Affected:** #249  
 **Issue:** Empty PR, no implementation  
-**Fix:** Complete 4-point integration (requirements in `PR_COMMENTS.md`)
+**Fix:** Complete 4-point integration (requirements in `20260122-pr-review-comments-1.00W.md`)
 
 ---
 
@@ -180,8 +180,8 @@ geometric_repairer.py:365              (np.mean on basins)
 ## Next Steps
 
 ### For Repository Maintainers
-1. ✅ **Read** `PR_SWEEP_SUMMARY.txt` (executive summary)
-2. 📝 **Post Comments** from `PR_COMMENTS.md` on each PR
+1. ✅ **Read** `20260122-pr-sweep-summary-1.00W.txt` (executive summary)
+2. 📝 **Post Comments** from `20260122-pr-review-comments-1.00W.md` on each PR
 3. 📋 **Create Issues** for 4 integration gaps
 4. 🚀 **Start Merging** #248 (critical path)
 5. 📊 **Track Progress** using merge chains
@@ -192,7 +192,7 @@ geometric_repairer.py:365              (np.mean on basins)
 - **Cleanup PR (#253):** Hold until all others merge
 
 ### For Integration Work
-- Use code examples in `PR_COMMENTS.md`
+- Use code examples in `20260122-pr-review-comments-1.00W.md`
 - Address gaps after respective PRs merge
 - Test integration points per validation checklists
 
@@ -240,11 +240,11 @@ geometric_repairer.py:365              (np.mean on basins)
 
 | File | Lines | Size | Purpose |
 |------|-------|------|---------|
-| `PR_SWEEP_SUMMARY.txt` | 183 | 14KB | Executive summary (read first) |
-| `PR_SWEEP_ANALYSIS.md` | 309 | 11KB | Full detailed analysis |
-| `PR_MERGE_ORDER.md` | 223 | 7KB | Quick reference guide |
-| `PR_COMMENTS.md` | 357 | 11KB | Ready-to-post comments |
-| `SWEEP_COMPLETE.md` | This file | Completion summary |
+| `20260122-pr-sweep-summary-1.00W.txt` | 183 | 14KB | Executive summary (read first) |
+| `20260122-pr-sweep-analysis-1.00W.md` | 309 | 11KB | Full detailed analysis |
+| `20260122-pr-merge-order-guide-1.00W.md` | 223 | 7KB | Quick reference guide |
+| `20260122-pr-review-comments-1.00W.md` | 357 | 11KB | Ready-to-post comments |
+| `20260122-pr-sweep-completion-1.00W.md` | This file | Completion summary |
 
 **Total:** 1,072+ lines, 43KB documentation
 

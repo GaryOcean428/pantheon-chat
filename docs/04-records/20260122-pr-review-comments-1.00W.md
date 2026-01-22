@@ -104,7 +104,7 @@ This PR creates the foundation for the entire generation pipeline:
 ### Recommendation
 **Merge this PR TODAY** - critical path for generation chain.
 
-**See full analysis:** `PR_SWEEP_ANALYSIS.md`, `PR_MERGE_ORDER.md`
+**See full analysis:** `PR_SWEEP_ANALYSIS.md`, `20260122-pr-merge-order-guide-1.00W.md`
 
 ---
 
@@ -335,7 +335,7 @@ Before merging:
 
 **Merge order:** ALL → #249 → #253 (LAST)
 
-**See full analysis:** `PR_SWEEP_ANALYSIS.md`, `PR_MERGE_ORDER.md`
+**See full analysis:** `PR_SWEEP_ANALYSIS.md`, `20260122-pr-merge-order-guide-1.00W.md`
 
 ---
 
@@ -350,8 +350,8 @@ This file documents the recommended comments for each PR based on the comprehens
 
 **Analysis Files:**
 - Full analysis: `PR_SWEEP_ANALYSIS.md`
-- Quick reference: `PR_MERGE_ORDER.md`
-- This file: `PR_COMMENTS.md`
+- Quick reference: `20260122-pr-merge-order-guide-1.00W.md`
+- This file: `20260122-pr-review-comments-1.00W.md`
 
 **Analyst:** @Copilot  
 **Date:** 2026-01-22
