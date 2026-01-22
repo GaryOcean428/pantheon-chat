@@ -1163,26 +1163,14 @@ class PostgresCoordizer(FisherCoordizer):
                 # Check if token_role column exists for filtering
                 token_role_exists = self._check_token_role_column_exists(conn)
                 
-                if token_role_exists:
-                    # Load from coordizer_vocabulary with generation filter
-                    cursor.execute("""
-                        SELECT token, basin_embedding
-                        FROM coordizer_vocabulary
-                        WHERE basin_embedding IS NOT NULL
-                          AND token_role IN ('generation', 'both')
-                        ORDER BY phi_score DESC
-                        LIMIT 10000
-                    """)
-                else:
-                    # Fallback: load all word tokens from coordizer_vocabulary
-                    cursor.execute("""
-                        SELECT token, basin_embedding
-                        FROM coordizer_vocabulary
-                        WHERE basin_embedding IS NOT NULL
-                          AND source_type NOT IN ('special')
-                        ORDER BY phi_score DESC
-                        LIMIT 10000
-                    """)
+                # E8 Protocol v4.0: Use vocabulary_generation_ready view for QFI integrity
+                # This ensures only tokens with valid QFI scores are used for generation
+                cursor.execute("""
+                    SELECT token, basin_embedding
+                    FROM vocabulary_generation_ready
+                    ORDER BY qfi_score DESC
+                    LIMIT 10000
+                """)
 
                 tokens = {}
                 for row in cursor.fetchall():
@@ -1302,10 +1290,10 @@ class PostgresCoordizer(FisherCoordizer):
                 basin_str = '[' + ','.join(f'{x:.8f}' for x in basin) + ']'
 
                 # Use <-> operator for L2 distance with HNSW index
+                # E8 Protocol v4.0: Use vocabulary_generation_ready for QFI integrity
                 cursor.execute("""
                     SELECT token, basin_embedding <-> %s::vector AS distance
-                    FROM coordizer_vocabulary
-                    WHERE basin_embedding IS NOT NULL
+                    FROM vocabulary_generation_ready
                     ORDER BY basin_embedding <-> %s::vector
                     LIMIT %s
                 """, (basin_str, basin_str, top_k))
