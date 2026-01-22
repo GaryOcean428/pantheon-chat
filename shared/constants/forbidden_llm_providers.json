@@ -61,8 +61,6 @@
       "name": "AWS Bedrock",
       "description": "AWS Bedrock LLM service",
       "imports": [
-        "boto3.client('bedrock')",
-        "boto3.client('bedrock-runtime')",
         "bedrock_llm",
         "aws_bedrock"
       ],
@@ -70,7 +68,8 @@
         "bedrock-llm",
         "aws-bedrock-client"
       ],
-      "severity": "CRITICAL"
+      "severity": "CRITICAL",
+      "note": "boto3.client('bedrock') and boto3.client('bedrock-runtime') are call patterns, not imports. Consider scanning for these as string patterns in code."
     },
     {
       "name": "Azure OpenAI",

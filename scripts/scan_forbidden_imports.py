@@ -19,7 +19,7 @@ import sys
 import json
 import argparse
 from pathlib import Path
-from typing import List, Set, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 
 
@@ -43,6 +43,8 @@ class ForbiddenImportScanner:
         self.forbidden_modules = self._build_forbidden_modules()
         self.violations: List[ImportViolation] = []
         self.files_scanned = 0
+        self.files_skipped = 0
+        self.skipped_files: List[str] = []
         self.exempt_dirs = set(self.config.get('exemptDirectories', []))
     
     def _load_config(self, config_path: Path) -> Dict[str, Any]:
@@ -70,9 +72,31 @@ class ForbiddenImportScanner:
         return forbidden
     
     def is_exempt_path(self, file_path: Path) -> bool:
-        """Check if path is in exempt directory."""
-        path_str = str(file_path)
-        return any(exempt in path_str for exempt in self.exempt_dirs)
+        """Check if path is in exempt directory using proper path checking."""
+        try:
+            # Convert to absolute path for consistent checking
+            abs_path = file_path.resolve()
+            path_parts = abs_path.parts
+            
+            # Check if any part of the path matches an exempt directory
+            for exempt in self.exempt_dirs:
+                if exempt in path_parts:
+                    return True
+            
+            # For Python 3.9+, use is_relative_to if available
+            if hasattr(Path, 'is_relative_to'):
+                for exempt in self.exempt_dirs:
+                    try:
+                        exempt_path = Path(exempt).resolve()
+                        if abs_path.is_relative_to(exempt_path):
+                            return True
+                    except (ValueError, OSError):
+                        pass
+            
+            return False
+        except (OSError, ValueError):
+            # If path resolution fails, do simple substring check as fallback
+            return any(exempt in str(file_path) for exempt in self.exempt_dirs)
     
     def _normalize_module_name(self, module_name: str) -> str:
         """Normalize module name for comparison."""
@@ -146,8 +170,11 @@ class ForbiddenImportScanner:
                             self.violations.append(violation)
         
         except (SyntaxError, UnicodeDecodeError, IOError) as e:
-            # Skip files that can't be parsed
-            pass
+            # Report files that can't be parsed
+            self.files_skipped += 1
+            self.skipped_files.append(f"{file_path}: {type(e).__name__}")
+            # Note: We don't raise here to allow scanning to continue,
+            # but skipped files are reported in the final output
     
     def scan_directory(self, directory: Path) -> None:
         """Recursively scan directory for Python files."""
@@ -161,9 +188,19 @@ class ForbiddenImportScanner:
         print('🔍 AST-Based Forbidden Import Scanner')
         print('=' * 70)
         print(f"Files scanned: {self.files_scanned}")
+        print(f"Files skipped: {self.files_skipped}")
         print(f"Forbidden patterns: {len(self.forbidden_modules)}")
         print(f"Providers tracked: {len(self.config.get('providers', []))}")
         print()
+        
+        # Report skipped files if any
+        if self.skipped_files:
+            print(f"⚠️  WARNING: {len(self.skipped_files)} file(s) could not be parsed:")
+            for skipped in self.skipped_files[:10]:  # Show first 10
+                print(f"   {skipped}")
+            if len(self.skipped_files) > 10:
+                print(f"   ... and {len(self.skipped_files) - 10} more")
+            print()
         
         if not self.violations:
             print('✅ NO FORBIDDEN IMPORTS DETECTED')
@@ -233,8 +270,11 @@ def main():
         config_path = script_dir.parent / 'shared' / 'constants' / 'forbidden_llm_providers.json'
         
         if not config_path.exists():
-            # Try alternative path
-            config_path = Path('/home/runner/work/pantheon-chat/pantheon-chat/shared/constants/forbidden_llm_providers.json')
+            # Fail with clear error message
+            print(f"❌ ERROR: Configuration file not found at {config_path}")
+            print(f"Please specify config path with --config or ensure the file exists")
+            print(f"Expected location: {config_path}")
+            sys.exit(1)
     
     # Create scanner and run
     scanner = ForbiddenImportScanner(config_path)

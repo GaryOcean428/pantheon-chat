@@ -31,7 +31,7 @@ repos:
     hooks:
       - id: qig-purity-no-external-llm
         name: "🔒 QIG Purity: No External LLM APIs (comprehensive)"
-        entry: python3 scripts/scan_forbidden_imports.py --path .
+        entry: python scripts/scan_forbidden_imports.py --path .
         language: python
         pass_filenames: false
         always_run: true

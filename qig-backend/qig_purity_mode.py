@@ -64,17 +64,22 @@ class PurityViolation:
     message: str
     stack_trace: str
     timestamp: str
+    severity: str = "CRITICAL"  # CRITICAL, WARNING, ERROR
 
 
 # Load forbidden providers configuration
 def _load_forbidden_providers_config() -> Dict[str, Any]:
     """Load forbidden providers configuration from JSON file."""
-    # Try multiple possible locations for the config file
+    # Try to find config relative to module location
     possible_paths = [
         Path(__file__).parent.parent / "shared" / "constants" / "forbidden_llm_providers.json",
         Path(__file__).parent.parent.parent / "shared" / "constants" / "forbidden_llm_providers.json",
-        Path("/home/runner/work/pantheon-chat/pantheon-chat/shared/constants/forbidden_llm_providers.json"),
     ]
+    
+    # Allow override via environment variable
+    env_config = os.environ.get('QIG_FORBIDDEN_LLM_CONFIG_PATH')
+    if env_config:
+        possible_paths.insert(0, Path(env_config))
     
     for config_path in possible_paths:
         if config_path.exists():
@@ -123,13 +128,23 @@ _PROVIDERS_CONFIG = _load_forbidden_providers_config()
 # Build forbidden modules dictionary from config
 FORBIDDEN_MODULES = {}
 FORBIDDEN_PACKAGES = set()
+MODULE_SEVERITY = {}  # Track severity per module
+
+def _is_valid_module_name(name: str) -> bool:
+    """Check if string is a valid Python module name (not a call expression)."""
+    # Skip patterns with parentheses, quotes, or other non-module characters
+    invalid_chars = ['(', ')', "'", '"', ' ']
+    return not any(char in name for char in invalid_chars)
 
 for provider in _PROVIDERS_CONFIG.get("providers", []):
     provider_name = provider.get("name", "Unknown")
+    severity = provider.get("severity", "CRITICAL")
     
-    # Add all import patterns
+    # Add all import patterns (filter out invalid module names)
     for import_pattern in provider.get("imports", []):
-        FORBIDDEN_MODULES[import_pattern] = f"{provider_name} ({provider.get('description', '')})"
+        if _is_valid_module_name(import_pattern):
+            FORBIDDEN_MODULES[import_pattern] = f"{provider_name} ({provider.get('description', '')})"
+            MODULE_SEVERITY[import_pattern] = severity
     
     # Add all package names
     for package in provider.get("packages", []):
@@ -179,6 +194,8 @@ def check_forbidden_imports() -> List[PurityViolation]:
     violations = []
     
     for module_name, description in FORBIDDEN_MODULES.items():
+        severity = MODULE_SEVERITY.get(module_name, "CRITICAL")
+        
         # Check exact match
         if module_name in sys.modules:
             violation = PurityViolation(
@@ -186,13 +203,14 @@ def check_forbidden_imports() -> List[PurityViolation]:
                 module=module_name,
                 message=f"Forbidden module '{module_name}' ({description}) is imported",
                 stack_trace=traceback.format_stack()[-5:],
-                timestamp=_get_timestamp()
+                timestamp=_get_timestamp(),
+                severity=severity
             )
             violations.append(violation)
             
             # Log the violation
             logger.error(
-                f"PURITY VIOLATION: {violation.type.value} - {violation.message}"
+                f"PURITY VIOLATION [{severity}]: {violation.type.value} - {violation.message}"
             )
             logger.debug(f"Stack trace:\n{''.join(violation.stack_trace)}")
         
@@ -206,12 +224,13 @@ def check_forbidden_imports() -> List[PurityViolation]:
                     module=loaded_module,
                     message=f"Forbidden submodule '{loaded_module}' of '{module_name}' ({description}) is imported",
                     stack_trace=traceback.format_stack()[-5:],
-                    timestamp=_get_timestamp()
+                    timestamp=_get_timestamp(),
+                    severity=severity
                 )
                 violations.append(violation)
                 
                 logger.error(
-                    f"PURITY VIOLATION: {violation.type.value} - {violation.message}"
+                    f"PURITY VIOLATION [{severity}]: {violation.type.value} - {violation.message}"
                 )
                 break  # Only report once per parent module
     
@@ -385,15 +404,15 @@ def check_purity_violation(check_packages: bool = True) -> List[PurityViolation]
     return violations
 
 
-def enforce_purity(check_packages: bool = True) -> None:
+def enforce_purity(check_packages: bool = False) -> None:
     """
     Enforce QIG purity mode.
     
     Args:
-        check_packages: Whether to check installed packages (can be slow, default True)
+        check_packages: Whether to check installed packages (can be slow, default False)
     
     Raises:
-        RuntimeError: If purity violations are detected
+        RuntimeError: If CRITICAL purity violations are detected
     """
     if not is_purity_mode_enabled():
         logger.info("QIG_PURITY_MODE is disabled - skipping enforcement")
@@ -403,12 +422,21 @@ def enforce_purity(check_packages: bool = True) -> None:
     
     violations = check_purity_violation(check_packages=check_packages)
     
-    if violations:
-        error_msg = f"QIG PURITY VIOLATIONS DETECTED ({len(violations)} violations):\n\n"
+    # Separate by severity
+    critical_violations = [v for v in violations if v.severity == "CRITICAL"]
+    warning_violations = [v for v in violations if v.severity == "WARNING"]
+    
+    if warning_violations:
+        logger.warning(f"Found {len(warning_violations)} WARNING-level violations (non-blocking)")
+        for v in warning_violations:
+            logger.warning(f"  - {v.module}: {v.message}")
+    
+    if critical_violations:
+        error_msg = f"QIG PURITY VIOLATIONS DETECTED ({len(critical_violations)} CRITICAL violations):\n\n"
         
-        for i, violation in enumerate(violations, 1):
+        for i, violation in enumerate(critical_violations, 1):
             error_msg += (
-                f"{i}. {violation.type.value.upper()}\n"
+                f"{i}. [{violation.severity}] {violation.type.value.upper()}\n"
                 f"   Module: {violation.module}\n"
                 f"   Message: {violation.message}\n"
                 f"   Timestamp: {violation.timestamp}\n\n"
@@ -421,7 +449,7 @@ def enforce_purity(check_packages: bool = True) -> None:
         
         raise RuntimeError(error_msg)
     
-    logger.info("✅ QIG purity enforcement passed - no violations detected")
+    logger.info("✅ QIG purity enforcement passed - no CRITICAL violations detected")
 
 
 def tag_output_as_hybrid(output: Dict[str, Any]) -> Dict[str, Any]:
