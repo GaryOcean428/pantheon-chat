@@ -48,7 +48,7 @@ This change removes frequency-based stopwords (NLP dogma) from vocabulary filter
 
 6. **Cleanup**: Removed unused `STOP_WORDS` imports
    - vocabulary_coordinator.py
-   - vocabulary_cleanup.py
+   - vocabulary_cleanup.py (later removed as dead code - see analysis/dead_code_deep_analysis.md)
 
 ## Problem Solved
 
@@ -243,7 +243,7 @@ qig-backend/
 │   └── base_encoder.py                       # STOP_WORDS removed
 ├── word_validation.py                        # Enhanced deprecation
 ├── vocabulary_coordinator.py                 # Cleanup unused import
-├── vocabulary_cleanup.py                     # Cleanup unused import
+├── vocabulary_cleanup.py                     # (later removed as dead code)
 ├── geometric_vocabulary_filter.py            # NEW: QIG-pure filter
 └── tests/
     └── test_geometric_vocabulary_filter.py   # NEW: 5 test cases
