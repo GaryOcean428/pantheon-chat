@@ -21,10 +21,6 @@ import pytest
 import time
 from typing import List, Dict, Optional
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from qig_geometry.two_step_retrieval import (
     to_sqrt_simplex,
     from_sqrt_simplex,
