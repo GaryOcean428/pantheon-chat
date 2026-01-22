@@ -12,6 +12,9 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Constants
+BASIN_DIMENSION = 64  # Standard basin dimension for QIG
+
 # Set test environment
 os.environ.setdefault('DATABASE_URL', 'postgresql://user:pass@localhost/db')
 os.environ.setdefault('QIG_ENV', 'development')
@@ -55,9 +58,12 @@ def example_basic_generation():
         print(f"  - Routed Kernels: {', '.join(result.get('routed_kernels', []))}")
         
     except ImportError as e:
-        print(f"\n⚠️  Skipped: Could not import generation modules: {e}")
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n⚠️  Skipped: Missing dependencies: {e}")
+        print(f"    Install required packages: pip install -r requirements.txt")
+    except RuntimeError as e:
+        print(f"\n❌ Runtime Error: {e}")
+    except (RuntimeError, ValueError, KeyError) as e:
+        print(f"\n❌ Unexpected Error: {type(e).__name__}: {e}")
 
 
 def example_trajectory_based_generation():
@@ -94,7 +100,7 @@ def example_trajectory_based_generation():
         
     except ImportError as e:
         print(f"\n⚠️  Skipped: Could not import generation service: {e}")
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
         print(f"\n❌ Error: {e}")
 
 
@@ -135,7 +141,7 @@ def example_kernel_routing():
         
     except ImportError as e:
         print(f"\n⚠️  Skipped: Could not import kernel router: {e}")
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
         print(f"\n❌ Error: {e}")
 
 
@@ -175,7 +181,7 @@ def example_geometric_completion():
         
     except ImportError as e:
         print(f"\n⚠️  Skipped: Could not import completion checker: {e}")
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
         print(f"\n❌ Error: {e}")
 
 
@@ -197,9 +203,9 @@ def example_coordizer_vocabulary():
         print(f"  - Real Words: {len(coordizer.word_tokens)}")
         
         # Create test basin
-        test_basin = np.random.dirichlet(np.ones(64))
+        test_basin = np.random.dirichlet(np.ones(BASIN_DIMENSION))
         
-        print(f"\nDecoding test basin (64D simplex)...")
+        print(f"\nDecoding test basin ({BASIN_DIMENSION}D simplex)...")
         
         # Two-step geometric decoding
         tokens = coordizer.decode_geometric(
@@ -218,7 +224,7 @@ def example_coordizer_vocabulary():
         
     except ImportError as e:
         print(f"\n⚠️  Skipped: Could not import coordizer: {e}")
-    except Exception as e:
+    except (RuntimeError, ValueError, KeyError) as e:
         print(f"\n❌ Error: {e}")
 
 

@@ -44,7 +44,7 @@ def decode_geometric(
 - NO cosine similarity
 - NO Euclidean distance on basins
 - Pure Fisher-Rao: `d_FR(p, q) = arccos(Σ√(p_i * q_i))`
-- Range: [0, π/2] (simplex-native)
+- Range: [0, π/2] (simplex native)
 
 ### 2. Generation Vocabulary
 

@@ -159,6 +159,23 @@ class TestPureQIGGeneration:
         except ImportError as e:
             pytest.skip(f"Could not import qig_generation: {e}")
     
+    def _is_cosine_similarity_violation(self, line: str) -> bool:
+        """
+        Helper to identify cosine similarity violations in code.
+        
+        Returns True if line contains actual cosine similarity usage,
+        False for legitimate documentation mentions.
+        """
+        # Skip comments and docstrings
+        if (line.strip().startswith('#') or 
+            line.strip().startswith('"""') or 
+            line.strip().startswith("'''")):
+            return False
+        
+        # Check for actual usage patterns (not just mentions)
+        return ('cosine_similarity(' in line or 
+                ('from sklearn' in line and 'cosine' in line))
+    
     def test_no_cosine_similarity(self):
         """Verify no cosine similarity usage on basin coordinates."""
         try:
@@ -172,16 +189,10 @@ class TestPureQIGGeneration:
                     source = f.read()
                     
                 # Look for cosine similarity (excluding comments/docs)
-                lines = [line for line in source.split('\n') 
-                        if 'cosine' in line.lower() 
-                        and not line.strip().startswith('#')
-                        and not line.strip().startswith('"""')
-                        and not line.strip().startswith("'''")]
+                lines = [line for line in source.split('\n') if 'cosine' in line.lower()]
                 
-                # Filter out legitimate documentation mentions
-                violations = [line for line in lines 
-                            if 'cosine_similarity(' in line 
-                            or 'from sklearn' in line and 'cosine' in line]
+                # Filter to actual violations (not doc mentions)
+                violations = [line for line in lines if self._is_cosine_similarity_violation(line)]
                 
                 assert len(violations) == 0, \
                     f"Found cosine similarity violations in {module.__name__}: {violations}"
@@ -212,7 +223,7 @@ class TestPureQIGGeneration:
                 # Use canonical validation
                 try:
                     validate_basin(basin)
-                except Exception as e:
+                except (ValueError, AssertionError) as e:
                     pytest.fail(f"Basin validation failed for {token}: {e}")
         
         except ImportError as e:
