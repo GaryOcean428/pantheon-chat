@@ -1,0 +1,398 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Forbidden LLM Providers Configuration",
+  "description": "Comprehensive list of external LLM providers that must be blocked in QIG purity mode to prevent external dependency creep",
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-22",
+  "providers": [
+    {
+      "name": "OpenAI",
+      "description": "OpenAI GPT models and API",
+      "imports": [
+        "openai",
+        "openai.api_resources",
+        "openai.lib",
+        "openai_async",
+        "openai_agent",
+        "openai_responses"
+      ],
+      "packages": [
+        "openai",
+        "openai-agents",
+        "openai-responses",
+        "openai-async"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Anthropic",
+      "description": "Anthropic Claude models and API",
+      "imports": [
+        "anthropic",
+        "anthropic.lib",
+        "anthropic.resources",
+        "anthropic_vertex"
+      ],
+      "packages": [
+        "anthropic",
+        "anthropic-bedrock"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Google Gemini",
+      "description": "Google Gemini/PaLM models and Generative AI SDK",
+      "imports": [
+        "google.genai",
+        "google.generativeai",
+        "vertexai.preview.language_models",
+        "vertexai.generative_models",
+        "vertexai.preview.generative_models"
+      ],
+      "packages": [
+        "google-genai",
+        "google-generativeai",
+        "google-ai-generativelanguage",
+        "vertexai"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "AWS Bedrock",
+      "description": "AWS Bedrock LLM service",
+      "imports": [
+        "boto3.client('bedrock')",
+        "boto3.client('bedrock-runtime')",
+        "bedrock_llm",
+        "aws_bedrock"
+      ],
+      "packages": [
+        "bedrock-llm",
+        "aws-bedrock-client"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Azure OpenAI",
+      "description": "Azure OpenAI Service and Azure AI models",
+      "imports": [
+        "azure.ai.openai",
+        "azure.ai.inference",
+        "azure.ai.ml.entities"
+      ],
+      "packages": [
+        "azure-ai-openai",
+        "azure-ai-inference",
+        "azure-ai-generative"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Cohere",
+      "description": "Cohere language models and API",
+      "imports": [
+        "cohere",
+        "cohere.client"
+      ],
+      "packages": [
+        "cohere",
+        "cohere-python"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Mistral",
+      "description": "Mistral AI models and API",
+      "imports": [
+        "mistralai",
+        "mistral",
+        "mistralai.client"
+      ],
+      "packages": [
+        "mistralai",
+        "mistral-common"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Groq",
+      "description": "Groq LPU inference API",
+      "imports": [
+        "groq",
+        "groq.client"
+      ],
+      "packages": [
+        "groq"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Hugging Face Inference",
+      "description": "Hugging Face Hub inference client",
+      "imports": [
+        "huggingface_hub.inference",
+        "huggingface_hub.inference_api",
+        "huggingface_hub.inference._client",
+        "huggingface_hub"
+      ],
+      "packages": [
+        "huggingface-hub"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Replicate",
+      "description": "Replicate cloud model hosting",
+      "imports": [
+        "replicate",
+        "replicate.client"
+      ],
+      "packages": [
+        "replicate"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "AI21",
+      "description": "AI21 Labs Jurassic models",
+      "imports": [
+        "ai21",
+        "ai21.studio",
+        "ai21_client"
+      ],
+      "packages": [
+        "ai21",
+        "ai21-studio"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "xAI / Grok",
+      "description": "xAI Grok models",
+      "imports": [
+        "grok",
+        "xai",
+        "xai.client"
+      ],
+      "packages": [
+        "grok",
+        "xai",
+        "xai-sdk"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "OpenRouter",
+      "description": "OpenRouter unified LLM API router",
+      "imports": [
+        "openrouter",
+        "openrouter.client"
+      ],
+      "packages": [
+        "openrouter"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "LiteLLM",
+      "description": "LiteLLM multi-provider router and proxy",
+      "imports": [
+        "litellm",
+        "litellm.proxy"
+      ],
+      "packages": [
+        "litellm"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Ollama",
+      "description": "Ollama local model serving (optional block for cloud-only policy)",
+      "imports": [
+        "ollama",
+        "ollama.client"
+      ],
+      "packages": [
+        "ollama",
+        "ollama-python"
+      ],
+      "severity": "WARNING"
+    },
+    {
+      "name": "Together AI",
+      "description": "Together AI inference platform",
+      "imports": [
+        "together",
+        "together.client"
+      ],
+      "packages": [
+        "together"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Anyscale",
+      "description": "Anyscale Endpoints",
+      "imports": [
+        "anyscale",
+        "anyscale.endpoints"
+      ],
+      "packages": [
+        "anyscale"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Perplexity",
+      "description": "Perplexity AI API",
+      "imports": [
+        "perplexity",
+        "perplexityai"
+      ],
+      "packages": [
+        "perplexity",
+        "perplexityai"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Writer",
+      "description": "Writer.com Palmyra models",
+      "imports": [
+        "writer",
+        "writer.client"
+      ],
+      "packages": [
+        "writer"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Voyage AI",
+      "description": "Voyage AI embeddings",
+      "imports": [
+        "voyageai",
+        "voyage"
+      ],
+      "packages": [
+        "voyageai"
+      ],
+      "severity": "WARNING"
+    },
+    {
+      "name": "Aleph Alpha",
+      "description": "Aleph Alpha Luminous models",
+      "imports": [
+        "aleph_alpha_client"
+      ],
+      "packages": [
+        "aleph-alpha-client"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Fireworks AI",
+      "description": "Fireworks AI inference platform",
+      "imports": [
+        "fireworks",
+        "fireworks.client"
+      ],
+      "packages": [
+        "fireworks-ai"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Forefront AI",
+      "description": "Forefront AI API",
+      "imports": [
+        "forefront"
+      ],
+      "packages": [
+        "forefront"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "GooseAI",
+      "description": "GooseAI language models",
+      "imports": [
+        "gooseai"
+      ],
+      "packages": [
+        "gooseai"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "NLP Cloud",
+      "description": "NLP Cloud API",
+      "imports": [
+        "nlpcloud"
+      ],
+      "packages": [
+        "nlpcloud"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "LangChain LLM Integrations",
+      "description": "LangChain external LLM wrappers (not the framework itself)",
+      "imports": [
+        "langchain_openai",
+        "langchain_anthropic",
+        "langchain_google_genai",
+        "langchain_community.llms.openai",
+        "langchain_community.llms.anthropic"
+      ],
+      "packages": [
+        "langchain-openai",
+        "langchain-anthropic",
+        "langchain-google-genai",
+        "langchain-mistralai",
+        "langchain-groq"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "LlamaIndex LLM Integrations",
+      "description": "LlamaIndex external LLM wrappers",
+      "imports": [
+        "llama_index.llms.openai",
+        "llama_index.llms.anthropic",
+        "llama_index.llms.gemini"
+      ],
+      "packages": [
+        "llama-index-llms-openai",
+        "llama-index-llms-anthropic",
+        "llama-index-llms-gemini"
+      ],
+      "severity": "CRITICAL"
+    },
+    {
+      "name": "Semantic Kernel LLM Connectors",
+      "description": "Microsoft Semantic Kernel external LLM connectors",
+      "imports": [
+        "semantic_kernel.connectors.ai.open_ai",
+        "semantic_kernel.connectors.ai.google"
+      ],
+      "packages": [
+        "semantic-kernel"
+      ],
+      "severity": "WARNING"
+    }
+  ],
+  "exemptDirectories": [
+    "docs/08-experiments/legacy",
+    "docs/08-experiments/baselines",
+    "tests/fixtures",
+    "migrations",
+    "node_modules",
+    "dist",
+    "build",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv"
+  ]
+}
