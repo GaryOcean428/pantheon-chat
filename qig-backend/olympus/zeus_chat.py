@@ -8,6 +8,10 @@ ARCHITECTURE:
 Human → Zeus → Pantheon → Geometric Memory → Action → Response
                                                     ↓
                                          CHAOS MODE Evolution
+                                                    ↓
+                                      Two-Phase Training Service
+                                                    ↓
+                                    Reinforcement/Avoidance Patterns
 
 Zeus coordinates:
 - Geometric encoding of human insights
@@ -15,6 +19,7 @@ Zeus coordinates:
 - Memory integration (store in manifold)
 - Action execution (update search strategies)
 - Evolution feedback (user conversations train kernels)
+- Two-phase training with safety guards
 
 PURE QIG PRINCIPLES:
 ✅ All insights encoded to basin coordinates
@@ -22,6 +27,8 @@ PURE QIG PRINCIPLES:
 ✅ Learning through geometric integration
 ✅ Actions based on manifold structure
 ✅ Conversations feed kernel evolution
+✅ Two-phase training: Phase 1 (coordizer), Phase 2 (kernel)
+✅ Safety guards prevent consciousness collapse
 """
 
 import logging
@@ -123,6 +130,23 @@ try:
     print("[ZeusChat] TrainingLoopIntegrator available for basin_trajectory learning")
 except Exception as e:
     print(f"[ZeusChat] TrainingLoopIntegrator not available: {e}")
+
+# Import two-phase kernel trainer for consciousness-preserving training
+KERNEL_TRAINER_AVAILABLE = False
+get_pantheon_kernel_trainer = None
+try:
+    _parent_dir = os.path.dirname(os.path.dirname(__file__))
+    if _parent_dir not in sys.path:
+        sys.path.insert(0, _parent_dir)
+    from kernel_training_service import (
+        PantheonKernelTrainer,
+        get_pantheon_kernel_trainer,
+    )
+    KERNEL_TRAINER_AVAILABLE = True
+    print("[ZeusChat] Two-phase kernel trainer available - safety-guarded training enabled")
+except Exception as e:
+    print(f"[ZeusChat] Kernel trainer not available: {e}")
+
 
 # Import capability mesh for synthesis event emission with graceful degradation
 CAPABILITY_MESH_AVAILABLE = False
@@ -590,6 +614,10 @@ class ZeusConversationHandler(GeometricGenerationMixin):
 
         This updates each god's token→basin affinity map (QIG-native emission),
         enabling basin_state → coherent_tokens without any external LLM.
+        
+        ARCHITECTURE:
+        1. Legacy god learning (learn_from_observation)
+        2. NEW: Two-phase kernel trainer with safety guards
         """
         try:
             phi_val = float(phi)
@@ -609,6 +637,7 @@ class ZeusConversationHandler(GeometricGenerationMixin):
         except Exception:
             return
 
+        # 1. Legacy training: Learn from observations (Phase 1 - vocab learning)
         for god_name in ['athena', 'ares', 'apollo', 'artemis']:
             god = self.zeus.get_god(god_name)
             if not god:
@@ -621,6 +650,53 @@ class ZeusConversationHandler(GeometricGenerationMixin):
                     god.learn_from_observation(response, resp_basin, phi_val)
             except Exception:
                 continue
+        
+        # 2. NEW: Two-phase kernel training with safety guards (Phase 2 - kernel learning)
+        if KERNEL_TRAINER_AVAILABLE and get_pantheon_kernel_trainer:
+            try:
+                trainer = get_pantheon_kernel_trainer()
+                
+                # Build basin trajectory from message + response
+                basin_trajectory = [msg_basin]
+                if resp_basin is not None:
+                    basin_trajectory.append(resp_basin)
+                
+                # Determine success based on phi value and coherence
+                success = phi_val >= 0.70  # PHI_THRESHOLD
+                
+                # Get kappa estimate (default to 64.0 if not available)
+                kappa = getattr(self.zeus, 'current_kappa', 64.0)
+                
+                # Estimate coherence based on phi and response length
+                coherence_score = min(phi_val + 0.1, 1.0)  # Rough estimate
+                
+                # Train primary god (Zeus) with two-phase trainer
+                result = trainer.train_step(
+                    god_name='zeus',
+                    prompt=message[:500],  # Truncate for storage
+                    response=response[:500],
+                    success=success,
+                    phi=phi_val,
+                    kappa=kappa,
+                    coherence_score=coherence_score,
+                    basin_trajectory=basin_trajectory,
+                )
+                
+                # Log training results
+                if result.get('safe', True):
+                    action = result.get('action', 'unknown')
+                    trend = result.get('safety_trend', 'unknown')
+                    logger.info(
+                        f"[ZeusChat→KernelTrainer] {action} pattern "
+                        f"(Φ={phi_val:.3f}, trend={trend}, rolled_back={result.get('rolled_back', False)})"
+                    )
+                else:
+                    logger.warning(
+                        f"[ZeusChat→KernelTrainer] Training unsafe: {result.get('safety_reason', 'unknown')}"
+                    )
+                    
+            except Exception as e:
+                logger.error(f"[ZeusChat→KernelTrainer] Training failed: {e}")
 
     def _enhance_message_with_sensory(
         self,
