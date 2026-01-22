@@ -16,11 +16,14 @@ Created: 2026-01-22
 """
 
 import sys
+import os
 import numpy as np
 from datetime import datetime
 
-# Add qig-backend to path
-sys.path.insert(0, '/home/runner/work/pantheon-chat/pantheon-chat/qig-backend')
+# Add qig-backend to path (works from examples/ directory)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+qig_backend_dir = os.path.dirname(script_dir)
+sys.path.insert(0, qig_backend_dir)
 
 from kernels import (
     # Genome

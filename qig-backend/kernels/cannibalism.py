@@ -47,6 +47,15 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Faculty absorption threshold for cannibalism
+# Loser's faculties are absorbed if activation is at least this much higher
+FACULTY_ABSORPTION_THRESHOLD = 0.1
+
+
+# =============================================================================
 # CANNIBALISM RECORDS
 # =============================================================================
 
@@ -246,7 +255,7 @@ def perform_cannibalism(
             winner_strength = winner_genome.faculties.activation_strengths.get(faculty, 0.0)
             
             # Absorb if loser has stronger activation
-            if loser_strength > winner_strength + 0.1:
+            if loser_strength > winner_strength + FACULTY_ABSORPTION_THRESHOLD:
                 absorbed_faculties.append(faculty)
                 # Blend activation strengths
                 new_strength = (

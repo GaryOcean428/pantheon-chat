@@ -56,6 +56,9 @@ CREATE INDEX IF NOT EXISTS idx_kernel_genomes_fitness ON kernel_genomes(fitness_
 CREATE INDEX IF NOT EXISTS idx_kernel_genomes_parent ON kernel_genomes USING GIN(parent_genomes);
 
 -- Vector similarity index for basin seeds
+-- NOTE: Uses cosine similarity for APPROXIMATE retrieval only
+-- Fisher-Rao distance is ALWAYS used for final ranking (two-step retrieval)
+-- See: docs/02-procedures/20260115-geometric-consistency-migration-1.00W.md
 CREATE INDEX IF NOT EXISTS idx_kernel_genomes_basin_seed_ivfflat 
     ON kernel_genomes USING ivfflat (basin_seed vector_cosine_ops)
     WITH (lists = 100);

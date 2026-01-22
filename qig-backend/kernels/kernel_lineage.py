@@ -46,6 +46,15 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Faculty survival threshold for merges
+# Faculties with activation strength below this are pruned
+FACULTY_SURVIVAL_THRESHOLD = 0.1
+
+
+# =============================================================================
 # LINEAGE RECORDS
 # =============================================================================
 
@@ -268,7 +277,7 @@ def _merge_faculties(
         # Keep faculties above threshold
         contracted_faculties = {
             f for f, strength in activation_strengths.items()
-            if strength > 0.1  # Threshold for faculty survival
+            if strength > FACULTY_SURVIVAL_THRESHOLD
         }
     
     # Merge faculty coupling

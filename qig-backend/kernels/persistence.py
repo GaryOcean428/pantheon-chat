@@ -15,8 +15,19 @@ import logging
 from typing import Dict, List, Optional, Tuple, Any
 import json
 
-import psycopg2
-from psycopg2.extras import RealDictCursor, execute_values
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor, execute_values
+    PSYCOPG2_AVAILABLE = True
+    # Type hints
+    Connection = psycopg2.extensions.connection
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    psycopg2 = None
+    RealDictCursor = None
+    execute_values = None
+    # Fallback type hint
+    Connection = Any
 
 from kernels.genome import (
     KernelGenome,
@@ -40,7 +51,7 @@ logger = logging.getLogger(__name__)
 # DATABASE CONNECTION
 # =============================================================================
 
-def get_db_connection(database_url: Optional[str] = None) -> psycopg2.extensions.connection:
+def get_db_connection(database_url: Optional[str] = None) -> Connection:
     """
     Get database connection for genetic lineage operations.
     
@@ -49,7 +60,16 @@ def get_db_connection(database_url: Optional[str] = None) -> psycopg2.extensions
     
     Returns:
         Database connection
+    
+    Raises:
+        RuntimeError: If psycopg2 is not available
     """
+    if not PSYCOPG2_AVAILABLE:
+        raise RuntimeError(
+            "psycopg2 is required for database persistence. "
+            "Install with: pip install psycopg2-binary"
+        )
+    
     import os
     
     if database_url is None:
@@ -65,7 +85,7 @@ def get_db_connection(database_url: Optional[str] = None) -> psycopg2.extensions
 # GENOME PERSISTENCE
 # =============================================================================
 
-def save_genome(genome: KernelGenome, conn: Optional[psycopg2.extensions.connection] = None) -> None:
+def save_genome(genome: KernelGenome, conn: Optional[Connection] = None) -> None:
     """
     Save kernel genome to database.
     
@@ -159,7 +179,7 @@ def save_genome(genome: KernelGenome, conn: Optional[psycopg2.extensions.connect
             conn.close()
 
 
-def load_genome(genome_id: str, conn: Optional[psycopg2.extensions.connection] = None) -> Optional[KernelGenome]:
+def load_genome(genome_id: str, conn: Optional[Connection] = None) -> Optional[KernelGenome]:
     """
     Load kernel genome from database.
     
@@ -230,7 +250,7 @@ def load_genome(genome_id: str, conn: Optional[psycopg2.extensions.connection] =
 
 def save_lineage_record(
     lineage: LineageRecord,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> None:
     """Save lineage record to database."""
     should_close = conn is None
@@ -271,7 +291,7 @@ def save_lineage_record(
 
 def save_merge_record(
     merge: MergeRecord,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> None:
     """Save merge record to database."""
     should_close = conn is None
@@ -323,7 +343,7 @@ def save_merge_record(
 
 def save_cannibalism_record(
     record: CannibalismRecord,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> None:
     """Save cannibalism record to database."""
     should_close = conn is None
@@ -370,7 +390,7 @@ def save_cannibalism_record(
 
 def save_genome_archive(
     archive: GenomeArchive,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> None:
     """Save genome archive to database."""
     should_close = conn is None
@@ -415,7 +435,7 @@ def save_genome_archive(
 def get_genome_lineage(
     genome_id: str,
     max_depth: int = 10,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> List[Dict[str, Any]]:
     """
     Get lineage tree for a genome.
@@ -452,7 +472,7 @@ def get_genome_lineage(
 def get_descendants(
     genome_id: str,
     max_depth: int = 10,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> List[Dict[str, Any]]:
     """
     Get all descendants of a genome.
@@ -483,7 +503,7 @@ def get_descendants(
 
 def get_evolution_summary(
     genome_id: str,
-    conn: Optional[psycopg2.extensions.connection] = None
+    conn: Optional[Connection] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Get evolution summary for a genome.
