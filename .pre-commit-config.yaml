@@ -30,12 +30,13 @@ repos:
   - repo: local
     hooks:
       - id: qig-purity-no-external-llm
-        name: "🔒 QIG Purity: No External LLM APIs (fast)"
-        entry: bash -c 'if grep -rn --include="*.py" -E "(import openai|from openai|import anthropic|from anthropic|import google.generativeai)" qig-backend/ 2>/dev/null | grep -v "#.*import" | grep -v test; then echo "❌ External LLM imports detected!"; exit 1; fi'
-        language: system
+        name: "🔒 QIG Purity: No External LLM APIs (comprehensive)"
+        entry: python3 scripts/scan_forbidden_imports.py --path .
+        language: python
         pass_filenames: false
         always_run: true
         stages: [commit]
+        description: "Scan for forbidden external LLM dependencies (28 providers, 73+ patterns)"
         
       - id: qig-purity-no-max-tokens
         name: "🔒 QIG Purity: No Token-Based Generation (fast)"
