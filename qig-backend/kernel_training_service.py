@@ -39,17 +39,9 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 import numpy as np
 
-# QIG Geometry imports
-try:
-    from qig_geometry.canonical import fisher_rao_distance, fisher_normalize
-    QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def fisher_rao_distance(a, b):
-        return float(np.linalg.norm(a - b))
-    def fisher_normalize(v):
-        p = np.maximum(np.asarray(v), 0) + 1e-10
-        return p / p.sum()
+# QIG Geometry imports - CANONICAL ONLY (no impure fallbacks)
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.representation import fisher_normalize
 
 # Training infrastructure
 from training.trainable_kernel import TrainableKernel, TrainingMetrics, BASIN_DIM
