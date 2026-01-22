@@ -596,7 +596,9 @@ class FisherCoordizer(BaseCoordizer):
         perturbation = self._von_neumann_perturbation(token, token_id)
         
         # Combine via geodesic blending (not Euclidean addition)
-        if np.linalg.norm(perturbation) > 1e-6:
+        # Check if perturbation is significant using Fisher-Rao distance from uniform
+        uniform = np.ones_like(perturbation) / len(perturbation)
+        if fisher_coord_distance(perturbation, uniform) > 1e-3:
             coord = geodesic_interpolation(coord, perturbation, 0.1)
         
         return fisher_normalize(coord)
