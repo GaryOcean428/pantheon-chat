@@ -444,6 +444,12 @@ from .canonical import (
     waypoint_alignment_score,
 )
 
+# Create non-prefixed aliases for commonly used functions (backward compatibility)
+# These allow `from qig_geometry import fisher_rao_distance` to work
+fisher_rao_distance = canonical_fisher_rao_distance
+frechet_mean = canonical_frechet_mean
+bhattacharyya = canonical_bhattacharyya
+
 
 __all__ = [
     # Canonical contract (contracts.py) - THE source of truth for geometric constraints
