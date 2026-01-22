@@ -96,8 +96,8 @@ class ForesightPredictor:
             logger.warning("[ForesightPredictor] Trajectory too short for prediction")
             return None
         
-        # Use trajectory decoder to predict next position
-        predicted = self.decoder.predict_next_basin(
+        # Use trajectory decoder's private method to predict next position
+        predicted = self.decoder._predict_next_basin(
             trajectory=trajectory,
             step_size=self.step_size,
         )
@@ -113,6 +113,19 @@ class ForesightPredictor:
                 f"{predicted.shape if isinstance(predicted, np.ndarray) else 'not ndarray'}"
             )
             return None
+        
+        # Convert from Hellinger (sqrt-space) to simplex if needed
+        # TrajectoryDecoder returns Hellinger-normalized basins (unit sphere in sqrt-space)
+        # We need to convert back to probability simplex
+        try:
+            from qig_geometry.canonical import unsqrt_map
+            # Square to get back to simplex
+            predicted = unsqrt_map(predicted)
+        except Exception as e:
+            logger.warning(f"[ForesightPredictor] Could not convert from sqrt-space: {e}")
+            # Fallback: square and normalize
+            predicted = predicted ** 2
+            predicted = predicted / (np.sum(predicted) + 1e-10)
         
         return predicted
     

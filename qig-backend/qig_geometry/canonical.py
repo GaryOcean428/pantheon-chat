@@ -323,6 +323,9 @@ def exp_map(v: np.ndarray, base: np.ndarray, eps: float = EPS) -> np.ndarray:
     
     sqrt_end = sqrt_end / sqrt_end_norm
     
+    # Map sqrt_end back to simplex for distance calculation
+    end = unsqrt_map(sqrt_end, eps=eps)
+    
     # Compute angle for SLERP
     dot = np.clip(bhattacharyya(base, end), -1.0, 1.0)
     omega = np.arccos(dot)
