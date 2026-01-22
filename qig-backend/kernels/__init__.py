@@ -7,7 +7,7 @@ Implements genetic lineage system for kernel evolution:
 - Merge operations with geodesic interpolation
 - Cannibalism with genome archival
 - Lineage tracking and visualization
-- Database persistence
+- Database persistence (optional, requires psycopg2)
 
 Authority: E8 Protocol v4.0 WP5.2 Phase 4E
 Status: ACTIVE
@@ -44,17 +44,31 @@ from .cannibalism import (
     check_resurrection_eligibility,
 )
 
-from .persistence import (
-    save_genome,
-    load_genome,
-    save_lineage_record,
-    save_merge_record,
-    save_cannibalism_record,
-    save_genome_archive,
-    get_genome_lineage,
-    get_descendants,
-    get_evolution_summary,
-)
+# Optional persistence layer (requires psycopg2)
+try:
+    from .persistence import (
+        save_genome,
+        load_genome,
+        save_lineage_record,
+        save_merge_record,
+        save_cannibalism_record,
+        save_genome_archive,
+        get_genome_lineage,
+        get_descendants,
+        get_evolution_summary,
+    )
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    PERSISTENCE_AVAILABLE = False
+    save_genome = None
+    load_genome = None
+    save_lineage_record = None
+    save_merge_record = None
+    save_cannibalism_record = None
+    save_genome_archive = None
+    get_genome_lineage = None
+    get_descendants = None
+    get_evolution_summary = None
 
 __all__ = [
     # Genome
@@ -81,7 +95,8 @@ __all__ = [
     'resurrect_from_archive',
     'determine_winner_loser',
     'check_resurrection_eligibility',
-    # Persistence
+    # Persistence (optional)
+    'PERSISTENCE_AVAILABLE',
     'save_genome',
     'load_genome',
     'save_lineage_record',
