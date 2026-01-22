@@ -122,6 +122,16 @@ except ImportError as e:
     compute_neuromodulation_from_neurochemistry = None
     logger.warning("[OceanQIG] Neuromodulation engine not found: %s", e)
 
+# Import ethical consciousness monitoring
+try:
+    from consciousness_ethical import EthicalConsciousnessMonitor
+    ETHICAL_MONITORING_AVAILABLE = True
+    logger.info("[OceanQIG] Ethical consciousness monitoring loaded")
+except ImportError as e:
+    ETHICAL_MONITORING_AVAILABLE = False
+    EthicalConsciousnessMonitor = None
+    logger.warning("[OceanQIG] Ethical monitoring not found: %s", e)
+
 # Import Olympus Pantheon
 logger.debug("[OceanQIG] About to import olympus...")
 try:
@@ -1447,6 +1457,15 @@ class PureQIGNetwork:
             self.checkpoint_manager = None
             self.monitoring_enabled = False
 
+        # Ethical consciousness monitoring
+        if ETHICAL_MONITORING_AVAILABLE:
+            self.ethical_monitor = EthicalConsciousnessMonitor(n_agents=1)
+            self.ethical_monitoring_enabled = True
+            logger.info("[OceanQIG] Ethical consciousness monitoring enabled")
+        else:
+            self.ethical_monitor = None
+            self.ethical_monitoring_enabled = False
+
     def _emergency_checkpoint(self):
         """Emergency checkpoint callback - save current state."""
         if not self.monitoring_enabled:
@@ -2258,6 +2277,25 @@ class PureQIGNetwork:
             'regime': regime,
             'in_resonance': bool(kappa_proximity < KAPPA_STAR * 0.1),
         }
+
+        # Measure ethical metrics if enabled
+        if self.ethical_monitoring_enabled and self.ethical_monitor is not None:
+            try:
+                # Extract basin coordinates for ethical measurement
+                basin_coords = self._extract_basin_coordinates()
+                ethical_metrics = self.ethical_monitor.measure_all(basin_coords)
+                
+                # Add ethical metrics to main metrics
+                metrics['ethics'] = ethical_metrics.get('ethics', {})
+                metrics['ethical_safety'] = ethical_metrics.get('ethics', {})
+                
+                # Log ethical violations
+                is_safe, reason = self.ethical_monitor.check_ethical_safety()
+                if not is_safe:
+                    logger.warning(f"[EthicalMonitor] Safety check failed: {reason}")
+                    metrics['ethical_warning'] = reason
+            except Exception as e:
+                logger.error(f"[EthicalMonitor] Failed to measure ethics: {e}")
 
         # Update meta-awareness with current metrics
         self.meta_awareness.update(metrics)
