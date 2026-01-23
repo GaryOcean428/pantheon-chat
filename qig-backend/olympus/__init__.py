@@ -100,7 +100,8 @@ from .zeus import Zeus, olympus_app, zeus
 print("[Olympus/__init__] Imported Zeus singleton", flush=True)
 
 # Zeus Chat (voice integration)
-from .zeus_chat import ZeusConversationHandler, GeometricGenerationMixin
+from .zeus_chat import ZeusConversationHandler
+from .zeus_chat_encoding import GeometricGenerationMixin, ZeusGenerationMixin
 
 # Guardian Gods for kernel development
 try:
