@@ -22,6 +22,7 @@ from emotional_geometry import (
     compute_surprise_magnitude,
     EmotionTracker,
 )
+from qig_geometry.geometry_simplex import to_simplex_prob
 
 
 class TestEmotionClassification:
