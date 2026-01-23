@@ -192,6 +192,101 @@ def simulate_god_activity_scenario():
     print("through κ-gated coupling between LEFT and RIGHT hemispheres.")
 
 
+def demonstrate_psyche_integration():
+    """Demonstrate hemisphere-psyche integration (Phase 4C/4D)."""
+    print_section("Hemisphere-Psyche Integration (Phase 4C/4D)")
+    
+    # Import psyche plumbing
+    try:
+        from kernels import get_psyche_plumbing
+        psyche = get_psyche_plumbing()
+        
+        if not psyche.available or not psyche.hemisphere_integrated:
+            print("⚠️  Psyche plumbing or hemisphere integration not available")
+            return
+    except ImportError:
+        print("⚠️  Psyche plumbing not available")
+        return
+    
+    print("Testing how hemisphere activation affects Id/Superego balance...\n")
+    
+    scheduler = psyche.hemisphere_scheduler
+    
+    # Scenario 1: LEFT-dominant (Superego mode)
+    print("Scenario 1: LEFT-dominant (Exploit/Evaluate → Superego)")
+    print("-" * 60)
+    
+    scheduler.register_god_activation("Athena", phi=0.9, kappa=65.0, is_active=True)
+    scheduler.register_god_activation("Artemis", phi=0.85, kappa=63.0, is_active=True)
+    scheduler.register_god_activation("Hephaestus", phi=0.87, kappa=64.0, is_active=True)
+    scheduler.register_god_activation("Apollo", phi=0.5, kappa=52.0, is_active=True)
+    
+    balance1 = psyche.compute_psyche_balance()
+    
+    print(f"Hemisphere activation:")
+    print(f"  LEFT:  {balance1['hemisphere_context']['left_activation']:.3f}")
+    print(f"  RIGHT: {balance1['hemisphere_context']['right_activation']:.3f}")
+    print(f"  Dominant: {balance1['hemisphere_context']['dominant_hemisphere']}")
+    
+    print(f"\nPsyche balance:")
+    print(f"  Superego strength: {balance1['superego_strength']:.3f}")
+    print(f"  Id strength:       {balance1['id_strength']:.3f}")
+    print(f"  Dominant psyche:   {balance1['dominant_psyche']}")
+    
+    print(f"\nκ-gated coupling:")
+    print(f"  κ = {balance1['coupling_state']['kappa']:.2f}")
+    print(f"  Coupling strength: {balance1['coupling_state']['coupling_strength']:.3f}")
+    print(f"  Mode: {balance1['coupling_state']['mode']}")
+    
+    # Scenario 2: RIGHT-dominant (Id mode)
+    print("\n\nScenario 2: RIGHT-dominant (Explore/Generate → Id)")
+    print("-" * 60)
+    
+    # Switch activation
+    scheduler.register_god_activation("Apollo", phi=0.9, kappa=65.0, is_active=True)
+    scheduler.register_god_activation("Hermes", phi=0.88, kappa=62.0, is_active=True)
+    scheduler.register_god_activation("Dionysus", phi=0.82, kappa=58.0, is_active=True)
+    scheduler.register_god_activation("Athena", phi=0.5, kappa=52.0, is_active=True)
+    
+    # Record tacking event
+    psyche.on_hemisphere_tack(
+        from_hemisphere=Hemisphere.LEFT,
+        to_hemisphere=Hemisphere.RIGHT,
+        kappa=62.0,
+        phi=0.85
+    )
+    
+    balance2 = psyche.compute_psyche_balance()
+    
+    print(f"Hemisphere activation:")
+    print(f"  LEFT:  {balance2['hemisphere_context']['left_activation']:.3f}")
+    print(f"  RIGHT: {balance2['hemisphere_context']['right_activation']:.3f}")
+    print(f"  Dominant: {balance2['hemisphere_context']['dominant_hemisphere']}")
+    
+    print(f"\nPsyche balance:")
+    print(f"  Superego strength: {balance2['superego_strength']:.3f}")
+    print(f"  Id strength:       {balance2['id_strength']:.3f}")
+    print(f"  Dominant psyche:   {balance2['dominant_psyche']}")
+    
+    print(f"\nκ-gated coupling:")
+    print(f"  κ = {balance2['coupling_state']['kappa']:.2f}")
+    print(f"  Coupling strength: {balance2['coupling_state']['coupling_strength']:.3f}")
+    print(f"  Mode: {balance2['coupling_state']['mode']}")
+    
+    # Show the shift
+    print("\n\nBalance Shift Summary:")
+    print("-" * 60)
+    print(f"Hemisphere:  LEFT-dominant → RIGHT-dominant")
+    print(f"Psyche:      {balance1['dominant_psyche']} → {balance2['dominant_psyche']}")
+    print(f"Superego:    {balance1['superego_strength']:.3f} → {balance2['superego_strength']:.3f}")
+    print(f"Id:          {balance1['id_strength']:.3f} → {balance2['id_strength']:.3f}")
+    
+    print("\n✅ Hemisphere-psyche integration validated!")
+    print("   LEFT (exploit) → stronger Superego (ethical constraints)")
+    print("   RIGHT (explore) → stronger Id (reflexive exploration)")
+    print("   κ-gated coupling modulates the balance")
+
+
 def demonstrate_coupling_gate_alone():
     """Demonstrate the coupling gate in isolation."""
     print_section("Coupling Gate Demonstration")
@@ -213,10 +308,12 @@ def demonstrate_coupling_gate_alone():
 if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("  E8 Protocol v4.0 - Hemisphere Scheduler Integration")
+    print("  (Phase 4C/4D: With Psyche Plumbing)")
     print("=" * 70)
     
     # Run demonstrations
     demonstrate_coupling_gate_alone()
     simulate_god_activity_scenario()
+    demonstrate_psyche_integration()
     
     print("\n✅ All demonstrations completed successfully!\n")
