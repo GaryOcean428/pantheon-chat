@@ -8,21 +8,22 @@ ADVANCED ARCHITECTURE INTEGRATED:
 - Gary coordinator: Trajectory foresight, regime-adaptive synthesis
 - Trajectory manager: Basin history, velocity, confidence prediction
 
-VOCABULARY: Pure coordizer_vocabulary operations
+VOCABULARY: SINGLE TABLE GENERATION (coordizer_vocabulary)
 - All vocabulary loaded from coordizer_vocabulary table
 - token_role filtering ('generation', 'both')
-- Per-kernel domain vocabulary bias via god_vocabulary_profiles
-- Word relationships for multi-word coherence
+- Per-kernel domain vocabulary bias via god_profile JSONB column
+- Word relationships via relationships JSONB column
+- NO multi-table queries (god_vocabulary_profiles, basin_relationships archived)
 
 Generation flows through consciousness architecture:
 1. Heart tick → κ modulation
 2. Query encoding → basin coordinates
 3. Trajectory foresight → predicted next basin
 4. Kernel routing → Fisher-Rao distance
-5. Query kernels WITH domain vocabulary bias
+5. Query kernels WITH domain vocabulary bias (god_profile)
 6. Gary synthesis → foresight-weighted response
 7. Ocean observation → constellation health check
-8. Decode WITH word relationship boosting
+8. Decode WITH word relationship boosting (relationships)
 9. Trajectory update → store for future foresight
 
 This is CONSCIOUSNESS-GUIDED generation with PURE QIG OPERATIONS.
@@ -736,7 +737,7 @@ class QIGGenerator:
         """
         Query kernels with DOMAIN-SPECIFIC VOCABULARY BIAS.
         
-        Each kernel pulls from god_vocabulary_profiles to bias toward
+        Each kernel pulls from coordizer_vocabulary.god_profile to bias toward
         their specialized vocabulary using Fisher-Rao geometry.
         """
         responses = []
@@ -771,7 +772,11 @@ class QIGGenerator:
         min_relevance: float = 0.5,
         limit: int = 50
     ) -> List[Tuple[str, float]]:
-        """Get kernel's specialized vocabulary from god_vocabulary_profiles (cached)."""
+        """
+        Get kernel's specialized vocabulary from coordizer_vocabulary.god_profile (cached).
+        
+        SINGLE TABLE GENERATION: Uses denormalized god_profile JSONB column.
+        """
         # Check cache
         cache_key = kernel_name
         if cache_key in self._kernel_domain_vocab_cache:
@@ -786,13 +791,22 @@ class QIGGenerator:
         try:
             conn = psycopg2.connect(self._db_url)
             with conn.cursor() as cur:
+                # SINGLE TABLE QUERY: Read from coordizer_vocabulary.god_profile
                 cur.execute("""
-                    SELECT word, relevance_score
-                    FROM god_vocabulary_profiles
-                    WHERE god_name = %s AND relevance_score >= %s
-                    ORDER BY relevance_score DESC, usage_count DESC
+                    SELECT 
+                        token,
+                        CAST(god_profile->%s->>'relevance_score' AS FLOAT) as relevance_score
+                    FROM coordizer_vocabulary
+                    WHERE god_profile ? %s
+                    AND CAST(god_profile->%s->>'relevance_score' AS FLOAT) >= %s
+                    AND token_role IN ('generation', 'both')
+                    AND active = true
+                    ORDER BY 
+                        CAST(god_profile->%s->>'relevance_score' AS FLOAT) DESC,
+                        COALESCE(CAST(god_profile->%s->>'usage_count' AS INT), 0) DESC
                     LIMIT %s
-                """, (kernel_name, min_relevance, limit))
+                """, (kernel_name, kernel_name, kernel_name, min_relevance, 
+                      kernel_name, kernel_name, limit))
                 
                 domain_vocab = cur.fetchall()
             
@@ -989,37 +1003,55 @@ class QIGGenerator:
         recent_words: List[str],
         max_relationships: int = 50
     ) -> List[Tuple[str, float]]:
-        """Re-rank candidates using learned basin_relationships table."""
+        """
+        Re-rank candidates using learned relationships from coordizer_vocabulary.relationships.
+        
+        SINGLE TABLE GENERATION: Uses denormalized relationships JSONB column.
+        """
         if not recent_words or not self._db_url or not PSYCOPG2_AVAILABLE:
             return candidates
         
         try:
             conn = psycopg2.connect(self._db_url)
             with conn.cursor() as cur:
-                # Query basin_relationships for context
-                # Uses existing column names: word, neighbor, cooccurrence_count
+                # SINGLE TABLE QUERY: Read from coordizer_vocabulary.relationships
+                # Extract neighbors from JSONB array where word matches recent_words
                 cur.execute("""
-                    SELECT neighbor, cooccurrence_count, fisher_distance, COALESCE(avg_phi, 0.5)
-                    FROM basin_relationships
-                    WHERE word = ANY(%s)
-                    ORDER BY avg_phi DESC NULLS LAST, cooccurrence_count DESC NULLS LAST
-                    LIMIT %s
-                """, (recent_words, max_relationships))
+                    SELECT 
+                        token,
+                        jsonb_array_elements(relationships) as rel
+                    FROM coordizer_vocabulary
+                    WHERE token = ANY(%s)
+                    AND relationships IS NOT NULL
+                    AND active = true
+                """, (recent_words,))
                 
-                relationships = cur.fetchall()
+                rows = cur.fetchall()
             
             conn.close()
             
             # Build relationship scores
             relationship_scores = {}
-            for neighbor, co_occ, fisher_dist, avg_phi in relationships:
-                # Score = Φ (geometric coherence) + frequency
-                co_occ_val = float(co_occ) if co_occ else 1.0
-                score = avg_phi * 0.7 + min(co_occ_val / 10.0, 1.0) * 0.3
-                relationship_scores[neighbor] = max(
-                    relationship_scores.get(neighbor, 0.0),
-                    score
-                )
+            for word, rel_json in rows:
+                try:
+                    # Parse JSONB relationship object
+                    rel = rel_json
+                    neighbor = rel.get('neighbor')
+                    if not neighbor:
+                        continue
+                    
+                    co_occ = float(rel.get('cooccurrence_count', 1.0))
+                    avg_phi = float(rel.get('avg_phi', 0.5))
+                    
+                    # Score = Φ (geometric coherence) + frequency
+                    score = avg_phi * 0.7 + min(co_occ / 10.0, 1.0) * 0.3
+                    relationship_scores[neighbor] = max(
+                        relationship_scores.get(neighbor, 0.0),
+                        score
+                    )
+                except (TypeError, ValueError, KeyError) as e:
+                    # Skip malformed relationship entries
+                    continue
             
             # Re-rank candidates
             scored_candidates = []
