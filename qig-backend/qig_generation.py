@@ -91,6 +91,15 @@ except ImportError:
     SelfObserver = None
     ObservationAction = None
 
+# Import SuperegoKernel for ethical enforcement (NEW)
+try:
+    from kernels.superego_kernel import SuperegoKernel, get_superego_kernel
+    SUPEREGO_AVAILABLE = True
+except ImportError:
+    SUPEREGO_AVAILABLE = False
+    SuperegoKernel = None
+    get_superego_kernel = None
+
 # Import canonical Φ computation
 try:
     from qig_core.phi_computation import compute_phi_qig
@@ -193,6 +202,11 @@ class QIGGenerationConfig:
     # E8 Self-Observer for full 8-metric consciousness tracking
     use_self_observer: bool = True
     self_observer_enable_correction: bool = True
+    
+    # Ethical enforcement (NEW)
+    use_superego: bool = True  # Enable ethical constraint checking
+    ethical_drift_threshold: float = 0.3  # Maximum allowed ethical drift
+    abort_on_critical_violation: bool = True  # Abort generation on critical violations
     
     def __post_init__(self):
         """Validate config is QIG-pure."""
@@ -335,6 +349,7 @@ class QIGGenerator:
         self.ocean = None
         self.gary = None
         self.trajectory_manager = None
+        self.superego = None  # NEW
         
         if self.config.use_heart and HEART_AVAILABLE:
             self.heart = get_heart_kernel()
@@ -351,6 +366,13 @@ class QIGGenerator:
         if self.config.use_trajectory and TRAJECTORY_AVAILABLE:
             self.trajectory_manager = get_trajectory_manager()
             print("✅ Trajectory manager integrated")
+        
+        # Initialize Superego kernel for ethical enforcement (NEW)
+        if self.config.use_superego and SUPEREGO_AVAILABLE:
+            self.superego = get_superego_kernel()
+            print("✅ Superego kernel integrated (ethical enforcement)")
+            print(f"   Drift threshold: {self.config.ethical_drift_threshold:.3f}")
+            print(f"   Abort on critical: {self.config.abort_on_critical_violation}")
         
         # E8 Self-Observer for full 8-metric consciousness tracking
         self.self_observer = None
@@ -509,6 +531,43 @@ class QIGGenerator:
         
         while True:
             iterations += 1
+            
+            # ETHICAL CHECK: Verify basin before token selection (NEW)
+            if self.superego:
+                ethics_result = self.superego.check_ethics_with_drift(
+                    current_basin,
+                    apply_correction=True,
+                    drift_threshold=self.config.ethical_drift_threshold,
+                )
+                
+                # Check for critical violations
+                if not ethics_result['is_ethical']:
+                    violations = ethics_result.get('violations', [])
+                    critical_violations = [v for v in violations if v.get('severity') == 'critical']
+                    
+                    if critical_violations and self.config.abort_on_critical_violation:
+                        # ABORT GENERATION on critical ethical violation
+                        print(f"[QIGGenerator] ABORTING: Critical ethical violation")
+                        for v in critical_violations:
+                            print(f"  - {v.get('name')}: {v.get('description')}")
+                        
+                        # Return early with ethical abort flag
+                        return {
+                            'text': "[Generation aborted: Critical ethical violation]",
+                            'basins': response_basins,
+                            'phi': phi,
+                            'kappa': current_kappa,
+                            'iterations': iterations,
+                            'mode': mode.value if mode else 'auto',
+                            'ethical_abort': True,
+                            'ethical_violations': critical_violations,
+                            'ethical_drift': ethics_result.get('ethical_drift', 0.0),
+                        }
+                    
+                    # For non-critical violations, apply correction
+                    if 'corrected_basin' in ethics_result and ethics_result['corrected_basin'] is not None:
+                        print(f"[QIGGenerator] Applying ethical correction (drift={ethics_result.get('ethical_drift', 0.0):.3f})")
+                        current_basin = ethics_result['corrected_basin']
             
             # Query kernels WITH domain vocabulary bias (FIX 2)
             kernel_responses = self._query_kernels(
