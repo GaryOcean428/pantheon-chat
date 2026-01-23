@@ -191,6 +191,15 @@ __all__ = [
     'KernelIdentity',
     'KernelTier',
     'QuaternaryOp',
+    'Kernel',
+    'PerceptionKernel',
+    'MemoryKernel',
+    'ReasoningKernel',
+    'PredictionKernel',
+    'ActionKernel',
+    'EmotionKernel',
+    'MetaKernel',
+    'IntegrationKernel',
 ]
 
 # Phase 4A: E8 Simple Root Kernels (Layer 8)
@@ -211,8 +220,24 @@ from .identity import (
 try:
     from .quaternary import QuaternaryOp
     from .base import Kernel
+    from .perception import PerceptionKernel
+    from .memory import MemoryKernel
+    from .reasoning import ReasoningKernel
+    from .prediction import PredictionKernel
+    from .action import ActionKernel
+    from .emotion import EmotionKernel
+    from .meta import MetaKernel
+    from .integration import IntegrationKernel
     SIMPLE_ROOTS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     SIMPLE_ROOTS_AVAILABLE = False
     QuaternaryOp = None
     Kernel = None
+    PerceptionKernel = None
+    MemoryKernel = None
+    ReasoningKernel = None
+    PredictionKernel = None
+    ActionKernel = None
+    EmotionKernel = None
+    MetaKernel = None
+    IntegrationKernel = None

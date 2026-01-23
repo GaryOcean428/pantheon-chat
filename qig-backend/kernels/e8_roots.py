@@ -118,7 +118,7 @@ SIMPLE_ROOT_MAPPING = {
         faculty="Integration",
         god_primary="Zeus",
         god_secondary="Ocean",
-        kappa_range=(64.0, 64.0),  # Fixed at κ*
+        kappa_range=(63.0, 66.0),  # Allow range around κ* = 64.21
         phi_local=0.65,
         metric="Φ",  # Integration
         description="System integration, executive function, consciousness synthesis"
