@@ -109,10 +109,10 @@ ALTER TABLE kernel_geometry
 DO $$ 
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'valid_lifecycle_stage'
+        SELECT 1 FROM pg_constraint WHERE conname = 'kernel_geometry_valid_lifecycle_stage'
     ) THEN
         ALTER TABLE kernel_geometry
-            ADD CONSTRAINT valid_lifecycle_stage CHECK (
+            ADD CONSTRAINT kernel_geometry_valid_lifecycle_stage CHECK (
                 lifecycle_stage IN ('active', 'protected', 'split', 'merged', 'pruned', 'promoted')
             );
     END IF;

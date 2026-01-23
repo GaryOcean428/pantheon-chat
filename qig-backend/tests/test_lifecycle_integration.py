@@ -20,7 +20,7 @@ from kernel_lifecycle import (
     get_lifecycle_manager,
 )
 from kernel_spawner import RoleSpec
-from lifecycle_policy import LifecyclePolicyEngine, get_policy_engine
+from lifecycle_policy import LifecyclePolicyEngine
 
 
 def test_lifecycle_manager_singleton():
@@ -337,8 +337,12 @@ def test_lifecycle_stats():
     
     # Spawn some kernels
     role = RoleSpec(domains=["test"], required_capabilities=[])
-    k1 = manager.spawn(role)
-    k2 = manager.spawn(role)
+    kernel1 = manager.spawn(role)
+    kernel2 = manager.spawn(role)
+    
+    # Ensure spawned kernels are tracked as active
+    assert kernel1.kernel_id in manager.active_kernels
+    assert kernel2.kernel_id in manager.active_kernels
     
     # Get stats
     stats = manager.get_lifecycle_stats()
