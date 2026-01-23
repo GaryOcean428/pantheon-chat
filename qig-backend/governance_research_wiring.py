@@ -16,8 +16,15 @@ Created: 2026-01-23
 """
 
 import logging
+import asyncio
 from typing import Optional, Dict, Any
-from flask import Flask
+
+try:
+    from flask import Flask, jsonify, request
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
+    Flask = None
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +430,9 @@ def register_governance_research_routes(app: Flask):
     @app.route('/api/research/deep_research', methods=['POST'])
     def deep_research_endpoint():
         """Execute phi-driven deep research."""
+        if not FLASK_AVAILABLE:
+            return jsonify({'error': 'Flask not available'}), 503
+            
         if not GEOMETRIC_DEEP_RESEARCH_AVAILABLE:
             return jsonify({'error': 'Deep research not available'}), 503
         
@@ -447,18 +457,25 @@ def register_governance_research_routes(app: Flask):
             surprise=0.5
         )
         
-        # Execute research (async wrapper)
-        import asyncio
+        # Execute research with proper async handling
         try:
-            result = asyncio.run(engine.deep_research(query, telemetry))
-            
-            return jsonify({
-                'query': result.query,
-                'depth': result.depth,
-                'sources_count': len(result.sources),
-                'integration_level': result.integration_level,
-                'timestamp': result.timestamp.isoformat()
-            })
+            # Check if event loop is already running (e.g., in async context)
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're already in an event loop, use create_task
+                # This requires the endpoint to be async, so we'll use a different approach
+                return jsonify({'error': 'Async execution not supported in sync route'}), 501
+            except RuntimeError:
+                # No event loop running, safe to use asyncio.run()
+                result = asyncio.run(engine.deep_research(query, telemetry))
+                
+                return jsonify({
+                    'query': result.query,
+                    'depth': result.depth,
+                    'sources_count': len(result.sources),
+                    'integration_level': result.integration_level,
+                    'timestamp': result.timestamp.isoformat()
+                })
         except Exception as e:
             logger.error(f"[GovernanceWiring] Deep research failed: {e}")
             return jsonify({'error': str(e)}), 500

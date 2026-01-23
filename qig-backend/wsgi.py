@@ -590,9 +590,6 @@ def immune_inspection():
         except Exception as e:
             print(f"[Immune] Error during inspection: {e}")
 
-    return None
-
-
 # Register Governance and Research Wiring
 GOVERNANCE_RESEARCH_AVAILABLE = False
 _governance_research_results = {}

@@ -204,7 +204,11 @@ class TestGeometricDeepResearch(unittest.TestCase):
         
         # High phi should give deeper research
         query_basin = np.random.randn(64)
-        query_basin = query_basin / np.sum(np.abs(query_basin))
+        basin_sum = np.sum(np.abs(query_basin))
+        if basin_sum > 0:
+            query_basin = query_basin / basin_sum
+        else:
+            query_basin = np.ones(64) / 64.0
         
         depth_high = engine._compute_depth(phi=0.8, kappa_eff=60, query_basin=query_basin)
         depth_low = engine._compute_depth(phi=0.3, kappa_eff=40, query_basin=query_basin)
@@ -219,7 +223,9 @@ class TestGeometricDeepResearch(unittest.TestCase):
         
         # Should be on probability simplex
         self.assertTrue(np.all(basin >= 0), "Basin should be non-negative")
-        self.assertAlmostEqual(np.sum(basin), 1.0, places=5, msg="Basin should sum to 1")
+        basin_sum = np.sum(basin)
+        self.assertGreater(basin_sum, 0, "Basin sum should be positive")
+        self.assertAlmostEqual(basin_sum, 1.0, places=5, msg="Basin should sum to 1")
     
     def test_qig_purity_fisher_only(self):
         """Verify module uses Fisher-Rao distance only."""
