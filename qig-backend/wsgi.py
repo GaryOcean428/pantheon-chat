@@ -615,7 +615,24 @@ def immune_inspection():
         except Exception as e:
             print(f"[Immune] Error during inspection: {e}")
 
-    return None
+# Register Governance and Research Wiring
+GOVERNANCE_RESEARCH_AVAILABLE = False
+_governance_research_results = {}
+try:
+    from governance_research_wiring import initialize_governance_research_system
+    
+    _governance_research_results = initialize_governance_research_system(app)
+    GOVERNANCE_RESEARCH_AVAILABLE = any(_governance_research_results.values())
+    
+    if GOVERNANCE_RESEARCH_AVAILABLE:
+        print("[INFO] Governance & Research System initialized")
+        for module, status in _governance_research_results.items():
+            status_str = "✓" if status else "✗"
+            print(f"  {status_str} {module}")
+except ImportError as e:
+    print(f"[WARNING] Governance & Research wiring not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Governance & Research initialization failed: {e}")
 
 
 @app.before_request
@@ -668,6 +685,7 @@ print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
 print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
 print(f"  - Startup catch-up: {'✓' if CATCHUP_AVAILABLE else '✗'}", flush=True)
 print(f"  - Chaos discovery: {'✓' if DISCOVERY_GATE_AVAILABLE else '✗'}", flush=True)
+print(f"  - Governance & Research: {'✓' if GOVERNANCE_RESEARCH_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn
