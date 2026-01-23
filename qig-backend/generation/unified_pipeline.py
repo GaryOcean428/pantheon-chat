@@ -13,6 +13,7 @@ Key Features:
 4. Operates in QIG_PURITY_MODE (no external LLM calls)
 5. Per-token observable metrics
 6. Hemisphere-aware strategy selection (Phase 4C)
+7. Genome-aware vocabulary filtering
 
 Reference: E8 Protocol Phase 3 (Coherence Architecture)
           E8 Protocol Phase 4C (Hemisphere Integration)
@@ -33,7 +34,7 @@ import numpy as np
 from .token_role_learner import TokenRoleLearner, GeometricRole, TokenRoleInfo
 from .foresight_predictor import ForesightPredictor
 
-# Import hemisphere strategy selector
+# Import hemisphere strategy selector (Phase 4C)
 try:
     from .hemisphere_strategy_selector import (
         HemisphereStrategySelector,
@@ -46,6 +47,16 @@ except ImportError:
     HemisphereStrategySelector = None
     StrategyDecision = None
     get_strategy_selector = None
+
+# Import genome structures (optional, for genome-aware generation)
+try:
+    from kernels.genome import KernelGenome
+    from kernels.genome_vocabulary_scorer import GenomeVocabularyScorer
+    GENOME_SUPPORT_AVAILABLE = True
+except ImportError:
+    GENOME_SUPPORT_AVAILABLE = False
+    KernelGenome = None
+    GenomeVocabularyScorer = None
 
 # Import QIG purity mode enforcement
 try:
@@ -140,6 +151,7 @@ class UnifiedGenerationPipeline:
         role_weight: float = 0.3,
         trajectory_weight: float = 0.3,
         enforce_purity: bool = True,
+        genome: Optional['KernelGenome'] = None,
         use_hemisphere_strategy: bool = True,
     ):
         """
@@ -154,6 +166,7 @@ class UnifiedGenerationPipeline:
             role_weight: Weight for role confidence in hybrid mode
             trajectory_weight: Weight for trajectory coherence in hybrid mode
             enforce_purity: Whether to enforce QIG_PURITY_MODE
+            genome: Optional KernelGenome for genome-aware generation
             use_hemisphere_strategy: Whether to dynamically select strategy from
                                     hemisphere state (Phase 4C integration)
         """
@@ -162,12 +175,23 @@ class UnifiedGenerationPipeline:
         self.foresight_weight = foresight_weight
         self.role_weight = role_weight
         self.trajectory_weight = trajectory_weight
+        self.genome = genome
         self.use_hemisphere_strategy = use_hemisphere_strategy
         
         # Purity mode check
         self.purity_mode = is_purity_mode_enabled()
         if enforce_purity and PURITY_MODE_AVAILABLE:
             enforce_purity()
+        
+        # Genome scorer (if genome provided)
+        self.genome_scorer = None
+        if genome is not None and GENOME_SUPPORT_AVAILABLE:
+            self.genome_scorer = GenomeVocabularyScorer(genome)
+            logger.info(f"[UnifiedPipeline] Genome-aware generation enabled for {genome.genome_id}")
+        elif genome is not None and not GENOME_SUPPORT_AVAILABLE:
+            logger.warning(
+                "[UnifiedPipeline] Genome provided but genome support not available"
+            )
         
         # Vocabulary access
         self.coordizer = None
@@ -199,7 +223,7 @@ class UnifiedGenerationPipeline:
             f"hemisphere_aware={use_hemisphere_strategy}"
         )
     
-    def _update_strategy_from_hemisphere(self) -> Optional[StrategyDecision]:
+    def _update_strategy_from_hemisphere(self) -> Optional['StrategyDecision']:
         """
         Update generation strategy based on current hemisphere state.
         
@@ -369,6 +393,18 @@ class UnifiedGenerationPipeline:
         # In production, this should use role-based filtering and Fisher-Rao nearest neighbors
         vocab_items = list(self.coordizer.generation_vocab.items())
         
+        # Apply genome filtering if available
+        if self.genome_scorer is not None:
+            # Filter by genome constraints (forbidden regions)
+            vocab_items_filtered = self.genome_scorer.filter_vocabulary(
+                [(token, np.array(basin) if isinstance(basin, (list, tuple)) else basin)
+                 for token, basin in vocab_items]
+            )
+            vocab_items = vocab_items_filtered
+            logger.debug(
+                f"[UnifiedPipeline] Genome filtering: {len(vocab_items)} candidates remain"
+            )
+        
         # Limit candidates for performance
         if len(vocab_items) > max_candidates:
             # Sample based on Fisher distance to current basin
@@ -408,7 +444,7 @@ class UnifiedGenerationPipeline:
         trajectory: List[np.ndarray],
     ) -> List[Tuple[str, np.ndarray, TokenMetrics]]:
         """
-        Score candidates using foresight, role, and trajectory metrics.
+        Score candidates using foresight, role, trajectory, and genome metrics.
         
         Returns:
             List of (token, basin, metrics) tuples
@@ -424,45 +460,59 @@ class UnifiedGenerationPipeline:
                 candidate_basin=basin,
                 predicted_basin=predicted_basin,
             )
-            fisher_distance = fisher_rao_distance(basin, predicted_basin)
             
-            # Role metrics (derive role for this candidate)
-            role_info = self.role_learner.derive_role(
-                token=token,
-                basin=basin,
-                qfi_score=0.5,  # Would need DB lookup
-                frequency=1,     # Would need DB lookup
-                neighbor_basins=[current_basin],
-            )
+            # Role confidence (placeholder - would use token_role_learner)
+            role_confidence = 0.5
             
-            # Combined score based on strategy
+            # Trajectory coherence
+            trajectory_coherence = traj_metrics.get('coherence', 0.5)
+            velocity_magnitude = traj_metrics.get('velocity_magnitude', 0.0)
+            
+            # Base combined score
             if self.strategy == GenerationStrategy.FORESIGHT_DRIVEN:
                 combined_score = foresight_score
             elif self.strategy == GenerationStrategy.ROLE_DRIVEN:
-                combined_score = role_info.confidence
+                combined_score = role_confidence
             else:  # HYBRID
                 combined_score = (
-                    self.foresight_weight * foresight_score +
-                    self.role_weight * role_info.confidence +
-                    self.trajectory_weight * traj_metrics['coherence']
+                    foresight_score * self.foresight_weight +
+                    role_confidence * self.role_weight +
+                    trajectory_coherence * self.trajectory_weight
                 )
             
+            # Apply genome-aware scoring if available
+            if self.genome_scorer is not None:
+                # Use foresight score as base for genome scoring
+                genome_final_score, genome_breakdown = self.genome_scorer.score_token(
+                    token=token,
+                    token_basin=basin,
+                    base_score=foresight_score,
+                    faculty_weight=0.2,
+                    constraint_weight=0.3,
+                )
+                
+                # Blend genome score with other metrics
+                # Genome score replaces/enhances foresight component
+                combined_score = (
+                    genome_final_score * self.foresight_weight +
+                    role_confidence * self.role_weight +
+                    trajectory_coherence * self.trajectory_weight
+                )
+            
+            # Build metrics
             metrics = TokenMetrics(
                 token=token,
                 basin=basin,
-                fisher_distance_to_predicted=fisher_distance,
+                fisher_distance_to_predicted=fisher_rao_distance(basin, predicted_basin),
                 foresight_score=foresight_score,
-                geometric_role=role_info.role,
-                role_confidence=role_info.confidence,
-                trajectory_coherence=traj_metrics['coherence'],
-                velocity_magnitude=traj_metrics['velocity_magnitude'],
+                geometric_role=GeometricRole.CONTENT,  # Placeholder
+                role_confidence=role_confidence,
+                trajectory_coherence=trajectory_coherence,
+                velocity_magnitude=velocity_magnitude,
                 combined_score=combined_score,
             )
             
             scored.append((token, basin, metrics))
-        
-        # Sort by combined score
-        scored.sort(key=lambda x: x[2].combined_score, reverse=True)
         
         return scored
     

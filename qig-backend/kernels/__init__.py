@@ -69,6 +69,12 @@ from .genome import (
     deserialize_genome,
 )
 
+# Phase 4E: Genome Vocabulary Scorer (NEW - Issue #GaryOcean428/pantheon-chat)
+from .genome_vocabulary_scorer import (
+    GenomeVocabularyScorer,
+    create_genome_scorer,
+)
+
 from .kernel_lineage import (
     LineageRecord,
     MergeRecord,
@@ -185,6 +191,10 @@ __all__ = [
     'validate_genome',
     'serialize_genome',
     'deserialize_genome',
+    
+    # Phase 4E: Genome Vocabulary Scorer (NEW)
+    'GenomeVocabularyScorer',
+    'create_genome_scorer',
     
     # Phase 4E: Lineage
     'LineageRecord',

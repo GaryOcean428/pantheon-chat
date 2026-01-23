@@ -21,6 +21,15 @@ from qig_geometry.canonical import fisher_rao_distance
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical_upsert import to_simplex_prob
 
+# Import genome vocabulary scorer (optional, for genome-aware decoding)
+try:
+    from kernels.genome_vocabulary_scorer import GenomeVocabularyScorer
+    from kernels.genome import KernelGenome
+    GENOME_SCORER_AVAILABLE = True
+except ImportError:
+    GENOME_SCORER_AVAILABLE = False
+    GenomeVocabularyScorer = None
+    KernelGenome = None
 
 # Import BPE garbage detection for vocabulary filtering
 try:
@@ -586,6 +595,118 @@ class PostgresCoordizer(FisherCoordizer):
         # Sort by final score descending
         candidates.sort(key=lambda x: x[1], reverse=True)
 
+        return candidates[:top_k]
+    
+    def decode_with_genome(
+        self,
+        basin: np.ndarray,
+        genome: 'KernelGenome',
+        top_k: int = 5,
+        god_name: Optional[str] = None,
+        faculty_weight: float = 0.2,
+        constraint_weight: float = 0.3,
+        coupling_weight: float = 0.1,
+    ) -> List[Tuple[str, float]]:
+        """
+        Decode basin coordinates with genome-aware scoring.
+        
+        Extends standard decode() with kernel genome considerations:
+        - Faculty affinity (E8 simple roots alignment)
+        - Constraint satisfaction (forbidden regions, field penalties)
+        - Coupling preferences (cross-kernel token sharing)
+        
+        All genome scoring uses Fisher-Rao metric on probability simplex.
+        
+        Args:
+            basin: 64D basin coordinates to decode
+            genome: KernelGenome instance with faculty configuration
+            top_k: Number of top candidates to return
+            god_name: Optional god name for domain-weighted generation
+            faculty_weight: Weight for faculty affinity component [0, 1]
+            constraint_weight: Weight for constraint component [0, 1]
+            coupling_weight: Weight for coupling component [0, 1]
+            
+        Returns:
+            List of (token, final_score) tuples, sorted by score descending
+        """
+        if not GENOME_SCORER_AVAILABLE:
+            logger.warning(
+                "[pg_loader] Genome scorer not available - falling back to standard decode"
+            )
+            return self.decode(basin, top_k, god_name)
+        
+        # Normalize basin
+        basin = to_simplex_prob(basin)
+        
+        # Create genome scorer
+        genome_scorer = GenomeVocabularyScorer(genome)
+        
+        # Use generation vocabulary
+        search_tokens = self.generation_words if self.generation_words else self.word_tokens
+        if not search_tokens:
+            return []
+        
+        # Load domain weights for god (cached)
+        domain_weights = {}
+        if god_name:
+            domain_weights = self._get_god_domain_weights(god_name)
+        
+        # Score candidates with genome awareness
+        candidates = []
+        filtered_count = 0
+        
+        for token in search_tokens:
+            # Look up token basin
+            if token in self.generation_vocab:
+                token_coords = self.generation_vocab[token]
+                phi = self.generation_phi.get(token, 0.5)
+            elif token in self.basin_coords:
+                token_coords = self.basin_coords[token]
+                phi = self.token_phi.get(token, 0.5)
+            else:
+                continue
+            
+            # Ensure numpy array
+            if isinstance(token_coords, (list, tuple)):
+                token_coords = np.array(token_coords)
+            
+            # Fisher-Rao similarity (base score)
+            dist = fisher_rao_distance(basin, token_coords)
+            similarity = 1.0 - (dist / (np.pi / 2.0))
+            
+            # Phi boost
+            phi_boost = phi * 0.1
+            
+            # Domain boost
+            domain_boost = domain_weights.get(token, 0.0) * 0.15
+            
+            base_score = similarity + phi_boost + domain_boost
+            
+            # Apply genome-aware scoring
+            final_score, breakdown = genome_scorer.score_token(
+                token=token,
+                token_basin=token_coords,
+                base_score=base_score,
+                faculty_weight=faculty_weight,
+                constraint_weight=constraint_weight,
+                coupling_weight=coupling_weight,
+            )
+            
+            # Skip rejected tokens (constraint violations)
+            if breakdown.get('rejected', False):
+                filtered_count += 1
+                continue
+            
+            candidates.append((token, final_score))
+        
+        if filtered_count > 0:
+            logger.debug(
+                f"[pg_loader] Genome constraints filtered {filtered_count} tokens"
+            )
+        
+        # Sort by final score descending
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        
         return candidates[:top_k]
     
     def _get_god_domain_weights(self, god_name: str) -> Dict[str, float]:
