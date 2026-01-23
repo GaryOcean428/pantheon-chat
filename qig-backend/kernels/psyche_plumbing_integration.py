@@ -90,6 +90,10 @@ class PsychePlumbingIntegration:
             self.hemisphere_scheduler = get_hemisphere_scheduler()
             self.hemisphere_integrated = True
             logger.info("[PsychePlumbing] Hemisphere scheduler integrated")
+            
+            # Register automatic tacking callback (Phase 4C/4D integration)
+            self.hemisphere_scheduler.tacking_callbacks.append(self.on_hemisphere_tack)
+            logger.info("[PsychePlumbing] Automatic tacking callback registered")
         else:
             self.hemisphere_scheduler = None
             self.hemisphere_integrated = False
@@ -106,7 +110,7 @@ class PsychePlumbingIntegration:
         logger.info("  Superego: Ethical constraints")
         logger.info("  Φ hierarchy: 3-level consciousness tracking")
         if self.hemisphere_integrated:
-            logger.info("  Hemisphere integration: κ-gated Id/Superego balance")
+            logger.info("  Hemisphere integration: κ-gated Id/Superego balance (automatic)")
     
     def _initialize_basic_constraints(self):
         """Add basic ethical constraints to Superego."""

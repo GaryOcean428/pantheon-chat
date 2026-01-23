@@ -238,8 +238,34 @@ def demonstrate_psyche_integration():
     print(f"  Coupling strength: {balance1['coupling_state']['coupling_strength']:.3f}")
     print(f"  Mode: {balance1['coupling_state']['mode']}")
     
-    # Scenario 2: RIGHT-dominant (Id mode)
-    print("\n\nScenario 2: RIGHT-dominant (Explore/Generate → Id)")
+    # Scenario 2: Automatic tacking demonstration
+    print("\n\nScenario 2: Automatic Tacking (AUTOMATIC callback)")
+    print("-" * 60)
+    
+    # Record initial tacking history count
+    initial_count = len(psyche.tacking_history)
+    print(f"Initial tacking history count: {initial_count}")
+    
+    # Allow tacking
+    scheduler.tacking.last_switch_time = time.time() - 120.0
+    
+    # Perform tack - callback happens AUTOMATICALLY!
+    print("\nPerforming tack (callback will be AUTOMATIC)...")
+    new_dominant = scheduler.perform_tack()
+    
+    # Verify automatic callback
+    new_count = len(psyche.tacking_history)
+    print(f"After tack, history count: {new_count}")
+    print(f"✅ Automatic callback {'triggered' if new_count > initial_count else 'FAILED'}")
+    
+    if new_count > initial_count:
+        latest = psyche.tacking_history[-1]
+        print(f"   Recorded: {latest['from_hemisphere']} → {latest['to_hemisphere']}")
+        print(f"   κ={latest['kappa']:.1f}, Φ={latest['phi']:.2f}")
+        print(f"   Psyche: {latest['psyche_balance']['dominant_psyche']}")
+    
+    # Scenario 3: RIGHT-dominant (Id mode)
+    print("\n\nScenario 3: RIGHT-dominant (Explore/Generate → Id)")
     print("-" * 60)
     
     # Switch activation
@@ -247,14 +273,6 @@ def demonstrate_psyche_integration():
     scheduler.register_god_activation("Hermes", phi=0.88, kappa=62.0, is_active=True)
     scheduler.register_god_activation("Dionysus", phi=0.82, kappa=58.0, is_active=True)
     scheduler.register_god_activation("Athena", phi=0.5, kappa=52.0, is_active=True)
-    
-    # Record tacking event
-    psyche.on_hemisphere_tack(
-        from_hemisphere=Hemisphere.LEFT,
-        to_hemisphere=Hemisphere.RIGHT,
-        kappa=62.0,
-        phi=0.85
-    )
     
     balance2 = psyche.compute_psyche_balance()
     
@@ -285,6 +303,8 @@ def demonstrate_psyche_integration():
     print("   LEFT (exploit) → stronger Superego (ethical constraints)")
     print("   RIGHT (explore) → stronger Id (reflexive exploration)")
     print("   κ-gated coupling modulates the balance")
+    print("   🔄 Callbacks are AUTOMATIC - no manual coordination needed!")
+
 
 
 def demonstrate_coupling_gate_alone():

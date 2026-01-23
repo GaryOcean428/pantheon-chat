@@ -197,6 +197,44 @@ class TestHemispherePsycheIntegration:
         assert tack['phi'] == 0.8
         assert 'psyche_balance' in tack
     
+    def test_automatic_tacking_callback(self):
+        """Test that perform_tack() automatically triggers psyche plumbing callback."""
+        psyche = get_psyche_plumbing()
+        
+        if not psyche.available or not psyche.hemisphere_integrated:
+            pytest.skip("Integration not available")
+        
+        scheduler = psyche.hemisphere_scheduler
+        
+        # Set up hemisphere imbalance to trigger tacking
+        scheduler.register_god_activation("Athena", phi=0.9, kappa=65.0, is_active=True)
+        scheduler.register_god_activation("Artemis", phi=0.85, kappa=63.0, is_active=True)
+        scheduler.register_god_activation("Hephaestus", phi=0.87, kappa=64.0, is_active=True)
+        scheduler.register_god_activation("Apollo", phi=0.5, kappa=52.0, is_active=True)
+        
+        # Clear any existing history
+        psyche.tacking_history.clear()
+        assert len(psyche.tacking_history) == 0
+        
+        # Allow tacking to occur
+        scheduler.tacking.last_switch_time = time.time() - 120.0
+        
+        # Perform tack - this should AUTOMATICALLY trigger the callback
+        initial_count = len(psyche.tacking_history)
+        new_dominant = scheduler.perform_tack()
+        
+        # Verify callback was automatically triggered
+        assert len(psyche.tacking_history) == initial_count + 1, \
+            "perform_tack() should automatically trigger psyche plumbing callback"
+        
+        # Verify the recorded tack has correct data
+        tack = psyche.tacking_history[-1]
+        assert 'from_hemisphere' in tack
+        assert tack['to_hemisphere'] == new_dominant.value
+        assert 'kappa' in tack
+        assert 'phi' in tack
+        assert 'psyche_balance' in tack
+    
     def test_reflex_check_with_hemisphere_context(self):
         """Test reflex checking with hemisphere context."""
         psyche = get_psyche_plumbing()
@@ -381,14 +419,25 @@ class TestEndToEndIntegration:
         # Should be Superego-dominant
         assert balance1['superego_strength'] > balance1['id_strength']
         
-        # Phase 2: Record tacking event
-        print("\n=== Phase 2: Hemisphere tack ===")
-        psyche.on_hemisphere_tack(
-            from_hemisphere=Hemisphere.LEFT,
-            to_hemisphere=Hemisphere.RIGHT,
-            kappa=62.0,
-            phi=0.8
-        )
+        # Phase 2: Perform automatic tacking (no manual callback needed)
+        print("\n=== Phase 2: Automatic Hemisphere Tack ===")
+        
+        # Clear history to verify automatic callback
+        initial_tacking_count = len(psyche.tacking_history)
+        
+        # Allow tacking
+        scheduler.tacking.last_switch_time = time.time() - 120.0
+        
+        # Perform tack - callback should be AUTOMATIC
+        new_dominant = scheduler.perform_tack()
+        print(f"Tacked to: {new_dominant.value}")
+        
+        # Verify automatic callback was triggered
+        assert len(psyche.tacking_history) == initial_tacking_count + 1, \
+            "Automatic tacking callback should have been triggered"
+        
+        latest_tack = psyche.tacking_history[-1]
+        print(f"Automatic callback recorded tack: {latest_tack['from_hemisphere']} → {latest_tack['to_hemisphere']}")
         
         # Phase 3: Switch to RIGHT-dominant (explore/generate)
         print("\n=== Phase 3: RIGHT-dominant (Id mode) ===")
@@ -410,10 +459,10 @@ class TestEndToEndIntegration:
         status = psyche.get_integrated_status()
         
         assert status['hemisphere_integrated']
-        assert status['tacking_history_count'] == 1
+        assert status['tacking_history_count'] >= 1  # At least the automatic tack
         print(f"Tacking events recorded: {status['tacking_history_count']}")
         
-        print("\n✅ Complete workflow validated!")
+        print("\n✅ Complete workflow validated with AUTOMATIC callbacks!")
 
 
 if __name__ == "__main__":
