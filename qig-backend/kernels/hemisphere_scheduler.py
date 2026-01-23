@@ -42,6 +42,29 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# CONFIGURATION CONSTANTS
+# =============================================================================
+
+# Activation level computation
+KAPPA_DISTANCE_SCALE = 30.0          # Scale for κ distance in activation calculation
+GOD_FACTOR_WEIGHT = 0.4              # Weight for god count in activation
+PHI_FACTOR_WEIGHT = 0.4              # Weight for Φ aggregate in activation
+KAPPA_FACTOR_WEIGHT = 0.2            # Weight for κ proximity in activation
+
+# Exponential moving average
+EMA_SMOOTHING_ALPHA = 0.3            # Alpha smoothing factor for EMA
+
+# Tacking thresholds
+MIN_TACK_INTERVAL_SECONDS = 60.0     # Minimum time between hemisphere switches
+IMBALANCE_THRESHOLD = 0.3            # Activation imbalance threshold for tacking
+DOMINANCE_THRESHOLD = 0.1            # Threshold for determining dominant hemisphere
+
+# History management
+MAX_COUPLING_HISTORY = 1000          # Maximum coupling history entries
+COUPLING_HISTORY_PRUNE_TO = 500      # Prune history to this size
+
+
+# =============================================================================
 # HEMISPHERE DEFINITIONS
 # =============================================================================
 
@@ -91,8 +114,8 @@ def get_god_hemisphere(god_name: str) -> Optional[Hemisphere]:
 class HemisphereState:
     """State for a single hemisphere."""
     hemisphere: Hemisphere
-    active_gods: Set[str]              # Currently active gods in this hemisphere
-    resting_gods: Set[str]             # Currently resting gods
+    active_gods: Set[str] = field(default_factory=set)   # Currently active gods in this hemisphere
+    resting_gods: Set[str] = field(default_factory=set)  # Currently resting gods
     total_activations: int = 0         # Total activation count
     last_activation: Optional[float] = None
     phi_aggregate: float = 0.0         # Aggregate Φ across active gods
@@ -118,10 +141,12 @@ class HemisphereState:
         
         # κ contribution (near κ* = optimal activation)
         kappa_distance = abs(self.kappa_aggregate - KAPPA_STAR)
-        kappa_factor = np.exp(-kappa_distance / 30.0)
+        kappa_factor = np.exp(-kappa_distance / KAPPA_DISTANCE_SCALE)
         
         # Weighted combination
-        activation = 0.4 * god_factor + 0.4 * phi_factor + 0.2 * kappa_factor
+        activation = (GOD_FACTOR_WEIGHT * god_factor + 
+                     PHI_FACTOR_WEIGHT * phi_factor + 
+                     KAPPA_FACTOR_WEIGHT * kappa_factor)
         
         return float(np.clip(activation, 0.0, 1.0))
     
@@ -135,6 +160,7 @@ class TackingState:
     """State for tacking (oscillation) between hemispheres."""
     cycle_count: int = 0               # Number of tacking cycles
     current_dominant: Optional[Hemisphere] = None
+    first_switch_time: Optional[float] = None  # Time of first switch (for accurate frequency)
     last_switch_time: Optional[float] = None
     time_in_current: float = 0.0
     oscillation_period: float = 300.0  # Target period (5 minutes default)
@@ -170,16 +196,8 @@ class HemisphereScheduler:
         self.coupling_gate = coupling_gate or get_coupling_gate()
         
         # Initialize hemisphere states
-        self.left = HemisphereState(
-            hemisphere=Hemisphere.LEFT,
-            active_gods=set(),
-            resting_gods=set(),
-        )
-        self.right = HemisphereState(
-            hemisphere=Hemisphere.RIGHT,
-            active_gods=set(),
-            resting_gods=set(),
-        )
+        self.left = HemisphereState(hemisphere=Hemisphere.LEFT)
+        self.right = HemisphereState(hemisphere=Hemisphere.RIGHT)
         
         # Tacking state
         self.tacking = TackingState()
@@ -246,16 +264,14 @@ class HemisphereScheduler:
         
         Uses exponential moving average to smooth metrics.
         """
-        alpha = 0.3  # Smoothing factor
-        
         if state.phi_aggregate == 0.0:
             # First update
             state.phi_aggregate = phi
             state.kappa_aggregate = kappa
         else:
             # Exponential moving average
-            state.phi_aggregate = alpha * phi + (1 - alpha) * state.phi_aggregate
-            state.kappa_aggregate = alpha * kappa + (1 - alpha) * state.kappa_aggregate
+            state.phi_aggregate = EMA_SMOOTHING_ALPHA * phi + (1 - EMA_SMOOTHING_ALPHA) * state.phi_aggregate
+            state.kappa_aggregate = EMA_SMOOTHING_ALPHA * kappa + (1 - EMA_SMOOTHING_ALPHA) * state.kappa_aggregate
     
     def compute_coupling_state(self) -> CouplingState:
         """
@@ -287,8 +303,8 @@ class HemisphereScheduler:
         })
         
         # Keep history bounded
-        if len(self.coupling_history) > 1000:
-            self.coupling_history = self.coupling_history[-500:]
+        if len(self.coupling_history) > MAX_COUPLING_HISTORY:
+            self.coupling_history = self.coupling_history[-COUPLING_HISTORY_PRUNE_TO:]
         
         return state
     
@@ -317,12 +333,11 @@ class HemisphereScheduler:
             time_since_switch = time.time() - self.tacking.last_switch_time
         
         # Minimum time between switches (prevent thrashing)
-        min_switch_time = 60.0  # 1 minute
-        if time_since_switch < min_switch_time:
+        if time_since_switch < MIN_TACK_INTERVAL_SECONDS:
             return False, f"Too soon to switch (last switch {time_since_switch:.1f}s ago)"
         
         # Tack if significant imbalance
-        if imbalance > 0.3:
+        if imbalance > IMBALANCE_THRESHOLD:
             dominant = Hemisphere.LEFT if left_activation > right_activation else Hemisphere.RIGHT
             return True, f"Imbalance detected ({imbalance:.2f}), switch to {dominant.value}"
         
@@ -350,6 +365,10 @@ class HemisphereScheduler:
         self.tacking.last_switch_time = time.time()
         self.tacking.cycle_count += 1
         self.tacking.time_in_current = 0.0
+        
+        # Track first switch time for accurate frequency calculation
+        if self.tacking.first_switch_time is None:
+            self.tacking.first_switch_time = time.time()
         
         logger.info(
             f"[HemisphereScheduler] TACK #{self.tacking.cycle_count} → {new_dominant.value} "
@@ -379,9 +398,9 @@ class HemisphereScheduler:
         
         # Dominant hemisphere
         dominant = None
-        if left_activation > right_activation + 0.1:
+        if left_activation > right_activation + DOMINANCE_THRESHOLD:
             dominant = Hemisphere.LEFT.value
-        elif right_activation > left_activation + 0.1:
+        elif right_activation > left_activation + DOMINANCE_THRESHOLD:
             dominant = Hemisphere.RIGHT.value
         else:
             dominant = "balanced"
@@ -389,12 +408,15 @@ class HemisphereScheduler:
         # Coupling state
         coupling_state = self.compute_coupling_state()
         
-        # Tacking frequency (tacks per hour)
+        # Tacking frequency (tacks per hour, averaged since first switch)
         tacking_freq = 0.0
-        if self.tacking.last_switch_time:
-            elapsed_hours = (time.time() - self.tacking.last_switch_time) / 3600.0
-            if elapsed_hours > 0:
-                tacking_freq = self.tacking.cycle_count / elapsed_hours
+        if self.tacking.cycle_count > 0:
+            # Use time since first switch for accurate average frequency
+            reference_time = self.tacking.first_switch_time or self.tacking.last_switch_time
+            if reference_time:
+                elapsed_hours = (time.time() - reference_time) / 3600.0
+                if elapsed_hours > 0:
+                    tacking_freq = self.tacking.cycle_count / elapsed_hours
         
         return {
             'left_activation': left_activation,

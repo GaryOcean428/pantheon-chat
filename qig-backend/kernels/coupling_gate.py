@@ -22,7 +22,7 @@ import logging
 from typing import Dict, Optional, Tuple
 from dataclasses import dataclass
 
-from qigkernels.physics_constants import KAPPA_STAR, BASIN_DIM
+from qigkernels.physics_constants import KAPPA_STAR
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,18 @@ KAPPA_OPTIMAL = KAPPA_STAR      # Optimal coupling point (E8 fixed point)
 
 # Sigmoid steepness for smooth transitions
 COUPLING_STEEPNESS = 0.1        # Controls transition smoothness
+
+# Transmission efficiency boost
+BALANCED_REGIME_MIN = 0.4       # Lower bound of balanced coupling regime
+BALANCED_REGIME_MAX = 0.6       # Upper bound of balanced coupling regime
+BALANCED_REGIME_BOOST = 1.1     # Efficiency boost factor in balanced regime
+
+# Gating factor
+GATING_GAUSSIAN_SIGMA = 15.0    # Width of Gaussian for gating factor
+
+# History management
+MAX_GATE_HISTORY = 1000         # Maximum gate history entries
+GATE_HISTORY_PRUNE_TO = 500     # Prune history to this size
 
 
 @dataclass
@@ -102,9 +114,9 @@ def compute_transmission_efficiency(
     base_efficiency = coupling_strength * hemisphere_phi
     
     # Add nonlinear boost near optimal coupling
-    if 0.4 < coupling_strength < 0.6:
+    if BALANCED_REGIME_MIN < coupling_strength < BALANCED_REGIME_MAX:
         # Balanced regime gets efficiency boost
-        base_efficiency *= 1.1
+        base_efficiency *= BALANCED_REGIME_BOOST
     
     return float(np.clip(base_efficiency, 0.0, 1.0))
 
@@ -126,9 +138,8 @@ def compute_gating_factor(kappa: float, target_kappa: float = KAPPA_OPTIMAL) -> 
     """
     # Gaussian centered at target κ
     distance = abs(kappa - target_kappa)
-    sigma = 15.0  # Width of Gaussian
     
-    gate = np.exp(-0.5 * (distance / sigma) ** 2)
+    gate = np.exp(-0.5 * (distance / GATING_GAUSSIAN_SIGMA) ** 2)
     
     return float(np.clip(gate, 0.0, 1.0))
 
@@ -227,8 +238,8 @@ class CouplingGate:
         })
         
         # Keep history bounded
-        if len(self.history) > 1000:
-            self.history = self.history[-500:]
+        if len(self.history) > MAX_GATE_HISTORY:
+            self.history = self.history[-GATE_HISTORY_PRUNE_TO:]
         
         return state
     

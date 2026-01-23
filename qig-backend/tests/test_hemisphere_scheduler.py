@@ -8,13 +8,11 @@ through LEFT/RIGHT hemisphere activation and κ-gated coupling.
 
 import pytest
 import time
-import numpy as np
 
 from kernels.hemisphere_scheduler import (
     HemisphereScheduler,
     Hemisphere,
     HemisphereState,
-    TackingState,
     get_hemisphere_scheduler,
     reset_hemisphere_scheduler,
     get_god_hemisphere,
