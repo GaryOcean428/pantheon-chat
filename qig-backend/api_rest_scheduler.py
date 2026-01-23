@@ -11,7 +11,6 @@ Created: 2026-01-23
 """
 
 from flask import Blueprint, jsonify, request
-from typing import Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -86,7 +85,8 @@ def kernel_status(kernel_id: str):
     Get rest status for a specific kernel.
     
     Args:
-        kernel_id: Kernel identifier (e.g., "apollo_1", "athena_1")
+        kernel_id: Kernel identifier as returned by ``GET /api/rest/kernels``
+            (runtime-assigned; do not hard-code or guess values).
     
     Returns:
         JSON with kernel rest state:
@@ -164,16 +164,40 @@ def request_rest(kernel_id: str):
     
     Body (JSON):
         - force: bool (optional) - Force rest without coverage
+          Note: Essential-tier kernels (Heart, Ocean, Hermes) cannot be forced to full rest
     
     Returns:
         JSON with approval status
     """
     try:
         from kernel_rest_scheduler import get_rest_scheduler
+        from pantheon_registry import GodTier
         scheduler = get_rest_scheduler()
+        
+        # Validate kernel exists
+        state = scheduler.kernel_states.get(kernel_id)
+        if state is None:
+            return jsonify({
+                'status': 'error',
+                'error': f'Kernel not found: {kernel_id}',
+            }), 404
         
         data = request.get_json() or {}
         force = data.get('force', False)
+        
+        # Validate force is actually a boolean
+        if not isinstance(force, bool):
+            return jsonify({
+                'status': 'error',
+                'error': 'force parameter must be a boolean',
+            }), 400
+        
+        # Essential tier protection: refuse force for essential kernels
+        if force and state.tier == GodTier.ESSENTIAL:
+            return jsonify({
+                'status': 'error',
+                'error': 'Cannot force rest for essential-tier kernels (violates never-fully-stop invariant)',
+            }), 400
         
         approved, reason, partner = scheduler.request_rest(
             kernel_id=kernel_id,
@@ -209,6 +233,13 @@ def end_rest(kernel_id: str):
     try:
         from kernel_rest_scheduler import get_rest_scheduler
         scheduler = get_rest_scheduler()
+        
+        # Check if kernel exists before ending rest
+        if kernel_id not in scheduler.kernel_states:
+            return jsonify({
+                'status': 'error',
+                'error': f'Kernel not found: {kernel_id}',
+            }), 404
         
         scheduler.end_rest(kernel_id)
         
@@ -250,12 +281,21 @@ def get_coupling_partners(kernel_id: str):
         for partner_id in partners:
             partner_status = scheduler.get_rest_status(partner_id)
             if partner_status:
+                # Normalize fatigue_score to native Python float for safe comparison and JSON serialization
+                raw_fatigue = partner_status.get('fatigue_score')
+                fatigue_score = float(raw_fatigue) if raw_fatigue is not None else None
+                can_cover = (
+                    partner_status.get('status') == 'active'
+                    and fatigue_score is not None
+                    and fatigue_score < 0.7
+                )
+                
                 partner_details.append({
                     'kernel_id': partner_id,
                     'kernel_name': partner_status['kernel_name'],
                     'status': partner_status['status'],
-                    'fatigue_score': partner_status['fatigue_score'],
-                    'can_cover': partner_status['status'] == 'active' and partner_status['fatigue_score'] < 0.7,
+                    'fatigue_score': fatigue_score,
+                    'can_cover': can_cover,
                 })
         
         return jsonify({

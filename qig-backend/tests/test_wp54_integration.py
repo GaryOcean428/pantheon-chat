@@ -9,10 +9,6 @@ Tests the end-to-end integration:
 4. API endpoints work correctly
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 import pytest
 from kernel_rest_scheduler import get_rest_scheduler, reset_rest_scheduler
 
@@ -146,8 +142,8 @@ def test_rest_api_constellation_status():
     # Register some kernels
     from olympus.apollo import Apollo
     from olympus.athena import Athena
-    apollo = Apollo()
-    athena = Athena()
+    Apollo()
+    Athena()
     
     from api_rest_scheduler import rest_api
     from flask import Flask

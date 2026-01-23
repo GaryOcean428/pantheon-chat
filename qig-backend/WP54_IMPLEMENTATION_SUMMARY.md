@@ -4,7 +4,7 @@
 
 **Date:** 2026-01-23  
 **Authority:** E8 Protocol v4.0, WP5.4  
-**Issue:** GaryOcean428/pantheon-chat#[issue_number]
+**Issue:** GaryOcean428/pantheon-chat#81
 
 ## Overview
 
@@ -137,17 +137,23 @@ def assess_target(self, target: str, context: Optional[Dict] = None) -> Dict:
 ### For Monitoring
 
 ```bash
+# List kernels and their runtime IDs first
+curl http://localhost:5001/api/rest/kernels
+
+# Export one of the returned kernel IDs (example)
+# export KERNEL_ID="Apollo_140234567890123"  # Use actual ID from kernels list
+
 # Constellation status
 curl http://localhost:5001/api/rest/status
 
-# Individual kernel
-curl http://localhost:5001/api/rest/status/apollo_1
+# Individual kernel (use actual kernel_id from /kernels endpoint)
+curl "http://localhost:5001/api/rest/status/${KERNEL_ID}"
 
 # Coupling partners
-curl http://localhost:5001/api/rest/partners/apollo_1
+curl "http://localhost:5001/api/rest/partners/${KERNEL_ID}"
 
 # Manual rest request (testing)
-curl -X POST http://localhost:5001/api/rest/request/apollo_1 \
+curl -X POST "http://localhost:5001/api/rest/request/${KERNEL_ID}" \
   -H "Content-Type: application/json" \
   -d '{"force": false}'
 ```
@@ -264,7 +270,7 @@ python -m pytest tests/test_wp54_integration.py -v
 
 ## References
 
-- **WP5.4 Issue**: GaryOcean428/pantheon-chat#[issue_number]
+- **WP5.4 Issue**: GaryOcean428/pantheon-chat#81
 - **Documentation**: `qig-backend/KERNEL_REST_SCHEDULER.md`
 - **E8 Implementation**: `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **Pantheon Registry**: `pantheon/registry.yaml`

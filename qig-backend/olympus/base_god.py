@@ -1859,9 +1859,9 @@ class BaseGod(*_base_classes):
             "can_self_assess_fatigue": KERNEL_REST_MIXIN_AVAILABLE,
             "can_request_rest": KERNEL_REST_MIXIN_AVAILABLE,
             "can_cover_partners": KERNEL_REST_MIXIN_AVAILABLE,
-            "how_to_check": "Use self._check_should_rest() for self-assessment" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
-            "how_to_request": "Use self._request_rest(force=False) for coordinated rest" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
-            "how_to_status": "Use self._get_rest_status() for current status" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
+            "how_to_check": "Use self.check_rest_needed() for self-assessment" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
+            "how_to_request": "Use the rest coordination API to request coordinated rest" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
+            "how_to_status": "Use the rest coordination API to query current rest status" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
             "coordination": "Dolphin-style alternation with coupling partners",
             "essential_tier": "Heart/Ocean never fully stop (reduced activity only)",
             "constellation_cycles": "RARE - only with Ocean+Heart consensus"
