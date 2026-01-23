@@ -23,6 +23,9 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
+# Import canonical database connection
+from persistence.base_persistence import get_db_connection
+
 try:
     import psycopg2
     from psycopg2.extras import execute_values, RealDictCursor
@@ -75,11 +78,6 @@ def _fallback_validate_simplex(p: np.ndarray, tolerance: float = 1e-6) -> Tuple[
         return False, f"sum_not_one_{total:.6f}"
     
     return True, "valid_simplex"
-
-
-def get_db_connection(database_url: str):
-    """Get PostgreSQL connection."""
-    return psycopg2.connect(database_url)
 
 
 def parse_basin_embedding(embedding) -> np.ndarray:
