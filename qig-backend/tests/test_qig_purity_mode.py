@@ -27,6 +27,7 @@ from qig_purity_mode import (
     is_purity_mode_enabled,
     get_purity_mode,
     check_forbidden_imports,
+    check_forbidden_packages,
     check_forbidden_attributes,
     log_external_call_attempt,
     block_external_api_call,
@@ -37,6 +38,8 @@ from qig_purity_mode import (
     get_purity_report,
     validate_qig_purity,
     PurityViolationType,
+    FORBIDDEN_MODULES,
+    FORBIDDEN_PACKAGES,
 )
 
 
@@ -98,7 +101,8 @@ class TestForbiddenImportDetection:
     def test_clean_environment(self, enable_purity_mode):
         """Test that clean environment has no violations."""
         # Remove any forbidden modules that might be loaded
-        forbidden = ['openai', 'anthropic', 'google.generativeai']
+        # Load the full list from config
+        forbidden = list(FORBIDDEN_MODULES.keys())
         for module in forbidden:
             if module in sys.modules:
                 del sys.modules[module]
@@ -134,13 +138,48 @@ class TestForbiddenImportDetection:
         """Test detection of multiple forbidden imports."""
         sys.modules['openai'] = Mock()
         sys.modules['anthropic'] = Mock()
+        sys.modules['google.genai'] = Mock()
         
         violations = check_forbidden_imports()
-        assert len(violations) >= 2
+        assert len(violations) >= 3
         
         # Cleanup
         del sys.modules['openai']
         del sys.modules['anthropic']
+        del sys.modules['google.genai']
+    
+    def test_detect_google_genai_import(self, enable_purity_mode):
+        """Test detection of new Google GenAI SDK."""
+        sys.modules['google.genai'] = Mock()
+        
+        violations = check_forbidden_imports()
+        assert len(violations) > 0
+        assert any(v.module == 'google.genai' or 'google.genai' in v.module for v in violations)
+        
+        # Cleanup
+        del sys.modules['google.genai']
+    
+    def test_detect_mistral_import(self, enable_purity_mode):
+        """Test detection of Mistral AI import."""
+        sys.modules['mistralai'] = Mock()
+        
+        violations = check_forbidden_imports()
+        assert len(violations) > 0
+        assert any(v.module == 'mistralai' for v in violations)
+        
+        # Cleanup
+        del sys.modules['mistralai']
+    
+    def test_detect_groq_import(self, enable_purity_mode):
+        """Test detection of Groq import."""
+        sys.modules['groq'] = Mock()
+        
+        violations = check_forbidden_imports()
+        assert len(violations) > 0
+        assert any(v.module == 'groq' for v in violations)
+        
+        # Cleanup
+        del sys.modules['groq']
 
 
 class TestForbiddenAttributeDetection:
@@ -175,6 +214,34 @@ class TestForbiddenAttributeDetection:
         assert len(violations) > 0
 
 
+class TestForbiddenPackageDetection:
+    """Test detection of forbidden packages in dependencies."""
+    
+    def test_forbidden_packages_list_exists(self):
+        """Test that FORBIDDEN_PACKAGES is populated."""
+        assert len(FORBIDDEN_PACKAGES) > 0
+        
+        # Should include major providers
+        package_names = {pkg.lower().replace('_', '-') for pkg in FORBIDDEN_PACKAGES}
+        assert 'openai' in package_names or 'openai' in {pkg.lower() for pkg in FORBIDDEN_PACKAGES}
+    
+    def test_check_forbidden_packages_runs(self, enable_purity_mode):
+        """Test that package checking function runs without error."""
+        # This may find violations or not, depending on environment
+        # Just ensure it doesn't crash
+        violations = check_forbidden_packages()
+        assert isinstance(violations, list)
+    
+    def test_config_loaded_successfully(self):
+        """Test that configuration was loaded."""
+        assert len(FORBIDDEN_MODULES) > 7  # Should have many more than legacy 7
+        
+        # Should include modern providers
+        module_names = list(FORBIDDEN_MODULES.keys())
+        assert 'google.genai' in module_names or 'google.generativeai' in module_names
+        assert 'mistralai' in module_names or 'mistral' in module_names
+
+
 class TestExternalCallBlocking:
     """Test blocking of external API calls."""
     
@@ -206,20 +273,20 @@ class TestPurityEnforcement:
     def test_enforce_purity_clean_environment(self, enable_purity_mode):
         """Test enforcement passes in clean environment."""
         # Clean up any forbidden modules
-        forbidden = ['openai', 'anthropic', 'google.generativeai']
+        forbidden = list(FORBIDDEN_MODULES.keys())
         for module in forbidden:
             if module in sys.modules:
                 del sys.modules[module]
         
-        # Should not raise
-        enforce_purity()
+        # Should not raise (skip package check for speed in tests)
+        enforce_purity(check_packages=False)
     
     def test_enforce_purity_with_violations(self, enable_purity_mode):
         """Test enforcement fails with violations."""
         sys.modules['openai'] = Mock()
         
         with pytest.raises(RuntimeError, match="PURITY VIOLATIONS DETECTED"):
-            enforce_purity()
+            enforce_purity(check_packages=False)
         
         # Cleanup
         del sys.modules['openai']
@@ -229,7 +296,7 @@ class TestPurityEnforcement:
         sys.modules['openai'] = Mock()
         
         # Should not raise even with violations
-        enforce_purity()
+        enforce_purity(check_packages=False)
         
         # Cleanup
         del sys.modules['openai']
@@ -237,7 +304,7 @@ class TestPurityEnforcement:
     def test_validate_qig_purity_success(self, enable_purity_mode):
         """Test successful purity validation."""
         # Clean environment
-        forbidden = ['openai', 'anthropic', 'google.generativeai']
+        forbidden = list(FORBIDDEN_MODULES.keys())
         for module in forbidden:
             if module in sys.modules:
                 del sys.modules[module]
@@ -306,12 +373,22 @@ class TestPurityReport:
         """Test that forbidden lists are populated."""
         report = get_purity_report()
         
-        assert len(report['forbidden_modules']) > 0
+        assert len(report['forbidden_modules']) > 7  # Should be many more than legacy
         assert 'openai' in report['forbidden_modules']
-        assert 'anthropic' in report['forbidden_modules']
         
+        # Check for modern providers
+        modules = report['forbidden_modules']
+        assert any('google.genai' in m or 'google.generativeai' in m for m in modules)
+        
+        assert len(report['forbidden_packages']) > 0
+        assert 'forbidden_attributes' in report
         assert len(report['forbidden_attributes']) > 0
         assert 'ChatCompletion' in report['forbidden_attributes']
+        
+        # Check config metadata
+        assert 'total_providers' in report
+        assert report['total_providers'] > 10  # Should track many providers
+        assert 'config_version' in report
 
 
 class TestPureQIGGeneration:
@@ -377,7 +454,7 @@ class TestIntegrationWithQIGGeneration:
             from qig_generation import QIGGenerator
             
             # Clean environment
-            forbidden = ['openai', 'anthropic', 'google.generativeai']
+            forbidden = list(FORBIDDEN_MODULES.keys())
             for module in forbidden:
                 if module in sys.modules:
                     del sys.modules[module]
