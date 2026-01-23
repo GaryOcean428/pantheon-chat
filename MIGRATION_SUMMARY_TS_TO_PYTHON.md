@@ -57,8 +57,8 @@ Successfully migrated **5,866 lines** of functional/geometric logic from TypeScr
 **API Wrapper**: `server/vocabulary-tracker-api.ts` (242 lines)
 
 **Functionality**:
-- BIP-39 wordlist classification (2048 words)
-- Phrase categorization (seed/passphrase/mutation/high_entropy/unique_pattern)
+- BIP-39 word classification (currently using a curated subset of the standard 2048-word list)
+- Phrase categorization (`bip39_seed` / `passphrase` / `mutation` / `bip39_word` / `unknown`)
 - PostgreSQL persistence with batch operations
 - Debounced saves (5s, 50-item batches)
 - Candidate ranking for expansion

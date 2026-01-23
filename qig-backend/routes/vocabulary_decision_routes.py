@@ -9,8 +9,6 @@ Based on E8 Protocol v4.0 geometric vocabulary learning principles.
 
 from flask import Blueprint, jsonify, request
 import logging
-import numpy as np
-from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +80,7 @@ def should_learn_word():
             basin_coordinates=gary_state_data.get('basin_coordinates', []),
             basin_reference=gary_state_data.get('basin_reference', []),
             phi=gary_state_data.get('phi', 0.0),
-            kappa=gary_state_data.get('kappa', 50.0),
-            M=gary_state_data.get('M', 0.0),
+            meta=gary_state_data.get('meta', gary_state_data.get('M', 0.0)),  # Support both 'meta' and legacy 'M'
             regime=gary_state_data.get('regime', 'unknown')
         )
         
@@ -145,7 +142,7 @@ def should_learn_word():
         return jsonify({
             'success': True,
             'should_learn': decision.should_learn,
-            'decision_score': decision.decision_score,
+            'decision_score': decision.score,  # VocabularyDecision uses 'score' field
             'value_score': {
                 'efficiency': decision.value_score.efficiency,
                 'phi_weight': decision.value_score.phi_weight,

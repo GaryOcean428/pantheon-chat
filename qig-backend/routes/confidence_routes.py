@@ -5,7 +5,6 @@ Exposes confidence scoring functionality to the frontend.
 """
 
 from flask import Blueprint, jsonify, request
-from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)

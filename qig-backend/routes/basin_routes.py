@@ -5,7 +5,6 @@ Exposes basin geometry matching and clustering functionality.
 """
 
 from flask import Blueprint, jsonify, request
-from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)

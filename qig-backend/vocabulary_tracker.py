@@ -20,12 +20,11 @@ E8 Protocol: v4.0
 """
 
 import logging
-import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Set, Literal
+from typing import Dict, List, Optional, Literal
 from threading import Timer
 
 from persistence.base_persistence import get_db_connection
@@ -33,12 +32,11 @@ from persistence.base_persistence import get_db_connection
 logger = logging.getLogger(__name__)
 
 # Database availability check
+DB_AVAILABLE = False
 try:
-    import psycopg2
     from psycopg2.extras import RealDictCursor
     DB_AVAILABLE = True
 except ImportError:
-    DB_AVAILABLE = False
     logger.warning("[VocabularyTracker] psycopg2 not available - database operations disabled")
 
 

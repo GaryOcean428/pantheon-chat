@@ -9,7 +9,7 @@ Similar κ range + similar Φ + near Fisher distance → likely same origin
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict
 import hashlib
 import numpy as np
 from collections import Counter

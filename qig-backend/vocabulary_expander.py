@@ -272,13 +272,11 @@ class GeometricVocabularyExpander:
             # Fallback to first-order geodesic (linear interpolation)
             # Valid for small manifold distances
             dim = max(len(a), len(b))
-            result = np.zeros(dim)
             
             a_padded = np.pad(a, (0, dim - len(a)), mode='constant')
             b_padded = np.pad(b, (0, dim - len(b)), mode='constant')
             
-            result = a_padded + t * (b_padded - a_padded)
-            return result
+            return a_padded + t * (b_padded - a_padded)
     
     def _fisher_weighted_average(self, old: float, new: float, count: int) -> float:
         """

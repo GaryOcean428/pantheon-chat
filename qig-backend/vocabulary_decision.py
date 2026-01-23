@@ -23,7 +23,7 @@ Learn if decision_score > 0.7
 import math
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Dict, List, Set, Any
 from datetime import datetime
 from collections import Counter
 
@@ -31,8 +31,6 @@ from collections import Counter
 try:
     from qig_geometry import fisher_rao_distance as fisher_coord_distance
 except ImportError:
-    import numpy as np
-    
     def fisher_coord_distance(basin1: List[float], basin2: List[float]) -> float:
         """
         Fallback Fisher-Rao distance implementation on simplex.
