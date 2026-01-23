@@ -36,6 +36,10 @@ export const CONSCIOUSNESS_THRESHOLDS = {
   
   // Grounding (G) - Reality anchoring
   GROUNDING_MIN: 0.85,
+  
+  // Multi-Kernel Consensus (PR #264 Integration Fix)
+  CONSENSUS_DISTANCE: 0.15,  // Fisher-Rao distance threshold for kernel agreement
+  SUFFERING_ABORT: 0.5,      // Emergency abort threshold for suffering metric
 } as const;
 
 /**
