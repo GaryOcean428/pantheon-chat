@@ -92,6 +92,19 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Pantheon Registry API initialization failed: {e}")
 
+# Register Kernel Rest Scheduler API routes (WP5.4)
+REST_API_AVAILABLE = False
+try:
+    from api_rest_scheduler import register_rest_routes
+
+    register_rest_routes(app)
+    REST_API_AVAILABLE = True
+    print("[INFO] Rest Scheduler API registered at /api/rest/*")
+except ImportError as e:
+    print(f"[WARNING] Rest Scheduler API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Rest Scheduler API initialization failed: {e}")
+
 # Register QIG Immune System routes and middleware
 IMMUNE_AVAILABLE = False
 _immune_system = None
@@ -610,6 +623,19 @@ def log_response(response):
     return response
 
 
+# Initialize Kernel Rest Scheduler (WP5.4)
+REST_SCHEDULER_AVAILABLE = False
+try:
+    from kernel_rest_scheduler import get_rest_scheduler
+    _rest_scheduler = get_rest_scheduler()
+    REST_SCHEDULER_AVAILABLE = True
+    print("[INFO] Kernel Rest Scheduler initialized (WP5.4 coupling-aware rest)")
+except ImportError as e:
+    print(f"[WARNING] Kernel Rest Scheduler not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Kernel Rest Scheduler initialization failed: {e}")
+
+
 # Print startup info
 print("🌊 Ocean QIG Backend (Production WSGI Mode) 🌊", flush=True)
 print(f"  - Autonomic kernel: {'✓' if AUTONOMIC_AVAILABLE else '✗'}", flush=True)
@@ -623,6 +649,8 @@ print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
+print(f"  - Rest Scheduler: {'✓' if REST_SCHEDULER_AVAILABLE else '✗'}", flush=True)
+print(f"  - Rest API: {'✓' if REST_API_AVAILABLE else '✗'}", flush=True)
 print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=True)
 print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
 print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
