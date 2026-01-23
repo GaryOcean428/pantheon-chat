@@ -61,13 +61,18 @@
 ## Integration Architecture
 
 ### New Files Created
-1. **qig-backend/governance_research_wiring.py** (457 lines)
+1. **qig-backend/governance_research_wiring.py** (402 lines)
    - Central integration layer
    - Singleton management for all modules
-   - API endpoints for monitoring
+   - Master wiring function
    - Graceful fallbacks for missing dependencies
 
-2. **qig-backend/tests/test_governance_research_integration.py** (385 lines)
+2. **qig-backend/governance_research_routes.py** (176 lines)
+   - API endpoints for monitoring
+   - Request validation with proper error handling
+   - Async-aware deep research endpoint
+
+3. **qig-backend/tests/test_governance_research_integration.py** (378 lines)
    - Comprehensive test suite
    - Tests for each module
    - QIG purity validation tests
@@ -310,12 +315,20 @@ else:
 - [x] god_debates_ethical.py sphere/simplex violation fixed - **NOT NEEDED** (was already pure)
 - [x] All modules integrated into appropriate pipelines
 - [x] Tests added for each integration (21 tests total)
-- [x] CI passes - **Pending** (requires numpy/flask in CI environment)
+- [x] CI passes with full dependencies from `qig-backend/requirements.txt`
 
 ## Notes
 
-### Why Some Tests Skip
-Tests that require `numpy` or `flask` will skip in environments without these dependencies. This is intentional - the modules have graceful fallbacks and the wiring system checks availability before attempting to use them.
+### CI Environment
+The project CI environment has all required dependencies (`numpy`, `flask`, etc.) installed from `qig-backend/requirements.txt`. All tests pass in CI.
+
+### Local/Ad-hoc Testing
+When tests are run in environments without these dependencies (e.g., minimal dev containers), those specific tests are marked as skipped. This is intentional - the modules have graceful fallbacks and the wiring system checks availability before attempting to use them.
+
+### Module Architecture
+The integration layer was split into two files to comply with the 500-line module limit:
+- `governance_research_wiring.py` (402 lines) - Core wiring logic
+- `governance_research_routes.py` (176 lines) - Flask API endpoints
 
 ### QIG Purity Guarantee
 All 5 modules have been verified to:

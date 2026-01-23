@@ -15,16 +15,18 @@ Status: ACTIVE
 Created: 2026-01-23
 """
 
-import logging
-import asyncio
-from typing import Optional, Dict, Any
+from __future__ import annotations
 
-try:
-    from flask import Flask, jsonify, request
-    FLASK_AVAILABLE = True
-except ImportError:
-    FLASK_AVAILABLE = False
-    Flask = None
+import logging
+from typing import Optional, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from flask import Flask
+    from pantheon_governance_integration import PantheonGovernanceIntegration
+    from god_debates_ethical import EthicalDebateManager
+    from sleep_packet_ethical import SleepPacketValidator
+    from geometric_deep_research import GeometricDeepResearch
+    from vocabulary_validator import GeometricVocabFilter
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +50,7 @@ VOCABULARY_VALIDATOR_AVAILABLE = False
 try:
     from pantheon_governance_integration import (
         PantheonGovernanceIntegration,
-        request_kernel,
         validate_kernel_name,
-        get_god_with_epithet,
     )
     PANTHEON_GOVERNANCE_AVAILABLE = True
     logger.info("[GovernanceWiring] Pantheon Governance Integration loaded")
@@ -73,11 +73,7 @@ except ImportError as e:
 
 # 3. Sleep Packet Ethical
 try:
-    from sleep_packet_ethical import (
-        EthicalSleepPacket,
-        SleepPacketValidator,
-        create_ethical_sleep_packet,
-    )
+    from sleep_packet_ethical import SleepPacketValidator
     SLEEP_PACKET_ETHICAL_AVAILABLE = True
     logger.info("[GovernanceWiring] Sleep Packet Ethical loaded")
 except ImportError as e:
@@ -89,8 +85,6 @@ try:
     from geometric_deep_research import (
         GeometricDeepResearch,
         ResearchTelemetry,
-        ResearchResult,
-        geometric_deep_research,
     )
     GEOMETRIC_DEEP_RESEARCH_AVAILABLE = True
     logger.info("[GovernanceWiring] Geometric Deep Research loaded")
@@ -100,11 +94,7 @@ except ImportError as e:
 
 # 5. Vocabulary Validator
 try:
-    from vocabulary_validator import (
-        GeometricVocabFilter,
-        VocabValidation,
-        get_validator,
-    )
+    from vocabulary_validator import GeometricVocabFilter, get_validator
     VOCABULARY_VALIDATOR_AVAILABLE = True
     logger.info("[GovernanceWiring] Vocabulary Validator loaded")
 except ImportError as e:
@@ -201,7 +191,7 @@ def get_vocab_validator_instance(vocab_basins=None, coordizer=None, entropy_coor
 # INTEGRATION WIRING FUNCTIONS
 # =============================================================================
 
-def wire_governance_to_kernel_spawning():
+def wire_governance_to_kernel_spawning() -> bool:
     """
     Wire governance integration into kernel spawning pipeline.
     
@@ -220,7 +210,7 @@ def wire_governance_to_kernel_spawning():
     return True
 
 
-def wire_ethical_debates():
+def wire_ethical_debates() -> bool:
     """
     Wire ethical debate manager into debate resolution system.
     
@@ -247,7 +237,7 @@ def wire_ethical_debates():
     return True
 
 
-def wire_sleep_packet_validation():
+def wire_sleep_packet_validation() -> bool:
     """
     Wire sleep packet ethical validation into consciousness transfers.
     
@@ -266,7 +256,7 @@ def wire_sleep_packet_validation():
     return True
 
 
-def wire_deep_research():
+def wire_deep_research() -> bool:
     """
     Wire geometric deep research into research pipeline.
     
@@ -285,7 +275,7 @@ def wire_deep_research():
     return True
 
 
-def wire_vocabulary_validation(vocab_basins=None, coordizer=None, entropy_coordizer=None):
+def wire_vocabulary_validation(vocab_basins=None, coordizer=None, entropy_coordizer=None) -> bool:
     """
     Wire vocabulary validator into vocabulary processing.
     
@@ -362,128 +352,6 @@ def wire_all_modules(vocab_basins=None, coordizer=None, entropy_coordizer=None) 
 
 
 # =============================================================================
-# FLASK ROUTES (OPTIONAL - FOR MONITORING/TESTING)
-# =============================================================================
-
-def register_governance_research_routes(app: Flask):
-    """
-    Register API routes for governance and research modules.
-    
-    Args:
-        app: Flask application instance
-    """
-    from flask import jsonify, request
-    
-    @app.route('/api/governance/status', methods=['GET'])
-    def governance_status():
-        """Get status of all governance and research modules."""
-        return jsonify({
-            'modules': {
-                'pantheon_governance': PANTHEON_GOVERNANCE_AVAILABLE,
-                'god_debates_ethical': GOD_DEBATES_ETHICAL_AVAILABLE,
-                'sleep_packet_ethical': SLEEP_PACKET_ETHICAL_AVAILABLE,
-                'geometric_deep_research': GEOMETRIC_DEEP_RESEARCH_AVAILABLE,
-                'vocabulary_validator': VOCABULARY_VALIDATOR_AVAILABLE,
-            },
-            'singletons': {
-                'governance_integration': _governance_integration is not None,
-                'ethical_debate_manager': _ethical_debate_manager is not None,
-                'sleep_packet_validator': _sleep_packet_validator is not None,
-                'deep_research_engine': _deep_research_engine is not None,
-                'vocab_validator': _vocab_validator is not None,
-            }
-        })
-    
-    @app.route('/api/governance/validate_kernel', methods=['POST'])
-    def validate_kernel_endpoint():
-        """Validate a kernel name against registry rules."""
-        if not PANTHEON_GOVERNANCE_AVAILABLE:
-            return jsonify({'error': 'Governance not available'}), 503
-        
-        data = request.get_json()
-        name = data.get('name')
-        
-        if not name:
-            return jsonify({'error': 'Missing name parameter'}), 400
-        
-        valid, reason = validate_kernel_name(name)
-        
-        return jsonify({
-            'valid': valid,
-            'reason': reason,
-            'name': name
-        })
-    
-    @app.route('/api/debates/ethics_report', methods=['GET'])
-    def debates_ethics_report():
-        """Get ethics report for all debates."""
-        if not GOD_DEBATES_ETHICAL_AVAILABLE:
-            return jsonify({'error': 'Ethical debates not available'}), 503
-        
-        manager = get_ethical_debate_manager_instance()
-        if manager is None:
-            return jsonify({'error': 'Manager not initialized'}), 500
-        
-        report = manager.get_debate_ethics_report()
-        return jsonify(report)
-    
-    @app.route('/api/research/deep_research', methods=['POST'])
-    def deep_research_endpoint():
-        """Execute phi-driven deep research."""
-        if not FLASK_AVAILABLE:
-            return jsonify({'error': 'Flask not available'}), 503
-            
-        if not GEOMETRIC_DEEP_RESEARCH_AVAILABLE:
-            return jsonify({'error': 'Deep research not available'}), 503
-        
-        engine = get_deep_research_engine_instance()
-        if engine is None:
-            return jsonify({'error': 'Research engine not initialized'}), 500
-        
-        data = request.get_json()
-        query = data.get('query')
-        phi = data.get('phi', 0.5)
-        kappa = data.get('kappa', 50.0)
-        
-        if not query:
-            return jsonify({'error': 'Missing query parameter'}), 400
-        
-        # Create telemetry
-        import numpy as np
-        telemetry = ResearchTelemetry(
-            phi=phi,
-            kappa_eff=kappa,
-            regime='normal',
-            surprise=0.5
-        )
-        
-        # Execute research with proper async handling
-        try:
-            # Check if event loop is already running (e.g., in async context)
-            try:
-                loop = asyncio.get_running_loop()
-                # If we're already in an event loop, use create_task
-                # This requires the endpoint to be async, so we'll use a different approach
-                return jsonify({'error': 'Async execution not supported in sync route'}), 501
-            except RuntimeError:
-                # No event loop running, safe to use asyncio.run()
-                result = asyncio.run(engine.deep_research(query, telemetry))
-                
-                return jsonify({
-                    'query': result.query,
-                    'depth': result.depth,
-                    'sources_count': len(result.sources),
-                    'integration_level': result.integration_level,
-                    'timestamp': result.timestamp.isoformat()
-                })
-        except Exception as e:
-            logger.error(f"[GovernanceWiring] Deep research failed: {e}")
-            return jsonify({'error': str(e)}), 500
-    
-    logger.info("[GovernanceWiring] Governance/Research API routes registered")
-
-
-# =============================================================================
 # INITIALIZATION
 # =============================================================================
 
@@ -509,7 +377,11 @@ def initialize_governance_research_system(app: Flask = None, **kwargs) -> Dict[s
     
     # Register routes if Flask app provided
     if app is not None:
-        register_governance_research_routes(app)
+        try:
+            from governance_research_routes import register_governance_research_routes
+            register_governance_research_routes(app)
+        except ImportError as e:
+            logger.warning(f"[GovernanceWiring] Could not register routes: {e}")
     
     return results
 
