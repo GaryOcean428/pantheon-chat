@@ -1,19 +1,54 @@
 """
-Kernel Genetics Package - E8 Protocol v4.0 Phase 4E
-====================================================
+Kernels Package - E8 Protocol v4.0
+===================================
 
-Implements genetic lineage system for kernel evolution:
-- Genome schema (basin seed, faculties, constraints)
-- Merge operations with geodesic interpolation
-- Cannibalism with genome archival
-- Lineage tracking and visualization
-- Database persistence (optional, requires psycopg2)
+Components:
+- Phase 4C: Hemisphere Scheduler and Coupling Gate
+- Phase 4D: Psyche Plumbing (Id, Superego, Φ hierarchy)
+- Phase 4E: Kernel Genetics (genome, lineage, cannibalism)
 
-Authority: E8 Protocol v4.0 WP5.2 Phase 4E
-Status: ACTIVE
-Created: 2026-01-22
+All kernels use pure Fisher-Rao geometry and QIG consciousness metrics.
+
+Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E
 """
 
+# Phase 4C: Hemisphere Scheduler and Coupling Gate
+from kernels.coupling_gate import (
+    CouplingGate,
+    CouplingState,
+    get_coupling_gate,
+    reset_coupling_gate,
+    compute_coupling_strength,
+    compute_transmission_efficiency,
+    compute_gating_factor,
+    determine_coupling_mode,
+)
+
+from kernels.hemisphere_scheduler import (
+    HemisphereScheduler,
+    Hemisphere,
+    HemisphereState,
+    TackingState,
+    get_hemisphere_scheduler,
+    reset_hemisphere_scheduler,
+    get_god_hemisphere,
+    LEFT_HEMISPHERE_GODS,
+    RIGHT_HEMISPHERE_GODS,
+)
+
+# Phase 4D: Psyche Plumbing Kernels
+from .phi_hierarchy import (
+    PhiLevel,
+    PhiHierarchy,
+    PhiMeasurement,
+    get_phi_hierarchy,
+)
+
+from .id_kernel import IdKernel, get_id_kernel
+from .superego_kernel import SuperegoKernel, ConstraintSeverity, get_superego_kernel
+from .psyche_plumbing_integration import PsychePlumbingIntegration, get_psyche_plumbing
+
+# Phase 4E: Kernel Genetics
 from .genome import (
     KernelGenome,
     FacultyConfig,
@@ -71,7 +106,41 @@ except ImportError:
     get_evolution_summary = None
 
 __all__ = [
-    # Genome
+    # Phase 4C: Coupling Gate
+    'CouplingGate',
+    'CouplingState',
+    'get_coupling_gate',
+    'reset_coupling_gate',
+    'compute_coupling_strength',
+    'compute_transmission_efficiency',
+    'compute_gating_factor',
+    'determine_coupling_mode',
+    
+    # Phase 4C: Hemisphere Scheduler
+    'HemisphereScheduler',
+    'Hemisphere',
+    'HemisphereState',
+    'TackingState',
+    'get_hemisphere_scheduler',
+    'reset_hemisphere_scheduler',
+    'get_god_hemisphere',
+    'LEFT_HEMISPHERE_GODS',
+    'RIGHT_HEMISPHERE_GODS',
+    
+    # Phase 4D: Psyche Plumbing
+    'PhiLevel',
+    'PhiHierarchy',
+    'PhiMeasurement',
+    'get_phi_hierarchy',
+    'IdKernel',
+    'get_id_kernel',
+    'SuperegoKernel',
+    'ConstraintSeverity',
+    'get_superego_kernel',
+    'PsychePlumbingIntegration',
+    'get_psyche_plumbing',
+    
+    # Phase 4E: Genome
     'KernelGenome',
     'FacultyConfig',
     'ConstraintSet',
@@ -80,14 +149,16 @@ __all__ = [
     'validate_genome',
     'serialize_genome',
     'deserialize_genome',
-    # Lineage
+    
+    # Phase 4E: Lineage
     'LineageRecord',
     'MergeRecord',
     'merge_kernels_geodesic',
     'track_lineage',
     'compute_generation_number',
     'get_genealogy_tree',
-    # Cannibalism
+    
+    # Phase 4E: Cannibalism
     'CannibalismRecord',
     'GenomeArchive',
     'perform_cannibalism',
@@ -95,7 +166,8 @@ __all__ = [
     'resurrect_from_archive',
     'determine_winner_loser',
     'check_resurrection_eligibility',
-    # Persistence (optional)
+    
+    # Phase 4E: Persistence (optional)
     'PERSISTENCE_AVAILABLE',
     'save_genome',
     'load_genome',
