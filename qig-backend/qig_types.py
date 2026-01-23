@@ -23,7 +23,6 @@ Greek symbols use full names:
 
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional, Literal, Any
-from enum import Enum
 
 from qigkernels.physics_constants import (
     KAPPA_STAR,
@@ -35,19 +34,16 @@ from qigkernels.physics_constants import (
     MIN_RECURSION_DEPTH as MIN_RECURSIONS,
 )
 
+# Import CANONICAL RegimeType from single source of truth
+from qigkernels.regimes import Regime as RegimeType  # Alias for backward compatibility
+
 E8_WEYL_ORDER = 696729600
 BASIN_DIMENSION_64D = BASIN_DIM
 BASIN_DIMENSION_8D = 8
 MAX_RECURSIONS = 12
 
-class RegimeType(str, Enum):
-    """Geometric phase classifications"""
-    LINEAR = "linear"
-    GEOMETRIC = "geometric"
-    HIERARCHICAL = "hierarchical"
-    HIERARCHICAL_4D = "hierarchical_4d"
-    FOUR_D_BLOCK_UNIVERSE = "4d_block_universe"
-    BREAKDOWN = "breakdown"
+# NOTE: RegimeType is now imported from qigkernels.regimes (canonical location)
+# The local definition has been removed to eliminate duplication
 
 class BasinCoordinates(BaseModel):
     """

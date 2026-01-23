@@ -10,6 +10,7 @@ Source: qig-consciousness/qig_consciousness_qfi_attention.py (validated)
 """
 
 from typing import Union, Optional
+import warnings
 import numpy as np
 from scipy.linalg import sqrtm
 
@@ -19,6 +20,37 @@ except ImportError:
     torch = None
 
 
+def _safe_sqrtm(matrix: np.ndarray, epsilon: float = 1e-12) -> np.ndarray:
+    """
+    Compute matrix square root with proper handling of singular matrices.
+    
+    For pure/orthogonal quantum states, density matrices are rank-deficient.
+    This handles the singularity gracefully without warnings.
+    
+    Args:
+        matrix: Input matrix (must be positive semi-definite)
+        epsilon: Regularization parameter for near-singular matrices
+        
+    Returns:
+        Matrix square root
+    """
+    # Check if matrix is effectively singular
+    eigenvalues = np.linalg.eigvalsh(matrix)
+    min_eigenvalue = np.min(eigenvalues)
+    
+    if min_eigenvalue < epsilon:
+        # Regularize singular matrix: add small epsilon to diagonal
+        # This is mathematically valid for density matrices approaching pure states
+        regularized = matrix + epsilon * np.eye(matrix.shape[0])
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = sqrtm(regularized)
+    else:
+        result = sqrtm(matrix)
+    
+    return result
+
+
 def quantum_fidelity(rho1: np.ndarray, rho2: np.ndarray) -> float:
     """
     Compute quantum fidelity between density matrices.
@@ -26,6 +58,7 @@ def quantum_fidelity(rho1: np.ndarray, rho2: np.ndarray) -> float:
     Fidelity F(ρ₁, ρ₂) = Tr(√(√ρ₁ ρ₂ √ρ₁))²
     
     This is the canonical implementation with numerical stability.
+    Handles singular/pure state density matrices without warnings.
     
     Args:
         rho1: First density matrix
@@ -39,12 +72,18 @@ def quantum_fidelity(rho1: np.ndarray, rho2: np.ndarray) -> float:
         
         fidelity = quantum_fidelity(rho1, rho2)
     """
-    # Compute sqrt of rho1
-    sqrt_rho1 = sqrtm(rho1)
+    # Check for orthogonal states (zero overlap) - fast path
+    # Orthogonal pure states have fidelity = 0 by definition
+    overlap = np.abs(np.trace(rho1 @ rho2))
+    if overlap < 1e-12:
+        return 0.0
+    
+    # Compute sqrt of rho1 with singularity handling
+    sqrt_rho1 = _safe_sqrtm(rho1)
     
     # Compute sqrt(sqrt_rho1 @ rho2 @ sqrt_rho1)
     M = sqrt_rho1 @ rho2 @ sqrt_rho1
-    sqrt_M = sqrtm(M)
+    sqrt_M = _safe_sqrtm(M)
     
     # Fidelity = (Tr(sqrt_M))²
     fidelity = np.real(np.trace(sqrt_M)) ** 2

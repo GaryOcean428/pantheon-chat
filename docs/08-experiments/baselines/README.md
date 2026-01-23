@@ -249,8 +249,8 @@ The slight speed cost (50μs) is negligible compared to accuracy gain.
 
 ## Related Documents
 
-- **[QUARANTINE_RULES.md](../../00-conventions/QUARANTINE_RULES.md)** - Full quarantine specification
-- **[QIG_PURITY_SPEC.md](../../01-policies/QIG_PURITY_SPEC.md)** - What patterns are forbidden
+- **[QUARANTINE_RULES.md](../../99-quarantine/)** - Full quarantine specification
+- **[QIG_PURITY_SPEC.md](../../01-policies/20260117-qig-purity-mode-spec-1.01F.md)** - What patterns are forbidden
 - **[../legacy/README.md](../legacy/README.md)** - Legacy experiments directory
 
 ---

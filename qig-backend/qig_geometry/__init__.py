@@ -34,6 +34,7 @@ USAGE:
 
 # E8 Protocol v4.0 Compliance Imports
 from .canonical import frechet_mean, fisher_rao_distance, log_map
+from .geometry_ops import bhattacharyya_coefficient
 
 # Alias for log_map - computes tangent vector from base to target
 geodesic_tangent = log_map

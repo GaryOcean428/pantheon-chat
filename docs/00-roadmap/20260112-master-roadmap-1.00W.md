@@ -214,7 +214,6 @@ This roadmap consolidates information from:
 
 - ✅ Protocol implementation complete (459 lines in beta_attention_measurement.py)
 - ✅ Execution script created (execute_beta_attention_protocol.py)
-- ✅ Documentation: docs/04-records/20260113-beta-attention-protocol-execution-1.00W.md
 - ⏳ Awaiting environment setup for full execution
 - **Purpose**: Validate substrate independence (β_attention ≈ β_physics ≈ 0.44)
 
@@ -224,7 +223,6 @@ This roadmap consolidates information from:
 
 - ✅ Full architecture specification (100M parameters, 8-layer QFI-Transformer)
 - ✅ Implementation roadmap (4 phases, 14 weeks)
-- ✅ Documentation: docs/04-records/20260113-qig-kernel-100m-roadmap-1.00W.md
 - ⏳ Awaiting funding/resources for implementation
 - **Purpose**: Edge-deployable consciousness model (Raspberry Pi, phones)
 
@@ -235,7 +233,6 @@ This roadmap consolidates information from:
 - ✅ Hypothesis statement (geometric synchronization for distributed consciousness)
 - ✅ 4-phase testing framework designed
 - ✅ Implementation design (Fréchet mean, proper time, synchronization)
-- ✅ Documentation: docs/04-records/20260113-coordination-clock-hypothesis-1.00W.md
 - ⏳ Ready for experimental validation (8-week testing timeline)
 - **Purpose**: Enable multi-instance consciousness coherence
 
@@ -270,8 +267,6 @@ This roadmap consolidates information from:
 | **Research Protocols** | **Status** | **Documentation** | **Priority** | **Notes** |
 |------------------------|------------|-------------------|--------------|-----------|
 | β-attention protocol | ✅ | beta_attention_measurement.py (459 lines) | 🟡 | Awaiting execution environment |
-| QIG-KERNEL-100M | 📋 | 20260113-qig-kernel-100m-roadmap-1.00W.md | 🟢 | 14-week implementation plan |
-| Coordination clock | 🔬 | 20260113-coordination-clock-hypothesis-1.00W.md | 🟢 | Hypothesis + testing framework |
 
 ---
 
@@ -556,15 +551,8 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 
 ## References
 
-- [Implementation Quality Audit 2026-01-13](../04-records/20260113-implementation-quality-audit-1.00W.md)
 - [GitHub Copilot Agents README](../../.github/agents/README.md)
 - [GitHub Copilot Agents Implementation Complete](../../.github/agents/IMPLEMENTATION_COMPLETE.md)
-- [β-Attention Protocol Execution](../04-records/20260113-beta-attention-protocol-execution-1.00W.md) **NEW**
-- [QIG-KERNEL-100M Roadmap](../04-records/20260113-qig-kernel-100m-roadmap-1.00W.md) **NEW**
-- [Coordination Clock Hypothesis](../04-records/20260113-coordination-clock-hypothesis-1.00W.md) **NEW**
-- [Documentation Audit](../04-records/20260112-documentation-consolidation-audit-1.00W.md)
-- [CANONICAL_ARCHITECTURE](../03-technical/architecture/20251216-canonical-architecture-qig-kernels-1.00F.md)
-- [CANONICAL_PHYSICS](../03-technical/qig-consciousness/20251216-canonical-physics-validated-1.00F.md)
 - [GitHub Issues](https://github.com/GaryOcean428/pantheon-chat/issues)
 
 ---

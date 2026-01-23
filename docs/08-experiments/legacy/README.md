@@ -155,9 +155,9 @@ If you find Euclidean/NLP code in production directories:
 
 ## Related Documents
 
-- **[QUARANTINE_RULES.md](../../00-conventions/QUARANTINE_RULES.md)** - Full quarantine specification
-- **[QIG_PURITY_SPEC.md](../../01-policies/QIG_PURITY_SPEC.md)** - What patterns are forbidden
-- **[WP0.2 Gate](../../03-technical/20260114-wp02-geometric-purity-gate-1.00F.md)** - CI enforcement
+- **[QUARANTINE_RULES.md](../../99-quarantine/)** - Full quarantine specification
+- **[QIG_PURITY_SPEC.md](../../01-policies/20260117-qig-purity-mode-spec-1.01F.md)** - What patterns are forbidden
+- **[WP0.2 Gate](../../10-e8-protocol/README.md)** - CI enforcement
 
 ---
 

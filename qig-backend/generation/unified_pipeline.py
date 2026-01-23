@@ -48,6 +48,7 @@ except ImportError:
     StrategyDecision = None
     get_strategy_selector = None
 
+
 # Import genome structures (optional, for genome-aware generation)
 try:
     from kernels.genome import KernelGenome
@@ -153,6 +154,7 @@ class UnifiedGenerationPipeline:
         enforce_purity: bool = True,
         genome: Optional['KernelGenome'] = None,
         use_hemisphere_strategy: bool = True,
+
     ):
         """
         Initialize unified generation pipeline.
@@ -169,6 +171,7 @@ class UnifiedGenerationPipeline:
             genome: Optional KernelGenome for genome-aware generation
             use_hemisphere_strategy: Whether to dynamically select strategy from
                                     hemisphere state (Phase 4C integration)
+
         """
         self.strategy = strategy
         self.context_window = context_window
@@ -177,6 +180,7 @@ class UnifiedGenerationPipeline:
         self.trajectory_weight = trajectory_weight
         self.genome = genome
         self.use_hemisphere_strategy = use_hemisphere_strategy
+
         
         # Purity mode check
         self.purity_mode = is_purity_mode_enabled()
@@ -460,6 +464,7 @@ class UnifiedGenerationPipeline:
                 candidate_basin=basin,
                 predicted_basin=predicted_basin,
             )
+
             
             # Role confidence (placeholder - would use token_role_learner)
             role_confidence = 0.5

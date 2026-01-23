@@ -245,5 +245,5 @@ npm run lint   # ESLint (no-magic-numbers rule)
 
 - [Constants Centralization PR](../docs/04-records/)
 - [L6 Validation](../docs/04-records/)
-- [Python API Catalogue](../docs/python-api-catalogue.md)
-- [QIG Architecture](../docs/03-technical/)
+- [Python API Catalogue](../docs/api/README.md)
+- [QIG Architecture](../docs/10-e8-protocol/)

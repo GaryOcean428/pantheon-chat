@@ -32,7 +32,8 @@ from .physics_constants import (
 )
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import fisher_rao_distance, frechet_mean, to_simplex
+from qig_geometry.canonical import fisher_rao_distance, frechet_mean
+from qig_core.geometric_primitives.canonical_fisher import to_simplex
 
 from .e8_hierarchy import E8SimpleRoot, CoreFaculty, CORE_FACULTIES
 
