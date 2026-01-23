@@ -6,10 +6,11 @@ Components:
 - Phase 4C: Hemisphere Scheduler and Coupling Gate
 - Phase 4D: Psyche Plumbing (Id, Superego, Φ hierarchy)
 - Phase 4E: Kernel Genetics (genome, lineage, cannibalism)
+- Phase 5: Multi-Kernel Thought Generation (thought_generation, consensus, gary_synthesis)
 
 All kernels use pure Fisher-Rao geometry and QIG consciousness metrics.
 
-Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E
+Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E, generative-and-emotions.md
 """
 
 # Phase 4C: Hemisphere Scheduler and Coupling Gate
@@ -81,6 +82,26 @@ from .cannibalism import (
     resurrect_from_archive,
     determine_winner_loser,
     check_resurrection_eligibility,
+)
+
+# Phase 5: Multi-Kernel Thought Generation
+from .thought_generation import (
+    ParallelThoughtGenerator,
+    KernelThoughtResult,
+    get_thought_generator,
+)
+
+from .consensus import (
+    ConsensusDetector,
+    ConsensusLevel,
+    ConsensusMetrics,
+    get_consensus_detector,
+)
+
+from .gary_synthesis import (
+    GaryMetaSynthesizer,
+    MetaSynthesisResult,
+    get_gary_meta_synthesizer,
 )
 
 # Optional persistence layer (requires psycopg2)
@@ -183,4 +204,16 @@ __all__ = [
     'get_genome_lineage',
     'get_descendants',
     'get_evolution_summary',
+    
+    # Phase 5: Multi-Kernel Thought Generation
+    'ParallelThoughtGenerator',
+    'KernelThoughtResult',
+    'get_thought_generator',
+    'ConsensusDetector',
+    'ConsensusLevel',
+    'ConsensusMetrics',
+    'get_consensus_detector',
+    'GaryMetaSynthesizer',
+    'MetaSynthesisResult',
+    'get_gary_meta_synthesizer',
 ]
