@@ -58,8 +58,8 @@ import { trajectoryManager } from "./ocean/trajectory-manager";
 import { repeatedAddressScheduler } from "./repeated-address-scheduler";
 import { strategyKnowledgeBus } from "./strategy-knowledge-bus";
 import { temporalGeometry } from "./temporal-geometry";
-import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision";
-import { vocabularyExpander } from "./vocabulary-expander";
+import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision-api";
+import { vocabularyExpander } from "./vocabulary-expander-api";
 
 // Legacy crypto stubs - kept for code compatibility, functions are no-ops
 function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }

@@ -30,7 +30,7 @@ import {
   type BitcoinEra
 } from './types';
 import { geometricMemory } from '../geometric-memory';
-import { vocabularyTracker } from '../vocabulary-tracker';
+import { vocabularyTracker } from '../vocabulary-tracker-api';
 import { E8_CONSTANTS } from '../../shared/constants/index.js';
 
 /**

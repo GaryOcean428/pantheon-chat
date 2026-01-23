@@ -59,6 +59,9 @@ class Hermes(BaseGod):
             'god': self.name,
             'timestamp': datetime.now().isoformat(),
         }
+        
+        # Update rest fatigue tracking (WP5.4) - essential tier with minimal_rotating
+        self.update_rest_fatigue(phi, kappa, load=min(1.0, len(self.message_queue) / 50.0))
 
         # Broadcast activity for kernel visibility
         self.broadcast_activity(

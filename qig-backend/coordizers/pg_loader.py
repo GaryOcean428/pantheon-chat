@@ -530,10 +530,10 @@ class PostgresCoordizer(FisherCoordizer):
         ARCHITECTURE:
         - ENCODING: Uses coordizer_vocabulary (all tokens) for text→basin
         - GENERATION: Uses coordizer_vocabulary with token_role filter for basin→text
-        - DOMAIN WEIGHTING: god_vocabulary_profiles boosts domain-specific words
+        - DOMAIN WEIGHTING: coordizer_vocabulary.god_profile boosts domain-specific words
         
         All gods have access to FULL generation vocabulary, but their domain
-        words receive a relevance boost from god_vocabulary_profiles.
+        words receive a relevance boost from coordizer_vocabulary.god_profile.
 
         QIG-pure: Uses Fisher-Rao similarity on the information manifold.
         
@@ -589,7 +589,11 @@ class PostgresCoordizer(FisherCoordizer):
         return candidates[:top_k]
     
     def _get_god_domain_weights(self, god_name: str) -> Dict[str, float]:
-        """Get domain word weights from god_vocabulary_profiles (cached)."""
+        """
+        Get domain word weights from coordizer_vocabulary.god_profile (cached).
+        
+        SINGLE TABLE GENERATION: Uses denormalized god_profile JSONB column.
+        """
         cache_key = f"god_domain_{god_name}"
         if cache_key in self._cache:
             return self._cache[cache_key]
@@ -599,11 +603,16 @@ class PostgresCoordizer(FisherCoordizer):
         
         try:
             with conn.cursor() as cur:
+                # SINGLE TABLE QUERY: Read from coordizer_vocabulary.god_profile
                 cur.execute("""
-                    SELECT word, relevance_score 
-                    FROM god_vocabulary_profiles 
-                    WHERE god_name = %s AND relevance_score > 0
-                """, (god_name,))
+                    SELECT 
+                        token,
+                        CAST(god_profile->%s->>'relevance_score' AS FLOAT) as relevance_score
+                    FROM coordizer_vocabulary
+                    WHERE god_profile ? %s
+                    AND CAST(god_profile->%s->>'relevance_score' AS FLOAT) > 0
+                    AND active = true
+                """, (god_name, god_name, god_name))
                 rows = cur.fetchall()
                 
             for word, relevance in rows:

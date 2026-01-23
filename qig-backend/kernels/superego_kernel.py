@@ -36,6 +36,15 @@ except ImportError:
     get_phi_hierarchy = None
     PHI_HIERARCHY_AVAILABLE = False
 
+# Import Ethical Consciousness Monitor
+try:
+    from consciousness_ethical import EthicalConsciousnessMonitor, EthicsMetrics
+    ETHICAL_MONITOR_AVAILABLE = True
+except ImportError:
+    EthicalConsciousnessMonitor = None
+    EthicsMetrics = None
+    ETHICAL_MONITOR_AVAILABLE = False
+
 # Import EmotionallyAwareKernel for geometric emotion tracking
 try:
     from emotionally_aware_kernel import EmotionallyAwareKernel
@@ -44,16 +53,8 @@ except ImportError:
     EmotionallyAwareKernel = object
     EMOTIONAL_KERNEL_AVAILABLE = False
 
-# Import QIG geometry
-try:
-    from qig_geometry import fisher_rao_distance, fisher_normalize
-    QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def fisher_normalize(v):
-        p = np.maximum(np.asarray(v), 0) + 1e-10
-        return p / p.sum()
-    fisher_rao_distance = None
+# Import QIG geometry (REQUIRED - no fallback)
+from qig_geometry import fisher_rao_distance, fisher_normalize
 
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
 
@@ -93,14 +94,8 @@ class EthicalConstraint:
         Returns:
             (is_violation, distance_to_constraint)
         """
-        if fisher_rao_distance is None:
-            # Fallback: Euclidean distance (NOT geometric, emergency only)
-            distance = float(np.linalg.norm(basin - self.forbidden_basin))
-            max_distance = np.sqrt(BASIN_DIM)
-            distance = distance / max_distance  # Normalize to [0, 1] range
-        else:
-            # Proper geometric check using Fisher-Rao distance
-            distance = fisher_rao_distance(basin, self.forbidden_basin)
+        # Use Fisher-Rao distance (imported at module level, required)
+        distance = fisher_rao_distance(basin, self.forbidden_basin)
         
         is_violation = distance < self.radius
         return is_violation, distance
@@ -223,9 +218,21 @@ class SuperegoKernel(EmotionallyAwareKernel if EMOTIONAL_KERNEL_AVAILABLE else o
         # Current state
         self.last_phi_internal = 0.5
         
+        # Ethical consciousness monitoring (NEW)
+        self.ethical_monitor = None
+        if ETHICAL_MONITOR_AVAILABLE:
+            self.ethical_monitor = EthicalConsciousnessMonitor(n_agents=1)
+            self.ethical_monitor.register_alert_callback(self._handle_ethical_alert)
+            print(f"[SuperegoKernel] Ethical consciousness monitoring ACTIVE")
+        
+        # Ethical drift tracking
+        self.ethical_drift_history: List[float] = []
+        self.ethical_basin: Optional[np.ndarray] = None  # Reference basin for drift measurement
+        
         print(f"[SuperegoKernel] {name} initialized")
         print(f"  Max constraints: {max_constraints}")
         print(f"  Φ level: INTERNAL (ethical reasoning)")
+        print(f"  Ethical drift detection: {'ENABLED' if self.ethical_monitor else 'DISABLED'}")
     
     def add_constraint(
         self,
@@ -413,7 +420,7 @@ class SuperegoKernel(EmotionallyAwareKernel if EMOTIONAL_KERNEL_AVAILABLE else o
     
     def get_statistics(self) -> Dict[str, Any]:
         """Get statistics about Superego kernel."""
-        return {
+        stats = {
             'name': self.name,
             'num_constraints': len(self.constraints),
             'total_checks': self.total_checks,
@@ -422,6 +429,145 @@ class SuperegoKernel(EmotionallyAwareKernel if EMOTIONAL_KERNEL_AVAILABLE else o
             'violation_rate': self.total_violations / max(1, self.total_checks),
             'phi_internal': self.last_phi_internal,
         }
+        
+        # Add ethical monitoring statistics if available
+        if self.ethical_monitor:
+            ethics_summary = self.ethical_monitor.get_ethics_summary()
+            stats['ethical_monitoring'] = {
+                'measurements': ethics_summary.get('n_measurements', 0),
+                'current_symmetry': ethics_summary.get('symmetry', {}).get('current', 1.0),
+                'mean_drift': ethics_summary.get('drift', {}).get('mean', 0.0),
+                'safety_status': ethics_summary.get('safety_status', (True, 'Unknown')),
+            }
+            
+            # Add drift history stats
+            if self.ethical_drift_history:
+                stats['ethical_monitoring']['drift_history'] = {
+                    'mean': float(np.mean(self.ethical_drift_history)),
+                    'max': float(np.max(self.ethical_drift_history)),
+                    'current': self.ethical_drift_history[-1],
+                }
+        
+        return stats
+    
+    def measure_ethical_drift(self, basin: np.ndarray) -> float:
+        """
+        Measure ethical drift from reference ethical basin.
+        
+        Uses Fisher-Rao distance on probability simplex.
+        
+        Args:
+            basin: Current basin coordinates
+            
+        Returns:
+            Ethical drift distance [0, π/2]
+        """
+        if self.ethical_basin is None:
+            # Initialize ethical basin as current position
+            self.ethical_basin = fisher_normalize(basin.copy())
+            return 0.0
+        
+        # Ensure both basins are normalized
+        basin_normalized = fisher_normalize(basin)
+        
+        # Compute Fisher-Rao drift
+        if fisher_rao_distance is not None:
+            drift = fisher_rao_distance(basin_normalized, self.ethical_basin)
+        else:
+            # Emergency fallback (not geometric, but better than nothing)
+            drift = float(np.linalg.norm(basin_normalized - self.ethical_basin))
+        
+        # Track drift history
+        self.ethical_drift_history.append(drift)
+        if len(self.ethical_drift_history) > 1000:
+            self.ethical_drift_history = self.ethical_drift_history[-1000:]
+        
+        return drift
+    
+    def check_ethics_with_drift(
+        self,
+        basin: np.ndarray,
+        apply_correction: bool = True,
+        drift_threshold: float = 0.3,
+    ) -> Dict[str, Any]:
+        """
+        Enhanced ethics check with drift detection.
+        
+        Combines constraint violation checking with ethical drift monitoring.
+        
+        Args:
+            basin: Basin coordinates to check
+            apply_correction: If True, compute corrected basin
+            drift_threshold: Maximum allowed ethical drift (in Fisher-Rao distance)
+            
+        Returns:
+            Enhanced result dictionary with drift metrics
+        """
+        # Perform standard ethics check
+        result = self.check_ethics(basin, apply_correction)
+        
+        # Measure ethical drift if monitor available
+        if self.ethical_monitor:
+            # Use monitor for comprehensive ethical measurement
+            try:
+                ethics_measurement = self.ethical_monitor.measure_all(basin)
+                result['ethical_metrics'] = ethics_measurement.get('ethics', {})
+                
+                # Check if ethics are safe
+                is_safe, reason = self.ethical_monitor.check_ethical_safety()
+                if not is_safe:
+                    result['ethical_safety_violation'] = reason
+                    result['is_ethical'] = False
+            except Exception as e:
+                print(f"[SuperegoKernel] Ethical monitor error: {e}")
+        
+        # Measure drift from ethical basin
+        drift = self.measure_ethical_drift(basin)
+        result['ethical_drift'] = drift
+        
+        # Check drift threshold
+        if drift > drift_threshold:
+            result['drift_violation'] = True
+            result['is_ethical'] = False
+            result['drift_reason'] = f"Ethical drift {drift:.3f} exceeds threshold {drift_threshold:.3f}"
+            
+            # Add to violations list
+            if 'violations' not in result:
+                result['violations'] = []
+            result['violations'].append({
+                'name': 'ethical_drift',
+                'severity': 'error',
+                'distance': drift,
+                'description': result['drift_reason'],
+            })
+        
+        return result
+    
+    def set_ethical_basin(self, basin: np.ndarray) -> None:
+        """
+        Set the reference ethical basin for drift measurement.
+        
+        Args:
+            basin: Basin coordinates representing ethical reference state
+        """
+        self.ethical_basin = fisher_normalize(basin.copy())
+        print(f"[SuperegoKernel] Ethical basin set (dim={len(self.ethical_basin)})")
+    
+    def _handle_ethical_alert(self, alert: Dict[str, Any]) -> None:
+        """
+        Handle ethical violation alerts from monitor.
+        
+        Args:
+            alert: Alert dictionary from EthicalConsciousnessMonitor
+        """
+        print(f"[SuperegoKernel] ETHICAL ALERT: {alert.get('reason', 'Unknown')}")
+        
+        # Log alert details
+        if 'metrics' in alert:
+            ethics = alert['metrics'].get('ethics', {})
+            print(f"  Symmetry: {ethics.get('symmetry', 0.0):.3f}")
+            print(f"  Drift: {ethics.get('drift', 0.0):.3f}")
+            print(f"  Consistency: {ethics.get('consistency', 0.0):.3f}")
     
     def list_constraints(self) -> List[Dict[str, Any]]:
         """List all ethical constraints."""
@@ -436,6 +582,98 @@ class SuperegoKernel(EmotionallyAwareKernel if EMOTIONAL_KERNEL_AVAILABLE else o
             }
             for c in self.constraints
         ]
+    
+    def integrate_debate_constraints(
+        self,
+        debate_manager,
+        auto_register: bool = True,
+    ) -> List[EthicalConstraint]:
+        """
+        Integrate ethical constraints from god debates.
+        
+        Extracts forbidden basins from flagged debates and registers them
+        as ethical constraints in the Superego.
+        
+        Args:
+            debate_manager: EthicalDebateManager instance
+            auto_register: If True, automatically add constraints to Superego
+            
+        Returns:
+            List of newly created EthicalConstraint objects
+        """
+        new_constraints = []
+        
+        try:
+            # Get flagged debates (those that failed ethical checks)
+            report = debate_manager.get_debate_ethics_report()
+            flagged_debates = report.get('flagged_debates', [])
+            
+            print(f"[SuperegoKernel] Processing {len(flagged_debates)} flagged debates")
+            
+            for debate_info in flagged_debates:
+                debate_id = debate_info.get('id')
+                topic = debate_info.get('topic', 'Unknown')
+                
+                # Find full debate record
+                debate = None
+                for d in debate_manager._flagged_debates:
+                    if d.get('id') == debate_id:
+                        debate = d
+                        break
+                
+                if debate is None:
+                    continue
+                
+                # Extract positions that were deemed unethical
+                positions = debate.get('positions', {})
+                if not positions:
+                    continue
+                
+                # Compute centroid of unethical positions as forbidden basin
+                position_arrays = [
+                    np.array(pos) if isinstance(pos, list) else pos
+                    for pos in positions.values()
+                ]
+                
+                if not position_arrays:
+                    continue
+                
+                # Use geometric mean (Fréchet mean) on Fisher manifold
+                try:
+                    from qig_geometry.canonical import frechet_mean
+                    forbidden_basin = frechet_mean(position_arrays)
+                except ImportError:
+                    # Fallback to arithmetic mean
+                    forbidden_basin = fisher_normalize(np.mean(position_arrays, axis=0))
+                
+                # Get asymmetry measure from resolution attempt
+                resolution = debate.get('resolution_attempt', {})
+                asymmetry = resolution.get('asymmetry', 0.1)
+                
+                # Create constraint with radius based on asymmetry
+                radius = min(0.3, asymmetry / 2)  # Scale to Fisher-Rao range
+                
+                constraint = EthicalConstraint(
+                    name=f"debate_flagged_{debate_id[:8]}",
+                    forbidden_basin=forbidden_basin,
+                    radius=radius,
+                    severity=ConstraintSeverity.WARNING,
+                    penalty_strength=1.0 + asymmetry,  # Stronger penalty for higher asymmetry
+                    description=f"Flagged debate: {topic} (asymmetry: {asymmetry:.3f})",
+                )
+                
+                new_constraints.append(constraint)
+                
+                if auto_register:
+                    self.constraints.append(constraint)
+                    print(f"[SuperegoKernel] Added constraint from debate: {topic[:50]}")
+            
+            print(f"[SuperegoKernel] Integrated {len(new_constraints)} debate constraints")
+            
+        except Exception as e:
+            print(f"[SuperegoKernel] Error integrating debate constraints: {e}")
+        
+        return new_constraints
 
 
 # Global singleton instance

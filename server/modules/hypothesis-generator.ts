@@ -27,7 +27,7 @@ import { qfiAttention, type AttentionQuery } from "../gary-kernel";
 import { geometricMemory } from "../geometric-memory";
 import { logger } from "../lib/logger";
 import { oceanConstellation } from "../ocean-constellation-stub";
-import { vocabularyExpander } from "../vocabulary-expander";
+import { vocabularyExpander } from "../vocabulary-expander-api";
 
 // ============================================================================
 // TYPES & INTERFACES
