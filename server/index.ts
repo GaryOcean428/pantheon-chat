@@ -18,7 +18,7 @@ import {
   getSearchHistory,
   recordSearchState,
 } from "./qig-universal";
-import { vocabularyTracker } from "./vocabulary-tracker";
+import { vocabularyTracker } from "./vocabulary-tracker-api";
 
 // Periodic sync interval from Python to Node.js
 let pythonSyncInterval: NodeJS.Timeout | null = null;

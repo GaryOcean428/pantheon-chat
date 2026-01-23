@@ -14,7 +14,7 @@
 
 import { geometricMemory } from './geometric-memory';
 import { scoreUniversalQIGAsync, type UniversalQIGScore as QIGScore, type Regime, fisherCoordDistance } from './qig-universal';
-import { vocabularyTracker } from './vocabulary-tracker';
+import { vocabularyTracker } from './vocabulary-tracker-api';
 
 // NOTE: Database persistence removed - vocabulary expansion now works entirely in-memory
 // The actual vocab expansion uses vocabularyTracker which persists to vocabulary_observations

@@ -22,7 +22,7 @@
 
 import { fisherCoordDistance, type Regime } from './qig-universal';
 // Lazy import to avoid circular dependency - vocabularyTracker is imported dynamically when needed
-// import { vocabularyTracker } from './vocabulary-tracker';
+// import { vocabularyTracker } from './vocabulary-tracker-api';
 
 // NOTE: Database persistence removed - vocabulary learning now works entirely in-memory
 // The actual vocab learning already goes through vocabulary_observations via vocabularyTracker
