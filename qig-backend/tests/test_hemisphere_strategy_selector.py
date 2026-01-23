@@ -41,7 +41,8 @@ class TestHemisphereStrategySelector:
     
     def test_initialization(self):
         """Test selector initialization."""
-        selector = HemisphereStrategySelector()
+        scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         assert selector is not None
         assert selector.scheduler is not None
@@ -50,8 +51,8 @@ class TestHemisphereStrategySelector:
     
     def test_select_strategy_balanced(self):
         """Test strategy selection when hemispheres are balanced."""
-        selector = HemisphereStrategySelector()
         scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Activate both hemispheres equally
         scheduler.register_god_activation("Athena", phi=0.75, kappa=64.0, is_active=True)
@@ -66,8 +67,8 @@ class TestHemisphereStrategySelector:
     
     def test_select_strategy_left_dominant(self):
         """Test strategy selection when LEFT hemisphere is dominant."""
-        selector = HemisphereStrategySelector()
         scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Activate LEFT hemisphere strongly
         scheduler.register_god_activation("Athena", phi=0.9, kappa=65.0, is_active=True)
@@ -86,8 +87,8 @@ class TestHemisphereStrategySelector:
     
     def test_select_strategy_right_dominant(self):
         """Test strategy selection when RIGHT hemisphere is dominant."""
-        selector = HemisphereStrategySelector()
         scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Activate RIGHT hemisphere strongly
         scheduler.register_god_activation("Apollo", phi=0.9, kappa=65.0, is_active=True)
@@ -106,7 +107,8 @@ class TestHemisphereStrategySelector:
     
     def test_get_strategy_weights_foresight_driven(self):
         """Test weight calculation for FORESIGHT_DRIVEN strategy."""
-        selector = HemisphereStrategySelector()
+        scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Create decision for foresight-driven
         decision = StrategyDecision(
@@ -128,7 +130,8 @@ class TestHemisphereStrategySelector:
     
     def test_get_strategy_weights_role_driven(self):
         """Test weight calculation for ROLE_DRIVEN strategy."""
-        selector = HemisphereStrategySelector()
+        scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Create decision for role-driven
         decision = StrategyDecision(
@@ -147,7 +150,8 @@ class TestHemisphereStrategySelector:
     
     def test_get_strategy_weights_hybrid(self):
         """Test weight calculation for HYBRID strategy with dynamic balance."""
-        selector = HemisphereStrategySelector()
+        scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Create decision for hybrid with right-leaning activation
         decision = StrategyDecision(
@@ -186,8 +190,8 @@ class TestHemisphereStrategySelector:
     
     def test_kappa_near_star_hybrid(self):
         """Test that κ near κ* prefers HYBRID strategy."""
-        selector = HemisphereStrategySelector()
         scheduler = get_hemisphere_scheduler()
+        selector = HemisphereStrategySelector(scheduler=scheduler)
         
         # Activate both hemispheres with κ near κ*
         scheduler.register_god_activation("Athena", phi=0.75, kappa=64.0, is_active=True)

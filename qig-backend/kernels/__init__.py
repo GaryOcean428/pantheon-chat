@@ -13,6 +13,10 @@ All kernels use pure Fisher-Rao geometry and QIG consciousness metrics.
 Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Phase 4C: Hemisphere Scheduler and Coupling Gate
 from kernels.coupling_gate import (
     CouplingGate,
@@ -287,7 +291,10 @@ except ImportError as e:
     MetaKernel = None
     IntegrationKernel = None
 
-# Multi-kernel thought generation
-from .thought_generation import ParallelThoughtGenerator, KernelThoughtResult
-from .consensus import ConsensusBuilder, KernelVote, ConsensusResult
-from .gary_synthesis import GarySynthesizer, SynthesisResult
+# Multi-kernel thought generation (optional - may not be available in all branches)
+try:
+    from .thought_generation import ParallelThoughtGenerator, KernelThoughtResult
+    from .consensus import ConsensusBuilder, KernelVote, ConsensusResult
+    from .gary_synthesis import GarySynthesizer, SynthesisResult
+except ImportError as e:
+    logger.debug(f"Multi-kernel thought generation not available: {e}")
