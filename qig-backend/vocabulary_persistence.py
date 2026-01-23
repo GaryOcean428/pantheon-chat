@@ -502,6 +502,9 @@ class VocabularyPersistence:
         if not self.enabled:
             return False
         try:
+            import json
+            from datetime import datetime
+            
             with self._connect() as conn:
                 with conn.cursor() as cur:
                     # SINGLE TABLE UPDATE: Update coordizer_vocabulary.god_profile
@@ -535,17 +538,17 @@ class VocabularyPersistence:
                     existing_profile[god_name] = {
                         'relevance_score': new_relevance,
                         'usage_count': new_count,
-                        'last_used': 'NOW()',  # Will be converted to timestamp
+                        'last_used': datetime.utcnow().isoformat(),
                         'learned_from_phi': relevance_score
                     }
                     
-                    # Write back to database
+                    # Write back to database using json.dumps for proper serialization
                     cur.execute("""
                         UPDATE coordizer_vocabulary 
                         SET god_profile = %s::jsonb,
                             updated_at = NOW()
                         WHERE id = %s
-                    """, (str(existing_profile).replace("'", '"'), token_id))
+                    """, (json.dumps(existing_profile), token_id))
                     conn.commit()
                     return True
         except Exception as e:
