@@ -106,6 +106,18 @@ try:
 except ImportError as e:
     print(f"[WARNING] Immune system not available: {e}")
 
+# Register all routes from routes package (includes confidence, basin, vocabulary)
+ROUTES_AVAILABLE = False
+try:
+    from routes import register_all_routes
+    routes_count = register_all_routes(app)
+    ROUTES_AVAILABLE = True
+    print(f"[INFO] Registered {routes_count} route blueprints from routes package")
+except ImportError as e:
+    print(f"[WARNING] Routes package not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Failed to register routes: {e}")
+
 # Register Self-Healing System routes
 SELF_HEALING_AVAILABLE = False
 try:
