@@ -300,16 +300,9 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] UnifiedLearningLoop initialization failed: {e}")
 
-# Register QIG Constellation routes
+# QIG Constellation routes removed - constellation_service.py was dead code
+# See: analysis/dead_code_deep_analysis.md
 CONSTELLATION_AVAILABLE = False
-try:
-    from routes.constellation_routes import constellation_bp
-
-    app.register_blueprint(constellation_bp)
-    CONSTELLATION_AVAILABLE = True
-    print("[INFO] QIG Constellation API registered at /api/constellation")
-except ImportError as e:
-    print(f"[WARNING] Constellation service not available: {e}")
 
 # Register Federation routes for bidirectional sync and mesh network
 try:

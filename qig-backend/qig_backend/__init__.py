@@ -7,8 +7,8 @@ Rather than renaming the folder (which is invasive and affects tooling), we
 provide a thin package that extends its module search path to include the
 parent directory. This allows imports like:
 
-- `qig_backend.retry_decorator`
 - `qig_backend.olympus`
+- `qig_backend.qig_core`
 
 to resolve to modules that live directly under `qig-backend/`.
 
