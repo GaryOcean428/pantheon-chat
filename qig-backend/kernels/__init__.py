@@ -183,4 +183,36 @@ __all__ = [
     'get_genome_lineage',
     'get_descendants',
     'get_evolution_summary',
+    
+    # Phase 4A: E8 Simple Roots (Layer 8)
+    'E8Root',
+    'SIMPLE_ROOT_MAPPING',
+    'get_root_spec',
+    'KernelIdentity',
+    'KernelTier',
+    'QuaternaryOp',
 ]
+
+# Phase 4A: E8 Simple Root Kernels (Layer 8)
+from .e8_roots import (
+    E8Root,
+    SIMPLE_ROOT_MAPPING,
+    get_root_spec,
+    get_root_by_god,
+    validate_kappa_for_root,
+)
+
+from .identity import (
+    KernelIdentity,
+    KernelTier,
+)
+
+# Import after other modules to avoid circular dependencies
+try:
+    from .quaternary import QuaternaryOp
+    from .base import Kernel
+    SIMPLE_ROOTS_AVAILABLE = True
+except ImportError:
+    SIMPLE_ROOTS_AVAILABLE = False
+    QuaternaryOp = None
+    Kernel = None
