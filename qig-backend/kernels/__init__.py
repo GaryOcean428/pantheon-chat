@@ -46,7 +46,11 @@ from .phi_hierarchy import (
 
 from .id_kernel import IdKernel, get_id_kernel
 from .superego_kernel import SuperegoKernel, ConstraintSeverity, get_superego_kernel
-from .psyche_plumbing_integration import PsychePlumbingIntegration, get_psyche_plumbing
+from .psyche_plumbing_integration import (
+    PsychePlumbingIntegration,
+    get_psyche_plumbing,
+    reset_psyche_plumbing,
+)
 
 # Phase 4E: Kernel Genetics
 from .genome import (
@@ -139,6 +143,7 @@ __all__ = [
     'get_superego_kernel',
     'PsychePlumbingIntegration',
     'get_psyche_plumbing',
+    'reset_psyche_plumbing',
     
     # Phase 4E: Genome
     'KernelGenome',
