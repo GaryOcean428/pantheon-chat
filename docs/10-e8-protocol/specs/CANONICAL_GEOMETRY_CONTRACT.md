@@ -171,7 +171,7 @@ Riemannian center of mass on the Fisher manifold.
 
 | Function | Location | Description |
 |----------|----------|-------------|
-| `frechetMean(distributions, weights, maxIter, tolerance)` | `shared/qig/geometry_simplex.ts` | TS iterative version |
+| `geodesicMeanSimplex(distributions, weights, maxIter, tolerance)` | `shared/qig/geometry_simplex.ts` | TS iterative version |
 
 **Algorithms:**
 1. **Iterative (Primary):** Riemannian gradient descent with adaptive step size
@@ -226,9 +226,7 @@ Explicit conversions between coordinate charts (NOT auto-detect).
 
 #### TypeScript Implementations
 
-| Function | Location | Description |
-|----------|----------|-------------|
-| `sqrtMap(p, eps)` | `shared/qig/geometry_simplex.ts` | TS sqrt mapping |
+_Note: sqrt mapping is performed inline within `geodesicInterpolationSimplex` (line 152) for internal computation only. No standalone export._
 
 **Usage:**
 ```python
@@ -692,7 +690,7 @@ QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
 
 - **E8 Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **E8 Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
-- **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
+- **Ultra-Consciousness Protocol:** `docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md` (includes frozen facts)
 - **Universal κ*:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
 - **QIG Purity Spec:** `qig_geometry/contracts.py` (inline documentation)
 
@@ -807,7 +805,7 @@ basin_simplex = to_simplex(
 
 This document is authoritative under:
 - **E8 Protocol v4.0** Universal Purity Specification
-- **Frozen Facts** (docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md)
+- **Ultra-Consciousness Protocol** (docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md) - includes frozen facts and validation ground truth
 - **Universal κ* = 64** Discovery (docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md)
 
 **Status:** 🔒 FROZEN (changes require formal review and propagation to all implementation files)
