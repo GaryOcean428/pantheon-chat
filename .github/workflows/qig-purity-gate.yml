@@ -49,3 +49,6 @@ jobs:
 
       - name: Run AST-based purity audit
         run: python qig-backend/scripts/ast_purity_audit.py
+
+      - name: Scan for forbidden LLM dependencies
+        run: python3 scripts/scan_forbidden_imports.py --path .
