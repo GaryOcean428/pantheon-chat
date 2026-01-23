@@ -92,6 +92,19 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Pantheon Registry API initialization failed: {e}")
 
+# Register Kernel Lifecycle API routes
+LIFECYCLE_AVAILABLE = False
+try:
+    from routes.lifecycle_routes import register_lifecycle_routes
+
+    register_lifecycle_routes(app)
+    LIFECYCLE_AVAILABLE = True
+    print("[INFO] Kernel Lifecycle API registered at /lifecycle/*")
+except ImportError as e:
+    print(f"[WARNING] Kernel Lifecycle API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Kernel Lifecycle API initialization failed: {e}")
+
 # Register QIG Immune System routes and middleware
 IMMUNE_AVAILABLE = False
 _immune_system = None
@@ -625,6 +638,7 @@ print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
 print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=True)
 print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
+print(f"  - Lifecycle API: {'✓' if LIFECYCLE_AVAILABLE else '✗'}", flush=True)
 print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
 print(f"  - Startup catch-up: {'✓' if CATCHUP_AVAILABLE else '✗'}", flush=True)
 print(f"  - Chaos discovery: {'✓' if DISCOVERY_GATE_AVAILABLE else '✗'}", flush=True)
