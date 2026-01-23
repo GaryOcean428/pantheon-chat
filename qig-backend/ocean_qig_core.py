@@ -5038,7 +5038,7 @@ def learning_status():
         import os
         
         vocabulary_size = 0
-        basin_relationships_count = 0
+        tokens_with_relationships = 0
         
         database_url = os.getenv('DATABASE_URL')
         if database_url:
@@ -5049,9 +5049,10 @@ def learning_status():
                     row = cur.fetchone()
                     vocabulary_size = row[0] if row else 0
                     
-                    cur.execute("SELECT COUNT(*) FROM basin_relationships")
+                    # SINGLE TABLE GENERATION: Count tokens with relationships in coordizer_vocabulary
+                    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE relationships IS NOT NULL")
                     row = cur.fetchone()
-                    basin_relationships_count = row[0] if row else 0
+                    tokens_with_relationships = row[0] if row else 0
                 conn.close()
             except Exception as db_err:
                 print(f"[Flask] learning/status DB error: {db_err}")
@@ -5067,7 +5068,7 @@ def learning_status():
         return jsonify({
             'success': True,
             'vocabulary_size': vocabulary_size,
-            'basin_relationships_count': basin_relationships_count,
+            'tokens_with_relationships': tokens_with_relationships,
             'curiosity': curiosity_stats
         })
     except Exception as e:
