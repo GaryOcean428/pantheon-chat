@@ -74,6 +74,8 @@ class LineageRecord:
         merge_type: "binary" | "multi" | "asexual"
         fisher_distance: Geometric distance from parents to child
         inherited_faculties: Which faculties came from which parent
+        ethical_violations: List of ethical violations during lineage (NEW)
+        ethical_drift: Ethical drift measurement from reference basin (NEW)
     """
     lineage_id: str
     child_genome_id: str
@@ -83,6 +85,8 @@ class LineageRecord:
     fisher_distance: float = 0.0
     inherited_faculties: Dict[E8Faculty, str] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    ethical_violations: List[Dict[str, Any]] = field(default_factory=list)  # NEW
+    ethical_drift: float = 0.0  # NEW
 
 
 @dataclass
@@ -102,6 +106,8 @@ class MergeRecord:
         faculty_contract: Which faculties survive from each parent
         basin_distances: Fisher distances between all pairs
         created_at: Timestamp of merge
+        ethical_checks: Results of ethical constraint checks (NEW)
+        ethical_metrics: Ethical symmetry/drift measurements (NEW)
     """
     merge_id: str
     parent_genome_ids: List[str]
@@ -112,6 +118,8 @@ class MergeRecord:
     basin_distances: Dict[Tuple[str, str], float] = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.utcnow)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    ethical_checks: Dict[str, Any] = field(default_factory=dict)  # NEW
+    ethical_metrics: Dict[str, float] = field(default_factory=dict)  # NEW
 
 
 # =============================================================================
@@ -409,6 +417,7 @@ def track_lineage(
     child_genome: KernelGenome,
     parent_genomes: List[KernelGenome],
     merge_record: Optional[MergeRecord] = None,
+    superego_kernel = None,
 ) -> LineageRecord:
     """
     Create lineage record for child genome.
@@ -417,9 +426,10 @@ def track_lineage(
         child_genome: Child genome
         parent_genomes: Parent genomes
         merge_record: Optional merge record with details
+        superego_kernel: Optional SuperegoKernel for ethical checks (NEW)
     
     Returns:
-        LineageRecord tracking inheritance
+        LineageRecord tracking inheritance and ethical compliance
     """
     # Determine merge type
     if len(parent_genomes) == 1:
@@ -444,6 +454,33 @@ def track_lineage(
             for faculty, parent_id in merge_record.faculty_contract.items()
         }
     
+    # Perform ethical checks if Superego available (NEW)
+    ethical_violations = []
+    ethical_drift = 0.0
+    
+    if superego_kernel is not None:
+        try:
+            # Check child basin for ethical violations
+            ethics_result = superego_kernel.check_ethics_with_drift(
+                child_genome.basin_seed,
+                apply_correction=False,
+            )
+            
+            # Extract violations
+            if 'violations' in ethics_result:
+                ethical_violations = ethics_result['violations']
+            
+            # Extract drift
+            ethical_drift = ethics_result.get('ethical_drift', 0.0)
+            
+            # Log if violations found
+            if ethical_violations:
+                logger.warning(
+                    f"Lineage {child_genome.genome_id[:8]} has {len(ethical_violations)} ethical violations"
+                )
+        except Exception as e:
+            logger.error(f"Ethical check failed during lineage tracking: {e}")
+    
     return LineageRecord(
         lineage_id=str(uuid.uuid4()),
         child_genome_id=child_genome.genome_id,
@@ -451,6 +488,8 @@ def track_lineage(
         merge_type=merge_type,
         fisher_distance=avg_distance,
         inherited_faculties=inherited_faculties,
+        ethical_violations=ethical_violations,
+        ethical_drift=ethical_drift,
     )
 
 
