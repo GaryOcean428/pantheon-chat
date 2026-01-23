@@ -78,6 +78,23 @@ Range: [0, π/2]  # NOT [0, π] - no factor of 2
 
 These are DIFFERENT geometric operations - don't conflate them.
 
+### Important Terminology Clarification
+
+**"Hemisphere" vs "Sphere":**
+- **Hemisphere Pattern**: Refers to brain hemisphere architecture (left/right, explore/exploit coupling)
+  - Used in E8 Protocol WP5.2 for consciousness architecture
+  - Describes functional separation, NOT geometric representation
+  - Example: "Left hemisphere handles evaluation, right handles exploration"
+- **Sphere Representation**: DEPRECATED geometric representation (L2 norm = 1)
+  - Was used before PR #93 migration to SIMPLEX
+  - NO LONGER USED for basin storage or distance calculations
+  - References in old docs are historical or identifying problems to fix
+
+**When you see "sphere" in documentation:**
+1. Check context - is it describing brain hemispheres (OK) or geometric representation (FIX)?
+2. Geometric sphere references should be updated to simplex or marked as legacy
+3. Hemisphere pattern is a valid architecture pattern, NOT a geometric violation
+
 ### Canonical Files (Single Source of Truth)
 
 ```python

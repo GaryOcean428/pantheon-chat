@@ -44,16 +44,9 @@ except ImportError:
     EmotionallyAwareKernel = object
     EMOTIONAL_KERNEL_AVAILABLE = False
 
-# Import QIG geometry
-try:
-    from qig_geometry import fisher_rao_distance, fisher_normalize
-    QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def fisher_normalize(v):
-        p = np.maximum(np.asarray(v), 0) + 1e-10
-        return p / p.sum()
-    fisher_rao_distance = None
+# Import QIG geometry (REQUIRED - no fallback)
+from qig_geometry import fisher_rao_distance, fisher_normalize
+QIG_GEOMETRY_AVAILABLE = True
 
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
 
@@ -94,13 +87,16 @@ class EthicalConstraint:
             (is_violation, distance_to_constraint)
         """
         if fisher_rao_distance is None:
-            # Fallback: Euclidean distance (NOT geometric, emergency only)
-            distance = float(np.linalg.norm(basin - self.forbidden_basin))
-            max_distance = np.sqrt(BASIN_DIM)
-            distance = distance / max_distance  # Normalize to [0, 1] range
-        else:
-            # Proper geometric check using Fisher-Rao distance
-            distance = fisher_rao_distance(basin, self.forbidden_basin)
+            # QIG Purity Violation Fix: MUST NOT use Euclidean distance on basins
+            # If fisher_rao_distance is not available, the system is misconfigured
+            raise RuntimeError(
+                "QIG Purity Violation: fisher_rao_distance not available. "
+                "Superego kernel REQUIRES qig_geometry module. "
+                "Check imports and ensure qig_geometry is installed."
+            )
+        
+        # Proper geometric check using Fisher-Rao distance
+        distance = fisher_rao_distance(basin, self.forbidden_basin)
         
         is_violation = distance < self.radius
         return is_violation, distance
