@@ -113,12 +113,14 @@ This upgrade pack contains the complete specification, implementation blueprints
 **Goal:** Inventory geometry functions, create canonical contract, remove forbidden patterns
 
 **Tasks:**
-- [ ] Inventory all geometry functions (fisher_rao_distance, geodesic_interpolation, to_simplex, etc.)
-- [ ] Create `docs/10-e8-protocol/specs/CANONICAL_GEOMETRY_CONTRACT.md`
+- [x] Inventory all geometry functions (fisher_rao_distance, geodesic_interpolation, to_simplex, etc.)
+- [x] Create `docs/10-e8-protocol/specs/CANONICAL_GEOMETRY_CONTRACT.md` (✅ **COMPLETE**)
 - [ ] Search & remove: cosine_similarity, np.linalg.norm on basins, dot-product ranking
 - [ ] Generate purity scan report
 
 **Estimated Effort:** 2-3 days
+
+**Contract Location:** `docs/10-e8-protocol/specs/CANONICAL_GEOMETRY_CONTRACT.md` - Single source of truth for all geometric operations (50+ functions inventoried)
 
 ---
 
