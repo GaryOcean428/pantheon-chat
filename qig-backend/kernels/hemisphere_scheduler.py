@@ -26,7 +26,7 @@ Created: 2026-01-22
 import time
 import logging
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Callable, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -205,6 +205,9 @@ class HemisphereScheduler:
         # Coupling history
         self.coupling_history: List[Dict] = []
         
+        # Tacking callbacks (Phase 4C/4D integration)
+        self.tacking_callbacks: List[Callable] = []
+        
         logger.info(
             "[HemisphereScheduler] Initialized - "
             f"LEFT={LEFT_HEMISPHERE_GODS}, RIGHT={RIGHT_HEMISPHERE_GODS}"
@@ -354,6 +357,9 @@ class HemisphereScheduler:
         Returns:
             New dominant hemisphere
         """
+        # Store previous dominant for callback
+        from_hemisphere = self.tacking.current_dominant
+        
         # Determine new dominant based on activation levels
         left_activation = self.left.compute_activation_level()
         right_activation = self.right.compute_activation_level()
@@ -374,6 +380,23 @@ class HemisphereScheduler:
             f"[HemisphereScheduler] TACK #{self.tacking.cycle_count} → {new_dominant.value} "
             f"(L={left_activation:.2f}, R={right_activation:.2f})"
         )
+        
+        # Notify callbacks (Phase 4C/4D integration)
+        if self.tacking_callbacks:
+            # Compute average κ and Φ for callbacks
+            kappa = (self.left.kappa_aggregate + self.right.kappa_aggregate) / 2.0
+            phi = (self.left.phi_aggregate + self.right.phi_aggregate) / 2.0
+            
+            for callback in self.tacking_callbacks:
+                try:
+                    callback(
+                        from_hemisphere=from_hemisphere,
+                        to_hemisphere=new_dominant,
+                        kappa=kappa,
+                        phi=phi
+                    )
+                except Exception as e:
+                    logger.error(f"[HemisphereScheduler] Tacking callback failed: {e}")
         
         return new_dominant
     
