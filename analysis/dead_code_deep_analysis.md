@@ -9,7 +9,7 @@
 After further verification and comprehensive import scanning:
 - ✅ **geometric_deep_research.py** - REMOVED (no active imports, no usage, 651 lines of dead code)
 - All other files verified as either actively used or documented CLI tools
-- See: Issue #[number] for complete verification details
+- See: Issue #234 for complete verification details
 
 ## Executive Summary
 
