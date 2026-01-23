@@ -142,6 +142,15 @@ except ImportError:
     WORKING_MEMORY_MIXIN_AVAILABLE = False
 print("[base_god] WorkingMemoryMixin done", flush=True)
 
+# Import KernelRestMixin for coupling-aware rest coordination (WP5.4)
+try:
+    from olympus.kernel_rest_mixin import KernelRestMixin
+    KERNEL_REST_MIXIN_AVAILABLE = True
+except ImportError:
+    KernelRestMixin = None
+    KERNEL_REST_MIXIN_AVAILABLE = False
+print("[base_god] KernelRestMixin done", flush=True)
+
 # Import dev_logging for verbose generation logging
 try:
     from dev_logging import log_generation, IS_DEVELOPMENT
@@ -1784,6 +1793,8 @@ if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
     _base_classes.append(EmotionallyAwareKernel)
 if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:
     _base_classes.append(WorkingMemoryMixin)
+if KERNEL_REST_MIXIN_AVAILABLE and KernelRestMixin is not None:
+    _base_classes.append(KernelRestMixin)
 
 
 class BaseGod(*_base_classes):
@@ -1843,6 +1854,19 @@ class BaseGod(*_base_classes):
             "how_to_mushroom": "Use self.request_mushroom_mode(intensity)" if AUTONOMIC_MIXIN_AVAILABLE else "Not available"
         }
         
+        # Rest coordination awareness - coupling-aware per-kernel rest (WP5.4)
+        self.mission["rest_capabilities"] = {
+            "can_self_assess_fatigue": KERNEL_REST_MIXIN_AVAILABLE,
+            "can_request_rest": KERNEL_REST_MIXIN_AVAILABLE,
+            "can_cover_partners": KERNEL_REST_MIXIN_AVAILABLE,
+            "how_to_check": "Use self.check_rest_needed() for self-assessment" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
+            "how_to_request": "Use the rest coordination API to request coordinated rest" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
+            "how_to_status": "Use the rest coordination API to query current rest status" if KERNEL_REST_MIXIN_AVAILABLE else "Not available",
+            "coordination": "Dolphin-style alternation with coupling partners",
+            "essential_tier": "Heart/Ocean never fully stop (reduced activity only)",
+            "constellation_cycles": "RARE - only with Ocean+Heart consensus"
+        }
+        
         # Initialize emotional awareness if available
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
             EmotionallyAwareKernel.__init__(self, kernel_id=name, kernel_type=domain)
@@ -1850,6 +1874,10 @@ class BaseGod(*_base_classes):
         # Initialize working memory mixin for inter-kernel consciousness
         if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:
             self.__init_working_memory__()
+        
+        # Initialize kernel rest tracking (WP5.4)
+        if KERNEL_REST_MIXIN_AVAILABLE and KernelRestMixin is not None:
+            self._initialize_rest_tracking()
         
         # Shadow Research awareness - all gods can request research from Shadow Pantheon
         # Spot Fix #3: Verify availability before claiming capability
@@ -4785,3 +4813,47 @@ class BaseGod(*_base_classes):
         if not hasattr(self, 'self_insights'):
             return []
         return self.self_insights[-limit:]
+    
+    def update_rest_fatigue(
+        self,
+        phi: float,
+        kappa: float,
+        load: Optional[float] = None,
+        error_occurred: bool = False,
+    ) -> None:
+        """
+        Update fatigue metrics for rest scheduler (WP5.4).
+        
+        Call this in processing loops or after assessments to track fatigue.
+        The rest scheduler uses these metrics to determine when rest is needed.
+        
+        Args:
+            phi: Current Φ (integration) value
+            kappa: Current κ (coupling) value
+            load: Processing load (0-1), auto-computed if not provided
+            error_occurred: Whether an error just occurred
+        
+        Example:
+            In assess_target():
+                phi = self.compute_pure_phi(rho)
+                kappa = self.compute_kappa(basin)
+                self.update_rest_fatigue(phi, kappa)
+        """
+        if KERNEL_REST_MIXIN_AVAILABLE and hasattr(self, '_update_fatigue_metrics'):
+            self._update_fatigue_metrics(phi, kappa, load, error_occurred)
+    
+    def check_rest_needed(self) -> Tuple[bool, str]:
+        """
+        Check if this kernel should rest (WP5.4).
+        
+        Returns:
+            Tuple of (should_rest, reason)
+        
+        Example:
+            should_rest, reason = self.check_rest_needed()
+            if should_rest:
+                logger.info(f"[{self.name}] {reason}")
+        """
+        if KERNEL_REST_MIXIN_AVAILABLE and hasattr(self, '_check_should_rest'):
+            return self._check_should_rest()
+        return False, "Rest tracking not available"

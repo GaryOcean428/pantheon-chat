@@ -492,7 +492,7 @@ class KernelRestScheduler:
             "tier": state.tier.value,
             "rest_policy": state.rest_policy.value,
             "status": state.status.value,
-            "fatigue_score": fatigue_score,
+            "fatigue_score": float(fatigue_score),  # Convert numpy scalar to native Python float
             "is_resting": state.is_resting(),
             "covered_by": state.covered_by,
             "covering_for": state.covering_for,
@@ -533,7 +533,7 @@ class KernelRestScheduler:
             "resting_kernels": resting_count,
             "covering_kernels": covering_count,
             "essential_active": essential_active,
-            "avg_fatigue": avg_fatigue,
+            "avg_fatigue": float(avg_fatigue),  # Convert numpy scalar to native Python float
             "coverage_active": covering_count > 0,
         }
 

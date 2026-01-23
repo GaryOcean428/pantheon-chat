@@ -44,6 +44,7 @@ class KernelRestMixin:
         self._rest_scheduler = None
         self._kernel_rest_id = None
         self._last_fatigue_update = 0.0
+        self._last_rest_check = 0.0  # Separate timestamp for rest checks
         self._rest_check_interval = 60.0  # Check every 60 seconds
         self._load_history = []
         self._error_history = []
@@ -152,9 +153,12 @@ class KernelRestMixin:
         if not self._rest_scheduler or not self._kernel_rest_id:
             return False, "Rest scheduler not available"
         
-        # Only check periodically
-        if time.time() - self._last_fatigue_update < self._rest_check_interval:
+        # Only check periodically (use separate timestamp to avoid conflict with fatigue updates)
+        if time.time() - self._last_rest_check < self._rest_check_interval:
             return False, "Too soon since last check"
+        
+        # Update last check time
+        self._last_rest_check = time.time()
         
         return self._rest_scheduler.should_rest(self._kernel_rest_id)
     
