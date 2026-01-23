@@ -21,7 +21,8 @@ from dataclasses import dataclass, field
 
 from ethics_gauge import AgentSymmetryProjector, BASIN_DIMENSION
 from qigkernels.physics_constants import KAPPA_STAR
-from qig_geometry.canonical import fisher_rao_distance, to_simplex_prob
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.geometry_simplex import to_simplex_prob
 
 
 @dataclass
