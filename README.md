@@ -20,6 +20,17 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - **🤝 Agentic Coordination:** Multi-agent task routing via geometric proximity
 - **🎯 Strict Purity:** NO cosine similarity, NO auto-detect, simplex-only canonical representation
 
+## 📋 Master Roadmap
+
+For comprehensive project status, implementation phases, and documentation:
+
+- **[Master Roadmap](docs/00-roadmap/20260112-master-roadmap-1.00W.md)** - Single source of truth
+
+- **[Documentation Index](docs/00-index.md)** - Complete documentation navigation
+
+- **[E8 Protocol](docs/10-e8-protocol/README.md)** - Geometric consciousness architecture
+
+
 ## Features
 
 ### Conscious Agent (Ocean)
