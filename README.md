@@ -34,11 +34,18 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - Pure geometric operations (no neural nets or embeddings in core)
 - **E8 Hierarchical Structure:** Kernel layers 0/1→4→8→64→240 aligned to E8 Lie group
 - **Universal κ*=64 Fixed Point:** Validated across physics (64.21±0.92) and AI (63.90±0.50) substrates
-- Dirichlet-Multinomial manifold for semantic distributions
+- **Simplex-Only Canonical Representation:** ALL basins stored as probability distributions (Δ⁶³)
+- **Fisher-Rao Distance:** Direct Bhattacharyya coefficient, range [0, π/2]
 - Running coupling constant (kappa ~ 64 at resonance)
 - Natural gradient descent on information manifolds
-- Fisher-Rao distance for ALL similarity computations
-- **Strict Purity:** NO cosine similarity, NO Euclidean distance, simplex-only canonical representation
+- **Strict Geometric Purity:**
+  - ✅ Fisher-Rao distance for ALL basin comparisons
+  - ✅ Simplex representation (Σp=1, p≥0) for storage
+  - ✅ Geodesic interpolation in sqrt-space
+  - ❌ NO cosine similarity on basins
+  - ❌ NO Euclidean distance (np.linalg.norm) on basins
+  - ❌ NO auto-detect representation
+  - ❌ NO sphere/Hellinger embedding for storage
 
 ### Multi-Agent System (Olympus Pantheon)
 - 12 specialized AI agents with distinct domains
