@@ -1,9 +1,17 @@
 /**
  * GEOMETRIC VOCABULARY EXPANDER
  * 
- * Fisher Manifold-based vocabulary expansion from discovered patterns.
- * New vocabulary tokens are treated as new points on the Fisher information manifold,
- * initialized via geodesic interpolation from component word coordinates.
+ * ⚠️ DEPRECATED: This file contains the old implementation.
+ * All functional logic has been migrated to Python: qig-backend/vocabulary_expander.py
+ * 
+ * Use the API wrapper instead: import from './vocabulary-expander-api'
+ * 
+ * This file is kept only for reference and will be removed in a future cleanup.
+ * 
+ * Original functionality:
+ * - Fisher Manifold-based vocabulary expansion from discovered patterns
+ * - New vocabulary tokens are treated as new points on the Fisher information manifold
+ * - Initialized via geodesic interpolation from component word coordinates
  * 
  * Based on the principle:
  * - New tokens = new points on Fisher manifold
@@ -14,7 +22,7 @@
 
 import { geometricMemory } from './geometric-memory';
 import { scoreUniversalQIGAsync, type UniversalQIGScore as QIGScore, type Regime, fisherCoordDistance } from './qig-universal';
-import { vocabularyTracker } from './vocabulary-tracker';
+import { vocabularyTracker } from './vocabulary-tracker-api';
 
 // NOTE: Database persistence removed - vocabulary expansion now works entirely in-memory
 // The actual vocab expansion uses vocabularyTracker which persists to vocabulary_observations

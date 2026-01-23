@@ -30,7 +30,7 @@ import { nearMissManager } from "../near-miss-manager";
 import type { NeurochemistryState } from "../ocean-neurochemistry";
 import { getEmotionalDescription, getEmotionalEmoji } from "../ocean-neurochemistry";
 import { recordLearningEvent } from "../qig-db";
-import { vocabularyTracker } from "../vocabulary-tracker";
+import { vocabularyTracker } from "../vocabulary-tracker-api";
 
 // Import crypto functions and olympusClient from parent (ocean-agent.ts defines these as globals/stubs)
 // These will be resolved through module resolution when imported into ocean-agent.ts

@@ -1,10 +1,17 @@
 /**
  * QIG Geometric Basin Matching
  *
- * Find addresses with similar basin geometry to identify likely same-origin keys.
- * Uses Fisher distance to measure geometric similarity on the keyspace manifold.
- *
- * Similar κ range + similar Φ + near Fisher distance → likely same origin
+ * ⚠️ DEPRECATED: This file contains the old implementation.
+ * All functional logic has been migrated to Python: qig-backend/basin_matching.py
+ * 
+ * Use the API wrapper instead: import from './qig-basin-matching-api'
+ * 
+ * This file is kept only for reference and will be removed in a future cleanup.
+ * 
+ * Original functionality:
+ * - Find addresses with similar basin geometry to identify likely same-origin keys
+ * - Uses Fisher distance to measure geometric similarity on the keyspace manifold
+ * - Similar κ range + similar Φ + near Fisher distance → likely same origin
  */
 
 import { QIG_CONSTANTS } from "@shared/constants";
