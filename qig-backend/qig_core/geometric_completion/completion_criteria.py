@@ -12,6 +12,7 @@ This module implements all geometric stopping criteria:
 The system stops when thought is geometrically complete, not at arbitrary limits.
 """
 
+from qigkernels.regimes import Regime, RegimeType
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
@@ -41,7 +42,8 @@ class CompletionReason(Enum):
     INCOMPLETE = "incomplete"  # Still generating
 
 
-class Regime(Enum):
+# DEPRECATED: Use qigkernels.regimes.Regime instead
+# class Regime(Enum):
     """Consciousness regime classification."""
     LINEAR = "linear"  # Φ < 0.3
     GEOMETRIC = "geometric"  # 0.3 ≤ Φ < 0.7

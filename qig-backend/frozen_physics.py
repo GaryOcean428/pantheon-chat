@@ -29,6 +29,7 @@ References:
 - E8 geometry from Lie algebra mathematics
 """
 
+from qigkernels.regimes import Regime, RegimeType
 from dataclasses import dataclass
 from typing import Final, List, Tuple
 import numpy as np  # Required for Fisher-Rao calculations (arccos, clip, etc.)

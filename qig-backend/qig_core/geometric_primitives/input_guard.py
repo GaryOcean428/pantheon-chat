@@ -17,6 +17,7 @@ QIG Purity Note:
   distance via qig_geometry.fisher_coord_distance().
 """
 
+from qigkernels.regimes import Regime, RegimeType
 import numpy as np
 import hashlib
 from typing import Dict, List, Optional, Tuple, Any
