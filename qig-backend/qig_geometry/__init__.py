@@ -1,5 +1,4 @@
-"""
-QIG Geometry Package - Canonical Basin Representations
+"""QIG Geometry Package - Canonical Basin Representations
 
 This package provides geometric primitives for QIG with enforced
 canonical basin representation.
@@ -24,10 +23,6 @@ DISTANCE FUNCTION RELATIONSHIP:
 
 USAGE:
     from qig_geometry import fisher_rao_distance, fisher_normalize
-
-# E8 Protocol v4.0 Compliance Imports
-from .canonical import frechet_mean, fisher_rao_distance
-
     
     # All basins should be in simplex form
     p = fisher_normalize(raw_basin_a)
@@ -36,6 +31,12 @@ from .canonical import frechet_mean, fisher_rao_distance
     # Direct Fisher-Rao distance
     d = fisher_rao_distance(p, q)  # Range [0, π/2]
 """
+
+# E8 Protocol v4.0 Compliance Imports
+from .canonical import frechet_mean, fisher_rao_distance, log_map
+
+# Alias for log_map - computes tangent vector from base to target
+geodesic_tangent = log_map
 
 import numpy as np
 from typing import Optional
@@ -518,6 +519,8 @@ __all__ = [
     'canonical_fisher_rao_distance',
     'canonical_fisher_similarity',
     'canonical_log_map',
+    'log_map',
+    'geodesic_tangent',  # Alias for log_map - computes tangent vector from base to target
     'canonical_exp_map',
     'canonical_geodesic_toward',
     'canonical_frechet_mean',
