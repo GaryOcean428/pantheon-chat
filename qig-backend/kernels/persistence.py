@@ -43,42 +43,10 @@ from kernels.cannibalism import (
     CannibalismRecord,
     GenomeArchive,
 )
+# Import canonical database connection
+from persistence.base_persistence import get_db_connection
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# DATABASE CONNECTION
-# =============================================================================
-
-def get_db_connection(database_url: Optional[str] = None) -> Connection:
-    """
-    Get database connection for genetic lineage operations.
-    
-    Args:
-        database_url: Optional PostgreSQL connection string
-    
-    Returns:
-        Database connection
-    
-    Raises:
-        RuntimeError: If psycopg2 is not available
-    """
-    if not PSYCOPG2_AVAILABLE:
-        raise RuntimeError(
-            "psycopg2 is required for database persistence. "
-            "Install with: pip install psycopg2-binary"
-        )
-    
-    import os
-    
-    if database_url is None:
-        database_url = os.getenv('DATABASE_URL')
-    
-    if not database_url:
-        raise ValueError("DATABASE_URL not set")
-    
-    return psycopg2.connect(database_url)
 
 
 # =============================================================================

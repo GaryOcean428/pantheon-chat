@@ -22,6 +22,9 @@ import re
 import sys
 from typing import Dict, List, Tuple, Optional
 
+# Import canonical database connection
+from persistence.base_persistence import get_db_connection
+
 try:
     import psycopg2
     from psycopg2.extras import execute_values, RealDictCursor
@@ -130,11 +133,6 @@ def is_garbage_token(token: str) -> Tuple[bool, str]:
             return True, "no_common_digraphs"
     
     return False, "valid"
-
-
-def get_db_connection(database_url: str):
-    """Get PostgreSQL connection."""
-    return psycopg2.connect(database_url)
 
 
 def quarantine_garbage_tokens(
