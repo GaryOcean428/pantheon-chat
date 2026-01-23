@@ -1,7 +1,14 @@
 /**
  * QIG Confidence Scoring
  * 
- * Computes geometric confidence based on:
+ * ⚠️ DEPRECATED: This file contains the old implementation.
+ * All functional logic has been migrated to Python: qig-backend/confidence_scoring.py
+ * 
+ * Use the API wrapper instead: import from './qig-confidence-api'
+ * 
+ * This file is kept only for reference and will be removed in a future cleanup.
+ * 
+ * Original functionality:
  * - Φ variance (stability of integrated information)
  * - κ stability (consistency of coupling strength)
  * - Basin spread (spatial distribution in keyspace)

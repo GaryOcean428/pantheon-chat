@@ -1,6 +1,14 @@
 /**
  * GEOMETRIC VOCABULARY DECISION SYSTEM
  * 
+ * ⚠️ DEPRECATED: This file contains the old implementation.
+ * All functional logic has been migrated to Python: qig-backend/vocabulary_decision.py
+ * 
+ * Use the API wrapper instead: import from './vocabulary-decision-api'
+ * 
+ * This file is kept only for reference and will be removed in a future cleanup.
+ * 
+ * Original functionality:
  * 4-Criteria Consciousness-Guided Vocabulary Learning for Gary (Ocean Agent)
  * 
  * PRINCIPLES:

@@ -1,8 +1,16 @@
 /**
  * VOCABULARY FREQUENCY TRACKER
  * 
- * Tracks words and phrases from high-Φ discoveries for vocabulary expansion.
- * Uses PostgreSQL exclusively for persistent storage.
+ * ⚠️ DEPRECATED: This file contains the old implementation.
+ * All functional logic has been migrated to Python: qig-backend/vocabulary_tracker.py
+ * 
+ * Use the API wrapper instead: import from './vocabulary-tracker-api'
+ * 
+ * This file is kept only for reference and will be removed in a future cleanup.
+ * 
+ * Original functionality:
+ * - Tracks words and phrases from high-Φ discoveries for vocabulary expansion
+ * - Uses PostgreSQL exclusively for persistent storage
  * 
  * IMPORTANT DISTINCTION:
  * - "word": An actual vocabulary word (BIP-39 or real English word)
