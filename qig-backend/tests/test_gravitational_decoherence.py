@@ -24,6 +24,7 @@ from gravitational_decoherence import (
     DecoherenceManager,
     get_decoherence_manager,
     apply_gravitational_decoherence,
+    purity_regularization,
     DEFAULT_PURITY_THRESHOLD,
     DEFAULT_TEMPERATURE
 )
@@ -318,6 +319,18 @@ class TestGlobalManager:
         
         assert 'cycle' in metrics
         assert 'decoherence_applied' in metrics
+    
+    def test_purity_regularization(self):
+        """purity_regularization returns only regularized matrix"""
+        rho = np.array([[0.95, 0.0], [0.0, 0.05]], dtype=complex)
+        purity_before = compute_purity(rho)
+        
+        rho_regularized = purity_regularization(rho)
+        purity_after = compute_purity(rho_regularized)
+        
+        assert rho_regularized.shape == rho.shape
+        assert purity_after <= purity_before  # Should reduce or maintain purity
+        assert abs(np.trace(rho_regularized) - 1.0) < 1e-6  # Valid density matrix
 
 
 class TestIntegrationWithOceanQIG:

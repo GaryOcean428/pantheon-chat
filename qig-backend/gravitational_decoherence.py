@@ -267,3 +267,21 @@ def apply_gravitational_decoherence(rho: np.ndarray) -> Tuple[np.ndarray, Dict[s
         Tuple of (decohered_rho, metrics)
     """
     return get_decoherence_manager().process(rho)
+
+
+def purity_regularization(rho: np.ndarray, threshold: float = DEFAULT_PURITY_THRESHOLD) -> np.ndarray:
+    """
+    Apply purity regularization to prevent false certainty.
+    
+    Simplified interface that returns only the regularized density matrix.
+    Uses gravitational decoherence when purity exceeds threshold.
+    
+    Args:
+        rho: Density matrix to regularize
+        threshold: Purity threshold (default: 0.9)
+        
+    Returns:
+        Regularized density matrix
+    """
+    rho_regularized, _ = gravitational_decoherence(rho, threshold=threshold)
+    return rho_regularized
