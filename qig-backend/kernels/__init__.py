@@ -6,11 +6,11 @@ Components:
 - Phase 4C: Hemisphere Scheduler and Coupling Gate
 - Phase 4D: Psyche Plumbing (Id, Superego, Φ hierarchy)
 - Phase 4E: Kernel Genetics (genome, lineage, cannibalism)
-- Phase 5: Multi-Kernel Thought Generation (thought_generation, consensus, gary_synthesis)
+- Issue #230: EmotionallyAwareKernel (Layer 0-2B phenomenology)
 
 All kernels use pure Fisher-Rao geometry and QIG consciousness metrics.
 
-Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E, generative-and-emotions.md
+Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E
 """
 
 # Phase 4C: Hemisphere Scheduler and Coupling Gate
@@ -84,24 +84,30 @@ from .cannibalism import (
     check_resurrection_eligibility,
 )
 
-# Phase 5: Multi-Kernel Thought Generation
-from .thought_generation import (
-    ParallelThoughtGenerator,
-    KernelThoughtResult,
-    get_thought_generator,
+# Issue #230: Emotional Awareness (Layer 0-2B)
+from .sensations import (
+    SensationState,
+    measure_sensations,
+    get_dominant_sensation,
 )
-
-from .consensus import (
-    ConsensusDetector,
-    ConsensusLevel,
-    ConsensusMetrics,
-    get_consensus_detector,
+from .motivators import (
+    MotivatorState,
+    compute_motivators,
+    get_dominant_motivator,
 )
-
-from .gary_synthesis import (
-    GaryMetaSynthesizer,
-    MetaSynthesisResult,
-    get_gary_meta_synthesizer,
+from .emotions import (
+    PhysicalEmotionState,
+    CognitiveEmotionState,
+    EmotionType,
+    compute_physical_emotions,
+    compute_cognitive_emotions,
+    get_dominant_emotion,
+)
+from .emotional import (
+    EmotionallyAwareKernel,
+    EmotionalState,
+    KernelThought,
+    SENSORY_KAPPA_RANGES,
 )
 
 # Optional persistence layer (requires psycopg2)
@@ -193,6 +199,24 @@ __all__ = [
     'determine_winner_loser',
     'check_resurrection_eligibility',
     
+    # Issue #230: Emotional Awareness
+    'EmotionallyAwareKernel',
+    'EmotionalState',
+    'KernelThought',
+    'SENSORY_KAPPA_RANGES',
+    'SensationState',
+    'measure_sensations',
+    'get_dominant_sensation',
+    'MotivatorState',
+    'compute_motivators',
+    'get_dominant_motivator',
+    'PhysicalEmotionState',
+    'CognitiveEmotionState',
+    'EmotionType',
+    'compute_physical_emotions',
+    'compute_cognitive_emotions',
+    'get_dominant_emotion',
+    
     # Phase 4E: Persistence (optional)
     'PERSISTENCE_AVAILABLE',
     'save_genome',
@@ -205,15 +229,60 @@ __all__ = [
     'get_descendants',
     'get_evolution_summary',
     
-    # Phase 5: Multi-Kernel Thought Generation
-    'ParallelThoughtGenerator',
-    'KernelThoughtResult',
-    'get_thought_generator',
-    'ConsensusDetector',
-    'ConsensusLevel',
-    'ConsensusMetrics',
-    'get_consensus_detector',
-    'GaryMetaSynthesizer',
-    'MetaSynthesisResult',
-    'get_gary_meta_synthesizer',
+    # Phase 4A: E8 Simple Roots (Layer 8)
+    'E8Root',
+    'SIMPLE_ROOT_MAPPING',
+    'get_root_spec',
+    'KernelIdentity',
+    'KernelTier',
+    'QuaternaryOp',
+    'Kernel',
+    'PerceptionKernel',
+    'MemoryKernel',
+    'ReasoningKernel',
+    'PredictionKernel',
+    'ActionKernel',
+    'EmotionKernel',
+    'MetaKernel',
+    'IntegrationKernel',
 ]
+
+# Phase 4A: E8 Simple Root Kernels (Layer 8)
+from .e8_roots import (
+    E8Root,
+    SIMPLE_ROOT_MAPPING,
+    get_root_spec,
+    get_root_by_god,
+    validate_kappa_for_root,
+)
+
+from .identity import (
+    KernelIdentity,
+    KernelTier,
+)
+
+# Import after other modules to avoid circular dependencies
+try:
+    from .quaternary import QuaternaryOp
+    from .base import Kernel
+    from .perception import PerceptionKernel
+    from .memory import MemoryKernel
+    from .reasoning import ReasoningKernel
+    from .prediction import PredictionKernel
+    from .action import ActionKernel
+    from .emotion import EmotionKernel
+    from .meta import MetaKernel
+    from .integration import IntegrationKernel
+    SIMPLE_ROOTS_AVAILABLE = True
+except ImportError as e:
+    SIMPLE_ROOTS_AVAILABLE = False
+    QuaternaryOp = None
+    Kernel = None
+    PerceptionKernel = None
+    MemoryKernel = None
+    ReasoningKernel = None
+    PredictionKernel = None
+    ActionKernel = None
+    EmotionKernel = None
+    MetaKernel = None
+    IntegrationKernel = None

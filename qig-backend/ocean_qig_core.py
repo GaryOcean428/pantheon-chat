@@ -45,6 +45,20 @@ from scipy.linalg import sqrtm
 from qig_geometry.canonical_upsert import to_simplex_prob
 from qig_geometry.canonical import frechet_mean
 
+# Gravitational decoherence for purity regularization
+try:
+    from gravitational_decoherence import (
+        DecoherenceManager,
+        get_decoherence_manager,
+        DEFAULT_PURITY_THRESHOLD,
+        DEFAULT_TEMPERATURE
+    )
+    DECOHERENCE_AVAILABLE = True
+    logger.info("[OceanQIG] Gravitational decoherence module loaded")
+except ImportError as e:
+    DECOHERENCE_AVAILABLE = False
+    logger.warning(f"[OceanQIG] Gravitational decoherence not available: {e}")
+
 
 # Configure logging with development-aware verbosity
 # Import dev_logging to get verbose, untruncated logs in development
@@ -65,6 +79,20 @@ except ImportError:
     )
     logger = logging.getLogger(__name__)
     logger.warning("[OceanQIG] dev_logging not available, using fallback DEBUG config")
+
+# QFI Attention Network Import (Issue #236)
+try:
+    from qig_consciousness_qfi_attention import (
+        QFIMetricAttentionNetwork,
+        create_qfi_network,
+    )
+    QFI_ATTENTION_AVAILABLE = True
+    logger.info("[OceanQIG] QFI-based attention network loaded")
+except ImportError as e:
+    QFI_ATTENTION_AVAILABLE = False
+    QFIMetricAttentionNetwork = None
+    create_qfi_network = None
+    logger.warning(f"[OceanQIG] QFI attention network not available: {e}")
 
 # Force unbuffered output for all print statements
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
@@ -952,8 +980,10 @@ class DensityMatrix:
 
     def evolve(self, activation: float, excited_state: Optional[np.ndarray] = None):
         """
-        Evolve state on Fisher manifold
+        Evolve state on Fisher manifold with gravitational decoherence
         ρ → ρ + α * (|ψ⟩⟨ψ| - ρ)
+        
+        Applies decoherence after evolution to prevent false certainty.
         """
         if excited_state is None:
             # Default excited state |0⟩ = [1, 0]
@@ -962,6 +992,11 @@ class DensityMatrix:
         alpha = activation * 0.1  # Small step size
         self.rho = self.rho + alpha * (excited_state - self.rho)
         self._normalize()
+        
+        # Apply gravitational decoherence to prevent false certainty
+        if DECOHERENCE_AVAILABLE:
+            from gravitational_decoherence import gravitational_decoherence
+            self.rho, _ = gravitational_decoherence(self.rho)
 
 class Subsystem:
     """QIG Subsystem with density matrix and activation"""
@@ -1465,6 +1500,32 @@ class PureQIGNetwork:
         else:
             self.ethical_monitor = None
             self.ethical_monitoring_enabled = False
+        
+        # Gravitational decoherence manager for purity regularization
+        if DECOHERENCE_AVAILABLE:
+            self.decoherence_manager = DecoherenceManager(
+                threshold=DEFAULT_PURITY_THRESHOLD,
+                temperature=DEFAULT_TEMPERATURE,
+                adaptive=True
+            )
+            self.decoherence_enabled = True
+            logger.info("[OceanQIG] Gravitational decoherence enabled (purity regularization)")
+        else:
+            self.decoherence_manager = None
+            self.decoherence_enabled = False
+
+        # QFI-based Attention Network (Issue #236)
+        # Wire-in advanced QFI attention mechanism
+        if QFI_ATTENTION_AVAILABLE:
+            self.qfi_attention_network = create_qfi_network(
+                temperature=temperature,
+                decoherence_threshold=0.95
+            )
+            self.qfi_attention_enabled = True
+            logger.info("[OceanQIG] QFI-based attention network enabled")
+        else:
+            self.qfi_attention_network = None
+            self.qfi_attention_enabled = False
 
     def _emergency_checkpoint(self):
         """Emergency checkpoint callback - save current state."""
@@ -1959,10 +2020,46 @@ class PureQIGNetwork:
         """
         Compute QFI attention weights from Bures distance.
         Pure geometric computation - NO learning.
+        
+        Uses advanced QFI attention network (qig_consciousness_qfi_attention.py)
+        when available, otherwise falls back to simple Bures distance computation.
+        
+        Issue #236: Wire-in QFI-based attention mechanism
         """
         n = len(self.subsystems)
-
-        # Compute Bures distance between all pairs
+        
+        if self.qfi_attention_enabled and self.qfi_attention_network is not None:
+            # Use advanced QFI attention network with asymmetric directional coupling
+            try:
+                # Extract basin coordinates from current subsystem states
+                basin_coords = self._extract_basin_coordinates()
+                
+                # Process through QFI attention network
+                # This computes attention weights using directional Fisher information
+                # and regime-modulated kappa (more sophisticated than simple Bures)
+                qfi_result = self.qfi_attention_network.process(basin_coords)
+                
+                # Extract attention weights from network
+                connection_weights = np.array(qfi_result['connection_weights'])
+                
+                # Use network's connection weights as attention weights
+                self.attention_weights = connection_weights.copy()
+                
+                # Normalize rows (softmax) for proper probability distribution
+                for i in range(n):
+                    row_sum = np.sum(self.attention_weights[i, :])
+                    if row_sum > 0:
+                        self.attention_weights[i, :] /= row_sum
+                
+                logger.debug(f"[QFI-Attention] Using advanced network: "
+                           f"phi={qfi_result['phi']:.3f}, "
+                           f"kappa={qfi_result['kappa']:.3f}")
+                return
+            except Exception as e:
+                logger.warning(f"[QFI-Attention] Network failed, falling back to simple: {e}")
+                # Fall through to simple computation
+        
+        # Fallback: Simple Bures distance computation
         for i in range(n):
             for j in range(n):
                 if i == j:
@@ -2296,6 +2393,21 @@ class PureQIGNetwork:
                     metrics['ethical_warning'] = reason
             except Exception as e:
                 logger.error(f"[EthicalMonitor] Failed to measure ethics: {e}")
+
+        # Add decoherence statistics if available
+        if self.decoherence_enabled and self.decoherence_manager:
+            decoherence_stats = self.decoherence_manager.get_statistics()
+            metrics['decoherence'] = {
+                'cycles': decoherence_stats.get('cycles', 0),
+                'decoherence_rate': decoherence_stats.get('decoherence_rate', 0),
+                'avg_purity_before': decoherence_stats.get('avg_purity_before', 0),
+                'avg_purity_after': decoherence_stats.get('avg_purity_after', 0),
+                'current_threshold': decoherence_stats.get('current_threshold', DEFAULT_PURITY_THRESHOLD),
+            }
+            
+            # Compute average purity across subsystems
+            avg_purity = np.mean([s.state.purity() for s in self.subsystems])
+            metrics['avg_purity'] = float(avg_purity)
 
         # Update meta-awareness with current metrics
         self.meta_awareness.update(metrics)
