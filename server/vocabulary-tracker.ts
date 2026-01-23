@@ -26,7 +26,7 @@
 import { geometricMemory, type BasinProbe } from './geometric-memory';
 import { logger } from './lib/logger';
 import type { Regime } from '@shared/types';
-import { vocabDecisionEngine, type WordContext } from './vocabulary-decision-api';
+import type { WordContext } from './vocabulary-decision-api';
 import { db, withDbRetry } from './db';
 import { vocabularyObservations } from '@shared/schema';
 import { eq, desc, sql } from 'drizzle-orm';
@@ -280,15 +280,16 @@ export class VocabularyTracker {
       this.queueForSave(token);
       
       // Record in vocabulary decision engine
-      const wordContext: WordContext = {
-        word: token,
-        phi,
-        kappa: kappa || 50,
-        regime: (regime || 'geometric') as Regime,
-        basinCoordinates: basinCoordinates || [],
-        timestamp: now.getTime(),
-      };
-      vocabDecisionEngine.observe(token, wordContext);
+      // DEPRECATED: vocabDecisionEngine removed - logic migrated to Python
+      // const wordContext: WordContext = {
+      //   word: token,
+      //   phi,
+      //   kappa: kappa || 50,
+      //   regime: (regime || 'geometric') as Regime,
+      //   basinCoordinates: basinCoordinates || [],
+      //   timestamp: now.getTime(),
+      // };
+      // vocabDecisionEngine.observe(token, wordContext);
     }
     
     // Track multi-token sequences
