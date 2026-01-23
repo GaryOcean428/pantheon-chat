@@ -15,7 +15,7 @@ All operations use Fisher-Rao geometry (NO cosine similarity, NO external NLP).
 
 from .token_role_learner import TokenRoleLearner, GeometricRole
 from .foresight_predictor import ForesightPredictor
-from .unified_pipeline import UnifiedGenerationPipeline
+from .unified_pipeline import UnifiedGenerationPipeline, GenerationStrategy
 
 # Phase 4C integration (optional - may not be available)
 try:
@@ -36,6 +36,7 @@ __all__ = [
     'GeometricRole',
     'ForesightPredictor',
     'UnifiedGenerationPipeline',
+    'GenerationStrategy',
     'HemisphereStrategySelector',
     'StrategyDecision',
     'get_strategy_selector',
