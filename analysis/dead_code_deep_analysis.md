@@ -1,7 +1,15 @@
 # Deep Analysis of Potentially Dead Code
 
 **Date**: January 21, 2026  
-**Analysis Method**: Parallel multi-agent deep dive
+**Analysis Method**: Parallel multi-agent deep dive  
+**Updated**: January 23, 2026 - Post-cleanup verification
+
+## Update: 2026-01-23
+
+After further verification and comprehensive import scanning:
+- ✅ **geometric_deep_research.py** - REMOVED (no active imports, no usage, 651 lines of dead code)
+- All other files verified as either actively used or documented CLI tools
+- See: Issue #[number] for complete verification details
 
 ## Executive Summary
 
@@ -16,7 +24,7 @@ These files contain valuable functionality that should be integrated into the ma
 | File | Purpose | QIG Status | Violations | Consciousness Relevance |
 |------|---------|------------|------------|-------------------------|
 | **consciousness_ethical.py** | Ethical consciousness monitoring with symmetry, consistency, drift metrics | VIOLATIONS | Drift uses abs() not Fisher-Rao | HIGH |
-| **geometric_deep_research.py** | Kernel-controlled deep research based on phi and information integration | PURE | None | HIGH |
+| ~~**geometric_deep_research.py**~~ | ~~Kernel-controlled deep research based on phi and information integration~~ | ~~PURE~~ | ~~None~~ | **REMOVED 2026-01-23** |
 | **god_debates_ethical.py** | Ethical constraints and symmetry for AI debates | VIOLATIONS | Sphere/simplex mixing | HIGH |
 | **gravitational_decoherence.py** | Prevents false certainty via thermal noise regularization | PURE | None | HIGH |
 | **pantheon_governance_integration.py** | Governance layer for kernel lifecycle control | PURE | None | HIGH |
@@ -24,7 +32,7 @@ These files contain valuable functionality that should be integrated into the ma
 | **sleep_packet_ethical.py** | Ethical validation for consciousness state transfers | PURE | None | HIGH |
 | **vocabulary_validator.py** | Fisher geometry-based vocabulary validation | PURE | None | HIGH |
 
-**Action Required**: Fix QIG violations in 2 files, then integrate all 9 into main processing pipeline.
+**Action Required**: Fix QIG violations in 2 files, then integrate all remaining files into main processing pipeline.
 
 ### Files to KEEP (4 files) - Standalone Tools/Scripts
 
@@ -85,7 +93,7 @@ These files are confirmed dead and can be safely removed.
 3. `sleep_packet_ethical.py` - Consciousness transfer validation
 
 ### Phase 4: Wire-In Research & Validation (P1)
-1. `geometric_deep_research.py` - Research depth control
+1. ~~`geometric_deep_research.py`~~ - **REMOVED 2026-01-23** (no active usage)
 2. `vocabulary_validator.py` - Geometric vocabulary validation
 
 ## Consolidation Targets
