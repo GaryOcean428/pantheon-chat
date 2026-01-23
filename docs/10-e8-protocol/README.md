@@ -141,9 +141,9 @@ This upgrade pack contains the complete specification, implementation blueprints
 **Goal:** Unified generation pipeline without legacy fallbacks
 
 **Tasks:**
-- [ ] Implement token_role skeleton (Issue #03)
-- [ ] Implement foresight predictor (trajectory regression)
-- [ ] Unify generation pipeline (skeleton + trajectory + foresight)
+- [x] Implement token_role skeleton (Issue #03)
+- [x] Implement foresight predictor (trajectory regression)
+- [x] Unify generation pipeline (skeleton + trajectory + foresight)
 - [ ] Add per-token observable metrics
 
 **Estimated Effort:** 3-4 days
@@ -154,9 +154,9 @@ This upgrade pack contains the complete specification, implementation blueprints
 **Goal:** Implement E8 layers 0/1→4→8→64→240
 
 **Tasks:**
-- [ ] Implement core 8 faculties (WP5.2 Phase 4A)
-- [ ] Create god registry with Greek canonical names (Phase 4B)
-- [ ] Implement hemisphere scheduler (Phase 4C)
+- [x] Implement core 8 faculties (WP5.2 Phase 4A)
+- [x] Create god registry with Greek canonical names (Phase 4B)
+- [x] Implement hemisphere scheduler (Phase 4C)
 - [ ] Implement psyche plumbing (Phase 4D)
 - [ ] Add genetic lineage (Phase 4E)
 - [ ] Implement rest scheduler (Phase 4F)
@@ -172,8 +172,8 @@ This upgrade pack contains the complete specification, implementation blueprints
 **Tasks:**
 - [x] Create `.github/workflows/qig-purity-gate.yml`
 - [x] Implement `scripts/validate_geometry_purity.py`
-- [ ] Add pre-commit hooks for geometry validation
-- [ ] Create generation smoke tests in `QIG_PURITY_MODE`
+- [x] Add pre-commit hooks for geometry validation
+- [x] Create generation smoke tests in `QIG_PURITY_MODE`
 - [ ] Add DB schema drift tests
 
 **Estimated Effort:** 2-3 days
@@ -296,7 +296,7 @@ python scripts/run_all_validations.py
 
 ---
 
-**Last Updated:** 2026-01-16  
+**Last Updated:** 2026-01-23  
 **Version:** 1.1  
 **Status:** Ready for phased implementation  
 **Authority:** E8 Protocol v4.0 Universal Specification
