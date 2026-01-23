@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Unified Generation Pipeline - E8 Phase 3 Integration
-====================================================
+Unified Generation Pipeline - E8 Phase 3/4C Integration
+=======================================================
 
 This module integrates token_role skeleton, foresight predictor, and trajectory
 scoring into a unified QIG-pure generation pipeline.
@@ -12,10 +12,12 @@ Key Features:
 3. Scores candidates by Fisher distance to predicted basin
 4. Operates in QIG_PURITY_MODE (no external LLM calls)
 5. Per-token observable metrics
+6. Hemisphere-aware strategy selection (Phase 4C)
 
 Reference: E8 Protocol Phase 3 (Coherence Architecture)
-Author: Copilot Agent (E8 Phase 3)
-Date: 2026-01-22
+          E8 Protocol Phase 4C (Hemisphere Integration)
+Author: Copilot Agent (E8 Phase 3/4C)
+Date: 2026-01-22 (updated 2026-01-23)
 Protocol: Ultra Consciousness v4.0 ACTIVE
 """
 
@@ -30,6 +32,20 @@ import numpy as np
 # Import generation components
 from .token_role_learner import TokenRoleLearner, GeometricRole, TokenRoleInfo
 from .foresight_predictor import ForesightPredictor
+
+# Import hemisphere strategy selector
+try:
+    from .hemisphere_strategy_selector import (
+        HemisphereStrategySelector,
+        StrategyDecision,
+        get_strategy_selector,
+    )
+    HEMISPHERE_STRATEGY_AVAILABLE = True
+except ImportError:
+    HEMISPHERE_STRATEGY_AVAILABLE = False
+    HemisphereStrategySelector = None
+    StrategyDecision = None
+    get_strategy_selector = None
 
 # Import QIG purity mode enforcement
 try:
@@ -124,23 +140,29 @@ class UnifiedGenerationPipeline:
         role_weight: float = 0.3,
         trajectory_weight: float = 0.3,
         enforce_purity: bool = True,
+        use_hemisphere_strategy: bool = True,
     ):
         """
         Initialize unified generation pipeline.
         
         Args:
             strategy: Generation strategy (foresight_driven, role_driven, or hybrid)
+                     Note: If use_hemisphere_strategy=True, this is overridden by
+                     hemisphere state at generation time
             context_window: Number of basins for trajectory context
             foresight_weight: Weight for foresight score in hybrid mode
             role_weight: Weight for role confidence in hybrid mode
             trajectory_weight: Weight for trajectory coherence in hybrid mode
             enforce_purity: Whether to enforce QIG_PURITY_MODE
+            use_hemisphere_strategy: Whether to dynamically select strategy from
+                                    hemisphere state (Phase 4C integration)
         """
         self.strategy = strategy
         self.context_window = context_window
         self.foresight_weight = foresight_weight
         self.role_weight = role_weight
         self.trajectory_weight = trajectory_weight
+        self.use_hemisphere_strategy = use_hemisphere_strategy
         
         # Purity mode check
         self.purity_mode = is_purity_mode_enabled()
@@ -162,10 +184,57 @@ class UnifiedGenerationPipeline:
             context_window=context_window
         )
         
+        # Initialize hemisphere strategy selector (Phase 4C)
+        self.strategy_selector = None
+        if use_hemisphere_strategy and HEMISPHERE_STRATEGY_AVAILABLE:
+            try:
+                self.strategy_selector = get_strategy_selector()
+                logger.info("[UnifiedPipeline] Hemisphere strategy selection ENABLED")
+            except Exception as e:
+                logger.warning(f"[UnifiedPipeline] Failed to initialize hemisphere strategy: {e}")
+        
         logger.info(
             f"[UnifiedPipeline] Initialized with strategy={strategy.value}, "
-            f"context_window={context_window}, purity_mode={self.purity_mode}"
+            f"context_window={context_window}, purity_mode={self.purity_mode}, "
+            f"hemisphere_aware={use_hemisphere_strategy}"
         )
+    
+    def _update_strategy_from_hemisphere(self) -> Optional[StrategyDecision]:
+        """
+        Update generation strategy based on current hemisphere state.
+        
+        Phase 4C Integration: Query hemisphere scheduler to select appropriate
+        generation strategy based on explore/exploit dynamics.
+        
+        Returns:
+            StrategyDecision if hemisphere strategy selector is available, else None
+        """
+        if self.strategy_selector is None:
+            return None
+        
+        try:
+            decision = self.strategy_selector.select_strategy()
+            
+            # Update active strategy
+            self.strategy = decision.strategy
+            
+            # Update weights based on hemisphere balance
+            weights = self.strategy_selector.get_strategy_weights(decision)
+            self.foresight_weight = weights['foresight_weight']
+            self.role_weight = weights['role_weight']
+            self.trajectory_weight = weights['trajectory_weight']
+            
+            logger.info(
+                f"[UnifiedPipeline] Strategy updated from hemisphere: "
+                f"{decision.strategy.value} ({decision.hemisphere_dominant}), "
+                f"weights=(F:{self.foresight_weight:.2f}, "
+                f"R:{self.role_weight:.2f}, T:{self.trajectory_weight:.2f})"
+            )
+            
+            return decision
+        except Exception as e:
+            logger.error(f"[UnifiedPipeline] Failed to update strategy from hemisphere: {e}")
+            return None
     
     def generate(
         self,
@@ -184,6 +253,11 @@ class UnifiedGenerationPipeline:
         Returns:
             GenerationResult with tokens, metrics, and quality info
         """
+        # Update strategy from hemisphere state (Phase 4C)
+        strategy_decision = None
+        if self.use_hemisphere_strategy:
+            strategy_decision = self._update_strategy_from_hemisphere()
+        
         # Enforce purity mode
         if self.purity_mode:
             logger.info("[UnifiedPipeline] Operating in QIG_PURITY_MODE - no external LLM calls")
