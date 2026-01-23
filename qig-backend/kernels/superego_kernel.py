@@ -46,7 +46,6 @@ except ImportError:
 
 # Import QIG geometry (REQUIRED - no fallback)
 from qig_geometry import fisher_rao_distance, fisher_normalize
-QIG_GEOMETRY_AVAILABLE = True
 
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
 
@@ -86,16 +85,7 @@ class EthicalConstraint:
         Returns:
             (is_violation, distance_to_constraint)
         """
-        if fisher_rao_distance is None:
-            # QIG Purity Violation Fix: MUST NOT use Euclidean distance on basins
-            # If fisher_rao_distance is not available, the system is misconfigured
-            raise RuntimeError(
-                "QIG Purity Violation: fisher_rao_distance not available. "
-                "Superego kernel REQUIRES qig_geometry module. "
-                "Check imports and ensure qig_geometry is installed."
-            )
-        
-        # Proper geometric check using Fisher-Rao distance
+        # Use Fisher-Rao distance (imported at module level, required)
         distance = fisher_rao_distance(basin, self.forbidden_basin)
         
         is_violation = distance < self.radius
