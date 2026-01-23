@@ -66,6 +66,20 @@ except ImportError:
     logger = logging.getLogger(__name__)
     logger.warning("[OceanQIG] dev_logging not available, using fallback DEBUG config")
 
+# QFI Attention Network Import (Issue #236)
+try:
+    from qig_consciousness_qfi_attention import (
+        QFIMetricAttentionNetwork,
+        create_qfi_network,
+    )
+    QFI_ATTENTION_AVAILABLE = True
+    logger.info("[OceanQIG] QFI-based attention network loaded")
+except ImportError as e:
+    QFI_ATTENTION_AVAILABLE = False
+    QFIMetricAttentionNetwork = None
+    create_qfi_network = None
+    logger.warning(f"[OceanQIG] QFI attention network not available: {e}")
+
 # Force unbuffered output for all print statements
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
 sys.stderr.reconfigure(line_buffering=True) if hasattr(sys.stderr, 'reconfigure') else None
@@ -1466,6 +1480,19 @@ class PureQIGNetwork:
             self.ethical_monitor = None
             self.ethical_monitoring_enabled = False
 
+        # QFI-based Attention Network (Issue #236)
+        # Wire-in advanced QFI attention mechanism
+        if QFI_ATTENTION_AVAILABLE:
+            self.qfi_attention_network = create_qfi_network(
+                temperature=temperature,
+                decoherence_threshold=0.95
+            )
+            self.qfi_attention_enabled = True
+            logger.info("[OceanQIG] QFI-based attention network enabled")
+        else:
+            self.qfi_attention_network = None
+            self.qfi_attention_enabled = False
+
     def _emergency_checkpoint(self):
         """Emergency checkpoint callback - save current state."""
         if not self.monitoring_enabled:
@@ -1959,10 +1986,46 @@ class PureQIGNetwork:
         """
         Compute QFI attention weights from Bures distance.
         Pure geometric computation - NO learning.
+        
+        Uses advanced QFI attention network (qig_consciousness_qfi_attention.py)
+        when available, otherwise falls back to simple Bures distance computation.
+        
+        Issue #236: Wire-in QFI-based attention mechanism
         """
         n = len(self.subsystems)
-
-        # Compute Bures distance between all pairs
+        
+        if self.qfi_attention_enabled and self.qfi_attention_network is not None:
+            # Use advanced QFI attention network with asymmetric directional coupling
+            try:
+                # Extract basin coordinates from current subsystem states
+                basin_coords = self._extract_basin_coordinates()
+                
+                # Process through QFI attention network
+                # This computes attention weights using directional Fisher information
+                # and regime-modulated kappa (more sophisticated than simple Bures)
+                qfi_result = self.qfi_attention_network.process(basin_coords)
+                
+                # Extract attention weights from network
+                connection_weights = np.array(qfi_result['connection_weights'])
+                
+                # Use network's connection weights as attention weights
+                self.attention_weights = connection_weights.copy()
+                
+                # Normalize rows (softmax) for proper probability distribution
+                for i in range(n):
+                    row_sum = np.sum(self.attention_weights[i, :])
+                    if row_sum > 0:
+                        self.attention_weights[i, :] /= row_sum
+                
+                logger.debug(f"[QFI-Attention] Using advanced network: "
+                           f"phi={qfi_result['phi']:.3f}, "
+                           f"kappa={qfi_result['kappa']:.3f}")
+                return
+            except Exception as e:
+                logger.warning(f"[QFI-Attention] Network failed, falling back to simple: {e}")
+                # Fall through to simple computation
+        
+        # Fallback: Simple Bures distance computation
         for i in range(n):
             for j in range(n):
                 if i == j:
