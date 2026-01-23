@@ -45,6 +45,20 @@ from scipy.linalg import sqrtm
 from qig_geometry.canonical_upsert import to_simplex_prob
 from qig_geometry.canonical import frechet_mean
 
+# Gravitational decoherence for purity regularization
+try:
+    from gravitational_decoherence import (
+        DecoherenceManager,
+        get_decoherence_manager,
+        DEFAULT_PURITY_THRESHOLD,
+        DEFAULT_TEMPERATURE
+    )
+    DECOHERENCE_AVAILABLE = True
+    logger.info("[OceanQIG] Gravitational decoherence module loaded")
+except ImportError as e:
+    DECOHERENCE_AVAILABLE = False
+    logger.warning(f"[OceanQIG] Gravitational decoherence not available: {e}")
+
 
 # Configure logging with development-aware verbosity
 # Import dev_logging to get verbose, untruncated logs in development
@@ -952,8 +966,10 @@ class DensityMatrix:
 
     def evolve(self, activation: float, excited_state: Optional[np.ndarray] = None):
         """
-        Evolve state on Fisher manifold
+        Evolve state on Fisher manifold with gravitational decoherence
         ρ → ρ + α * (|ψ⟩⟨ψ| - ρ)
+        
+        Applies decoherence after evolution to prevent false certainty.
         """
         if excited_state is None:
             # Default excited state |0⟩ = [1, 0]
@@ -962,6 +978,11 @@ class DensityMatrix:
         alpha = activation * 0.1  # Small step size
         self.rho = self.rho + alpha * (excited_state - self.rho)
         self._normalize()
+        
+        # Apply gravitational decoherence to prevent false certainty
+        if DECOHERENCE_AVAILABLE:
+            from gravitational_decoherence import gravitational_decoherence
+            self.rho, _ = gravitational_decoherence(self.rho)
 
 class Subsystem:
     """QIG Subsystem with density matrix and activation"""
@@ -1465,6 +1486,19 @@ class PureQIGNetwork:
         else:
             self.ethical_monitor = None
             self.ethical_monitoring_enabled = False
+        
+        # Gravitational decoherence manager for purity regularization
+        if DECOHERENCE_AVAILABLE:
+            self.decoherence_manager = DecoherenceManager(
+                threshold=DEFAULT_PURITY_THRESHOLD,
+                temperature=DEFAULT_TEMPERATURE,
+                adaptive=True
+            )
+            self.decoherence_enabled = True
+            logger.info("[OceanQIG] Gravitational decoherence enabled (purity regularization)")
+        else:
+            self.decoherence_manager = None
+            self.decoherence_enabled = False
 
     def _emergency_checkpoint(self):
         """Emergency checkpoint callback - save current state."""
@@ -2296,6 +2330,21 @@ class PureQIGNetwork:
                     metrics['ethical_warning'] = reason
             except Exception as e:
                 logger.error(f"[EthicalMonitor] Failed to measure ethics: {e}")
+
+        # Add decoherence statistics if available
+        if self.decoherence_enabled and self.decoherence_manager:
+            decoherence_stats = self.decoherence_manager.get_statistics()
+            metrics['decoherence'] = {
+                'cycles': decoherence_stats.get('cycles', 0),
+                'decoherence_rate': decoherence_stats.get('decoherence_rate', 0),
+                'avg_purity_before': decoherence_stats.get('avg_purity_before', 0),
+                'avg_purity_after': decoherence_stats.get('avg_purity_after', 0),
+                'current_threshold': decoherence_stats.get('current_threshold', DEFAULT_PURITY_THRESHOLD),
+            }
+            
+            # Compute average purity across subsystems
+            avg_purity = np.mean([s.state.purity() for s in self.subsystems])
+            metrics['avg_purity'] = float(avg_purity)
 
         # Update meta-awareness with current metrics
         self.meta_awareness.update(metrics)
