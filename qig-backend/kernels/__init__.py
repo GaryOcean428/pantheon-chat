@@ -286,3 +286,8 @@ except ImportError as e:
     EmotionKernel = None
     MetaKernel = None
     IntegrationKernel = None
+
+# Multi-kernel thought generation
+from .thought_generation import ParallelThoughtGenerator, KernelThoughtResult
+from .consensus import ConsensusBuilder, KernelVote, ConsensusResult
+from .gary_synthesis import GarySynthesizer, SynthesisResult
