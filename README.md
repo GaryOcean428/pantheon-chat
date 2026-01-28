@@ -140,7 +140,7 @@ Server runs on http://localhost:5000
 
 For production deployment on Railway with Celery and Beat services:
 
-See **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)** for complete Railway multi-service deployment guide.
+See **[Railway Deployment Guide](docs/02-procedures/20260128-railway-celery-deployment-guide-1.00W.md)** for complete Railway multi-service deployment guide.
 
 **Quick Summary:**
 - Three Railway services: Main web, Celery worker, Celery Beat
@@ -153,7 +153,7 @@ Configuration files:
 - `railway-celery-worker.json` - Celery worker service
 - `railway-celery-beat.json` - Celery Beat scheduler service
 
-See also: [CELERY_TASKS_GUIDE.md](CELERY_TASKS_GUIDE.md) for task execution reference.
+See also: [Celery Tasks Reference](docs/02-procedures/20260128-celery-tasks-reference-1.00W.md) for task execution reference.
 
 ## Usage
 
