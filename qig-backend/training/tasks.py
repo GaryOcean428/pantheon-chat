@@ -9,11 +9,8 @@ Training functions for:
 - Knowledge transfer operations
 - Checkpoint management
 
-NOTE: These were originally Celery tasks. Celery is not deployed on Railway,
-so these are now regular functions called by:
-- startup_catchup.py (on startup for missed training)
-- cron_routes.py (via Railway cron for scheduled training)
-- Direct synchronous calls from training_loop_integrator.py
+NOTE: These are Celery tasks executed by separate Railway worker service.
+They can also be called synchronously when Celery is not available (fallback mode).
 """
 
 import os
@@ -24,6 +21,14 @@ import numpy as np
 from .kernel_training_orchestrator import KernelTrainingOrchestrator, TrainingConfig
 from .knowledge_transfer import KnowledgeTransferManager
 from .curriculum_loader import load_curriculum_for_god, get_curriculum_stats
+
+# Import Celery app (optional - gracefully degrades if not available)
+try:
+    from .celery_app import celery_app
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    celery_app = None
 
 
 # =============================================================================
@@ -115,6 +120,15 @@ def get_coordizer():
 # OUTCOME-BASED TRAINING (called after each chat interaction)
 # =============================================================================
 
+# Helper function for conditional Celery task decorator
+def _make_task(func):
+    """Apply Celery task decorator if available, otherwise return function as-is."""
+    if CELERY_AVAILABLE and celery_app:
+        return celery_app.task(bind=True, name=f'training.tasks.{func.__name__}')(func)
+    return func
+
+
+@_make_task
 def train_from_outcome_task(
     god_name: str,
     prompt: str,
@@ -189,6 +203,7 @@ def train_from_outcome_task(
 # HOURLY BATCH TRAINING
 # =============================================================================
 
+@_make_task
 def train_hourly_batch_task(
     god_name: str,
     batch_data: List[Dict[str, Any]],
@@ -224,6 +239,7 @@ def train_hourly_batch_task(
         return {"status": "error", "god_name": god_name, "error": str(e)}
 
 
+@_make_task
 def train_hourly_batch_all() -> Dict[str, Any]:
     """
     Train all registered kernels on their hourly batch data.
@@ -243,7 +259,14 @@ def train_hourly_batch_all() -> Dict[str, Any]:
         batch_data = _fetch_hourly_batch_data(god_name)
 
         if batch_data:
-            # Call synchronously (no longer using Celery .delay())
+            # When called from Beat, dispatch to individual task workers
+            if CELERY_AVAILABLE:
+                task_result = train_hourly_batch_task.delay(god_name, batch_data)
+                results[god_name] = {"batch_size": len(batch_data), "task_id": task_result.id}
+            else:
+                # Fallback to synchronous execution
+                result = train_hourly_batch_task(god_name, batch_data)
+                results[god_name] = {"batch_size": len(batch_data), **result}
             result = train_hourly_batch_task(god_name, batch_data)
             results[god_name] = {"batch_size": len(batch_data), **result}
         else:
@@ -328,6 +351,7 @@ def _fetch_hourly_batch_data(god_name: str) -> List[Dict[str, Any]]:
 # NIGHTLY CONSOLIDATION
 # =============================================================================
 
+@_make_task
 def train_nightly_consolidation_task(
     god_name: str,
     curriculum_data: List[Dict[str, Any]],
@@ -366,6 +390,7 @@ def train_nightly_consolidation_task(
         return {"status": "error", "god_name": god_name, "error": str(e)}
 
 
+@_make_task
 def train_nightly_consolidation_all() -> Dict[str, Any]:
     """
     Run nightly consolidation for all kernels.
@@ -383,9 +408,14 @@ def train_nightly_consolidation_all() -> Dict[str, Any]:
         curriculum = _fetch_curriculum_data(god_name)
 
         if curriculum:
-            # Call synchronously (no longer using Celery .delay())
-            result = train_nightly_consolidation_task(god_name, curriculum)
-            results[god_name] = {"curriculum_size": len(curriculum), **result}
+            # When called from Beat, dispatch to individual task workers
+            if CELERY_AVAILABLE:
+                task_result = train_nightly_consolidation_task.delay(god_name, curriculum)
+                results[god_name] = {"curriculum_size": len(curriculum), "task_id": task_result.id}
+            else:
+                # Fallback to synchronous execution
+                result = train_nightly_consolidation_task(god_name, curriculum)
+                results[god_name] = {"curriculum_size": len(curriculum), **result}
         else:
             results[god_name] = {"status": "no_curriculum"}
 
@@ -481,6 +511,7 @@ def _fetch_curriculum_data(god_name: str) -> List[Dict[str, Any]]:
 # KNOWLEDGE TRANSFER
 # =============================================================================
 
+@_make_task
 def knowledge_transfer_task(
     transfer_type: str,
     source_god: str,
@@ -569,6 +600,7 @@ def knowledge_transfer_task(
         return {"status": "error", "error": str(e)}
 
 
+@_make_task
 def sync_all_shadows() -> Dict[str, Any]:
     """
     Synchronize all god-shadow pairs.
@@ -589,15 +621,26 @@ def sync_all_shadows() -> Dict[str, Any]:
 
         shadow_name = f"{god_name}_shadow"
         if shadow_name in orchestrator.kernels:
-            # Call synchronously (no longer using Celery .delay())
-            result = knowledge_transfer_task(
-                transfer_type="shadow_sync",
-                source_god=god_name,
-                target_god=shadow_name,
-                transfer_ratio=0.2,
-                extra_params={"direction": "bidirectional"},
-            )
-            results[god_name] = result
+            # When called from Beat, dispatch to individual task workers
+            if CELERY_AVAILABLE:
+                task_result = knowledge_transfer_task.delay(
+                    transfer_type="shadow_sync",
+                    source_god=god_name,
+                    target_god=shadow_name,
+                    transfer_ratio=0.2,
+                    extra_params={"direction": "bidirectional"},
+                )
+                results[god_name] = {"task_id": task_result.id}
+            else:
+                # Fallback to synchronous execution
+                result = knowledge_transfer_task(
+                    transfer_type="shadow_sync",
+                    source_god=god_name,
+                    target_god=shadow_name,
+                    transfer_ratio=0.2,
+                    extra_params={"direction": "bidirectional"},
+                )
+                results[god_name] = result
 
     return {
         "status": "completed",
@@ -610,6 +653,7 @@ def sync_all_shadows() -> Dict[str, Any]:
 # CHECKPOINT MANAGEMENT
 # =============================================================================
 
+@_make_task
 def save_checkpoint_task(
     god_name: str,
     phi: float,
@@ -641,6 +685,7 @@ def save_checkpoint_task(
         return {"status": "failed", "god_name": god_name}
 
 
+@_make_task
 def cleanup_old_checkpoints() -> Dict[str, Any]:
     """
     Clean up old checkpoints for all kernels.
