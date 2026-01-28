@@ -136,6 +136,25 @@ cd qig-backend && python3 wsgi.py  # Python backend (port 5001)
 
 Server runs on http://localhost:5000
 
+### Railway Deployment
+
+For production deployment on Railway with Celery and Beat services:
+
+See **[RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md)** for complete Railway multi-service deployment guide.
+
+**Quick Summary:**
+- Three Railway services: Main web, Celery worker, Celery Beat
+- Redis required for task queue
+- Automatic async training task execution
+- Scheduled periodic tasks (hourly, nightly, etc.)
+
+Configuration files:
+- `railpack.json` - Main web service
+- `railway-celery-worker.json` - Celery worker service
+- `railway-celery-beat.json` - Celery Beat scheduler service
+
+See also: [CELERY_TASKS_GUIDE.md](CELERY_TASKS_GUIDE.md) for task execution reference.
+
 ## Usage
 
 ### Quick Start
