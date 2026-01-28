@@ -1,0 +1,31 @@
+{
+  "version": "1",
+  "metadata": {
+    "name": "pantheon-chat-celery-worker",
+    "description": "Celery worker for async training tasks"
+  },
+  "build": {
+    "provider": "python",
+    "pythonVersion": "3.11",
+    "steps": {
+      "install": {
+        "commands": [
+          "echo '=== Installing Python dependencies for Celery worker ==='",
+          "pip install --no-cache-dir -r qig-backend/requirements.txt"
+        ]
+      }
+    },
+    "env": {
+      "PYTHONUNBUFFERED": "1",
+      "TRAINING_ENABLED": "true"
+    }
+  },
+  "deploy": {
+    "startCommand": "cd qig-backend && celery -A training.celery_app worker --loglevel=info --concurrency=2",
+    "healthCheckPath": null,
+    "healthCheckTimeout": 60,
+    "restartPolicyType": "ALWAYS",
+    "restartPolicyMaxRetries": 0,
+    "numReplicas": 1
+  }
+}

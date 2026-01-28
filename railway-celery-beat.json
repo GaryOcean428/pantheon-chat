@@ -1,0 +1,31 @@
+{
+  "version": "1",
+  "metadata": {
+    "name": "pantheon-chat-celery-beat",
+    "description": "Celery Beat scheduler for periodic training tasks"
+  },
+  "build": {
+    "provider": "python",
+    "pythonVersion": "3.11",
+    "steps": {
+      "install": {
+        "commands": [
+          "echo '=== Installing Python dependencies for Celery Beat ==='",
+          "pip install --no-cache-dir -r qig-backend/requirements.txt"
+        ]
+      }
+    },
+    "env": {
+      "PYTHONUNBUFFERED": "1",
+      "TRAINING_ENABLED": "true"
+    }
+  },
+  "deploy": {
+    "startCommand": "cd qig-backend && celery -A training.celery_app beat --loglevel=info",
+    "healthCheckPath": null,
+    "healthCheckTimeout": 60,
+    "restartPolicyType": "ALWAYS",
+    "restartPolicyMaxRetries": 0,
+    "numReplicas": 1
+  }
+}
