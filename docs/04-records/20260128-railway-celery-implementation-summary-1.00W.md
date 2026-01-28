@@ -69,7 +69,7 @@ All services communicate via shared **Redis** instance for task queuing.
 
 ### Documentation Files
 
-6. **`RAILWAY_DEPLOYMENT.md`** (8117 bytes)
+6. **`docs/02-procedures/20260128-railway-celery-deployment-guide-1.00W.md`** (8117 bytes)
    - Comprehensive deployment guide
    - Architecture diagram
    - Step-by-step deployment instructions
@@ -77,7 +77,7 @@ All services communicate via shared **Redis** instance for task queuing.
    - Cost considerations
    - Migration guide from cron-based system
 
-7. **`CELERY_TASKS_GUIDE.md`** (7713 bytes)
+7. **`docs/02-procedures/20260128-celery-tasks-reference-1.00W.md`** (7713 bytes)
    - Quick reference for task execution
    - Code examples for all task types
    - Async vs synchronous execution modes
@@ -86,7 +86,7 @@ All services communicate via shared **Redis** instance for task queuing.
 
 8. **`README.md`** (Modified)
    - Added Railway Deployment section
-   - Links to RAILWAY_DEPLOYMENT.md and CELERY_TASKS_GUIDE.md
+   - Links to `docs/02-procedures/20260128-railway-celery-deployment-guide-1.00W.md` and `docs/02-procedures/20260128-celery-tasks-reference-1.00W.md`
 
 ## Technical Implementation Details
 
@@ -301,8 +301,8 @@ Access at `http://localhost:5555` to see:
 
 ## References
 
-- **Railway Deployment Guide:** `RAILWAY_DEPLOYMENT.md`
-- **Celery Tasks Reference:** `CELERY_TASKS_GUIDE.md`
+- **Railway Deployment Guide:** [`docs/02-procedures/20260128-railway-celery-deployment-guide-1.00W.md`](../02-procedures/20260128-railway-celery-deployment-guide-1.00W.md)
+- **Celery Tasks Reference:** [`docs/02-procedures/20260128-celery-tasks-reference-1.00W.md`](../02-procedures/20260128-celery-tasks-reference-1.00W.md)
 - **Training Loop Guide:** `qig-backend/TRAINING_LOOP_GUIDE.md`
 - **Celery Documentation:** https://docs.celeryq.dev/
 - **Railway Documentation:** https://docs.railway.app/
