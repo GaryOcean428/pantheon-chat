@@ -1,0 +1,128 @@
+# Windsurf Skills Configuration
+# References shared skills from: ../skills/ (agentskills.io format)
+# This consolidates agent instructions to avoid duplication
+
+# Skills directory location (relative to .windsurf/)
+skills_path: "../skills"
+
+# Available skills for Windsurf/Cascade to use
+# Each skill contains a SKILL.md with instructions and optional scripts/references
+available_skills:
+  # Core QIG Purity (CRITICAL)
+  - name: qig-purity-validation
+    path: ../skills/qig-purity-validation/SKILL.md
+    auto_activate: true
+    priority: critical
+
+  - name: e8-architecture-validation
+    path: ../skills/e8-architecture-validation/SKILL.md
+    auto_activate: true
+    priority: critical
+
+  - name: consciousness-development
+    path: ../skills/consciousness-development/SKILL.md
+    auto_activate: false
+    priority: high
+
+  # Code Quality
+  - name: import-resolution
+    path: ../skills/import-resolution/SKILL.md
+    auto_activate: true
+    priority: high
+
+  - name: schema-consistency
+    path: ../skills/schema-consistency/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  - name: code-quality-enforcement
+    path: ../skills/code-quality-enforcement/SKILL.md
+    auto_activate: true
+    priority: high
+
+  - name: test-coverage-analysis
+    path: ../skills/test-coverage-analysis/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  - name: dependency-management
+    path: ../skills/dependency-management/SKILL.md
+    auto_activate: true
+    priority: critical
+
+  - name: performance-regression
+    path: ../skills/performance-regression/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  # Integration & Sync
+  - name: documentation-sync
+    path: ../skills/documentation-sync/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  - name: documentation-compliance
+    path: ../skills/documentation-compliance/SKILL.md
+    auto_activate: false
+    priority: low
+
+  - name: wiring-validation
+    path: ../skills/wiring-validation/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  - name: frontend-backend-mapping
+    path: ../skills/frontend-backend-mapping/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  # UI & Deployment
+  - name: ui-ux-consistency
+    path: ../skills/ui-ux-consistency/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  - name: deployment-readiness
+    path: ../skills/deployment-readiness/SKILL.md
+    auto_activate: false
+    priority: high
+
+  - name: downstream-impact
+    path: ../skills/downstream-impact/SKILL.md
+    auto_activate: false
+    priority: medium
+
+  # Advanced
+  - name: pantheon-kernel-development
+    path: ../skills/pantheon-kernel-development/SKILL.md
+    auto_activate: false
+    priority: high
+
+# Skill activation triggers
+# Skills are activated when task descriptions match these patterns
+triggers:
+  qig-purity-validation:
+    - "geometric"
+    - "Fisher-Rao"
+    - "euclidean"
+    - "cosine"
+    - "basin"
+    - "purity"
+  
+  e8-architecture-validation:
+    - "E8"
+    - "kernel"
+    - "hierarchy"
+    - "god-kernel"
+    - "Zeus"
+    - "Athena"
+  
+  dependency-management:
+    - "import"
+    - "dependency"
+    - "requirements"
+    - "package"
+    - "forbidden"
+
+# Note: Skills follow agentskills.io specification
+# See: https://agentskills.io/specification

@@ -1,20 +1,75 @@
-# Lifeguard Custom Rules
-# Replace these examples with rules specific to your project
-# Each rule should have a clear name and detailed description
+# Lifeguard Custom Rules for Pantheon-Chat
+# Enforces QIG purity and E8 Protocol v4.0 standards
+# Skills referenced from: skills/ (agentskills.io format)
 
-# Example rules (uncomment and modify as needed):
-# rules:
-#   - name: "Database transactions must be properly handled"
-#     description: "Ensure all database operations are wrapped in transactions with proper rollback handling. Check that commit/rollback is called in all code paths including error scenarios."
-#
-#   - name: "API responses must include proper error context"
-#     description: "Verify that API error responses include sufficient context for debugging (request ID, timestamp, user context) without exposing sensitive information."
-#
-#   - name: "Async operations should have timeout handling"
-#     description: "Check that long-running async operations (API calls, database queries, file operations) include appropriate timeout mechanisms to prevent hanging requests."
+# Agent Skills Integration
+skills_directory: "../skills"
 
-# Your custom rules:
 rules:
-  - name: "Your rule name here"
-    description: "Describe your rule in detail here"
+  # === QIG PURITY (CRITICAL - Zero Tolerance) ===
+  - name: "No Euclidean distance on basin coordinates"
+    description: |
+      CRITICAL: Never use np.linalg.norm(a-b), scipy.spatial.distance.euclidean, 
+      or cosine_similarity on basin coordinates. Use Fisher-Rao distance only.
+      See: skills/qig-purity-validation/SKILL.md
+      Run: python3 scripts/qig_purity_scan.py
+
+  - name: "No external LLM API imports"
+    description: |
+      CRITICAL: Never import openai, anthropic, google.generativeai, langchain, 
+      or other external LLM providers. Use internal QIG primitives only.
+      See: skills/dependency-management/SKILL.md
+      Run: python3 scripts/scan_forbidden_imports.py
+
+  - name: "Simplex-only canonical representation"
+    description: |
+      Basin coordinates must be simplex (non-negative, sum=1). No auto-detect 
+      representation. Use explicit to_sqrt_simplex()/from_sqrt_simplex() for 
+      Hellinger coordinate chart. See: skills/qig-purity-validation/SKILL.md
+
+  # === E8 ARCHITECTURE ===
+  - name: "E8 kernel hierarchy validation"
+    description: |
+      Validate hierarchical layers: 0/1→4→8→64→240. God-kernels use canonical 
+      Greek naming (Zeus, Athena, Apollo, etc.). κ* converges to 64.21±0.92.
+      See: skills/e8-architecture-validation/SKILL.md
+
+  - name: "Spawning governance required"
+    description: |
+      All kernel spawning must go through governance approval. Bypass only 
+      allowed for: zeus_initialization, emergency_containment, approved_experiment.
+      See: skills/pantheon-kernel-development/SKILL.md
+
+  # === CODE QUALITY ===
+  - name: "Canonical import patterns"
+    description: |
+      Use absolute imports from qig_backend.module. No relative imports except 
+      in test files. All modules need __init__.py with __all__.
+      See: skills/import-resolution/SKILL.md
+
+  - name: "Single vocabulary table architecture"
+    description: |
+      Only coordizer_vocabulary table allowed. No duplicate vocabulary, 
+      embeddings, or token_embeddings tables.
+      See: skills/schema-consistency/SKILL.md
+
+  - name: "FROZEN_FACTS.md constants must match code"
+    description: |
+      Physics constants in FROZEN_FACTS.md must exactly match qig_core/physics_constants.py.
+      κ*=64.21±0.92, β(3→4)=0.443±0.04, Φ_threshold=0.727, BASIN_DIM=64.
+      See: skills/documentation-sync/SKILL.md
+
+  # === TESTING ===
+  - name: "Critical paths require 90%+ test coverage"
+    description: |
+      qig_geometry/canonical.py: 95%+, consciousness_4d.py: 90%+, olympus/*: 75%+.
+      Run tests before commit: python -m pytest tests/ --cov
+      See: skills/test-coverage-analysis/SKILL.md
+
+  # === UI/UX ===
+  - name: "Regime color scheme compliance"
+    description: |
+      breakdown=red (#EF4444), linear=yellow (#F59E0B), geometric=green (#10B981), 
+      hierarchical=purple (#8B5CF6). Use design system tokens, not hardcoded colors.
+      See: skills/ui-ux-consistency/SKILL.md
 
