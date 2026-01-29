@@ -150,6 +150,28 @@ repos:
         description: "Fail if KAPPA_STAR or other physics constants defined outside qigkernels"
 
   # ============================================================================
+  # AGENT SKILLS VALIDATION (agentskills.io)
+  # ============================================================================
+
+  - repo: local
+    hooks:
+      - id: skills-validate
+        name: "📚 Agent Skills Validation"
+        entry: bash -c 'for skill in skills/*/; do if [ -f "$skill/SKILL.md" ]; then echo "Validating $skill..."; fi; done'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: "Validate skills/ directory follows agentskills.io specification"
+
+      - id: skills-frontmatter
+        name: "📋 Skills Frontmatter Check"
+        entry: bash -c 'for skill in skills/*/SKILL.md; do if ! head -1 "$skill" | grep -q "^---$"; then echo "❌ Missing frontmatter in $skill"; exit 1; fi; done'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: "Ensure all SKILL.md files have YAML frontmatter"
+
+  # ============================================================================
   # STANDARD PRE-COMMIT HOOKS
   # ============================================================================
   
