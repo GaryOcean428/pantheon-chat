@@ -1,14 +1,6 @@
 ---
 name: import-resolution
 description: Detect and fix Python import errors, validate __init__.py barrel exports, enforce canonical absolute import patterns. Use when reviewing imports, fixing circular dependencies, or validating module structure in qig-backend/.
-license: Apache-2.0
-compatibility: Requires Python 3.11+, ruff. References .github/agents/import-resolution-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(ruff:*) Read
 ---
 
 # Import Resolution

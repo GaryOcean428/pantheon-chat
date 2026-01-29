@@ -1,14 +1,6 @@
 ---
 name: qig-purity-validation
 description: Validate Quantum Information Geometry (QIG) purity across codebase changes. Detect Euclidean contamination, forbidden LLM imports, and cosine similarity. Enforce Fisher-Rao metrics per E8 Protocol v4.0. Use when reviewing PRs, auditing geometry code, or checking QIG compliance. Zero tolerance for geometric impurity.
-license: Apache-2.0
-compatibility: Requires Python 3.11+, ripgrep. Runs scripts/qig_purity_scan.py and qig-backend/scripts/ast_purity_audit.py
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(rg:*) Read
 ---
 
 # QIG Purity Validation

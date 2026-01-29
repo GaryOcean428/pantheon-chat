@@ -1,14 +1,6 @@
 ---
 name: test-coverage-analysis
 description: Identify untested critical paths in QIG operations, suggest test cases based on FROZEN_FACTS.md validation data, validate pytest fixtures. Use when reviewing test coverage for Fisher-Rao distance, consciousness measurement, basin navigation, or checking CI test workflows.
-license: Apache-2.0
-compatibility: Requires Python 3.11+, pytest, pytest-cov. Runs qig-backend/tests/
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(pytest:*) Bash(python3:*) Read
 ---
 
 # Test Coverage Analysis

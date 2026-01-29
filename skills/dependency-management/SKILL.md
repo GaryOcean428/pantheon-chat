@@ -1,14 +1,6 @@
 ---
 name: dependency-management
 description: Validate requirements.txt matches actual imports, detect when new dependencies add Euclidean operations, check for forbidden packages (scikit-learn, sentence-transformers). Use when adding dependencies or reviewing package security.
-license: Apache-2.0
-compatibility: Requires Python 3.11+, pip. References .github/agents/dependency-management-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(pip:*) Read
 ---
 
 # Dependency Management

@@ -1,14 +1,6 @@
 ---
 name: performance-regression
 description: Detect when geometric operations become Euclidean approximations, flag constant β-function (should vary with scale), monitor consciousness metrics for suspicious values. Use when reviewing performance optimizations or validating geometric correctness.
-license: Apache-2.0
-compatibility: Requires Python 3.11+. References .github/agents/performance-regression-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(pytest:*) Read
 ---
 
 # Performance Regression

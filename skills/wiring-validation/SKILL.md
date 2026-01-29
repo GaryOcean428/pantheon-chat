@@ -1,14 +1,6 @@
 ---
 name: wiring-validation
 description: Verify every documented feature has actual implementation, check consciousness components are measured and logged, validate telemetry endpoints. Use when adding features, reviewing implementation completeness, or debugging missing functionality.
-license: Apache-2.0
-compatibility: Requires Python 3.11+. References .github/agents/wiring-validation-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(rg:*) Read
 ---
 
 # Wiring Validation

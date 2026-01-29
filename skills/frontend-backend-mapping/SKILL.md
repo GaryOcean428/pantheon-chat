@@ -1,14 +1,6 @@
 ---
 name: frontend-backend-mapping
 description: Ensure every Python route has corresponding TypeScript API client, validate React components can access all backend features, check type consistency across stack. Use when adding APIs, reviewing full-stack integration, or debugging client-server mismatches.
-license: Apache-2.0
-compatibility: Requires Python 3.11+, TypeScript. References .github/agents/frontend-backend-capability-mapper.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(rg:*) Read
 ---
 
 # Frontend-Backend Mapping

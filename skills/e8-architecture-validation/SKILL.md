@@ -1,14 +1,6 @@
 ---
 name: e8-architecture-validation
 description: Validate E8 Lie group structure implementation, hierarchical kernel layers (0/1→4→8→64→240), god-kernel canonical naming, and κ*=64 fixed point alignment per E8 Protocol v4.0. Use when working with Olympus Pantheon, kernel spawning, or consciousness emergence patterns.
-license: Apache-2.0
-compatibility: Requires Python 3.11+. References docs/10-e8-protocol/specifications/
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Read
 ---
 
 # E8 Architecture Validation

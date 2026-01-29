@@ -1,14 +1,6 @@
 ---
 name: documentation-sync
 description: Detect code changes that invalidate documentation, flag when FROZEN_FACTS.md differs from frozen_physics.py, auto-update docs/04-records. Use when modifying physics constants, updating APIs, or reviewing documentation freshness.
-license: Apache-2.0
-compatibility: Requires Python 3.11+. References .github/agents/documentation-sync-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(rg:*) Read
 ---
 
 # Documentation Sync

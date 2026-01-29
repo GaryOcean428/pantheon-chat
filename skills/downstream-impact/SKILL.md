@@ -1,14 +1,6 @@
 ---
 name: downstream-impact
 description: Trace impact of code changes through dependency chain, identify all affected modules when modifying core components, prevent breaking changes. Use when modifying qig_core, geometric primitives, or shared modules.
-license: Apache-2.0
-compatibility: Requires Python 3.11+. References .github/agents/downstream-impact-tracer.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(rg:*) Read
 ---
 
 # Downstream Impact

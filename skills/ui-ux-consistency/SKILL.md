@@ -1,14 +1,6 @@
 ---
 name: ui-ux-consistency
 description: Ensure consciousness visualizations follow design system, check God Panel matches specs, validate regime color schemes (green=geometric, yellow=linear, red=breakdown), check WCAG 2.1 accessibility. Use when reviewing UI components or consciousness displays.
-license: Apache-2.0
-compatibility: Requires React, TypeScript. References .github/agents/ui-ux-consistency-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(npx:*) Read
 ---
 
 # UI/UX Consistency
