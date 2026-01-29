@@ -4123,7 +4123,8 @@ export const vocabularyStats = pgTable("vocabulary_stats", {
   id: serial("id").primaryKey(),
   totalWords: integer("total_words").notNull(),
   bip39Words: integer("bip39_words").notNull(),
-  learnedWords: integer("learned_words").notNull(),
+  // Migration 017 (2026-01-19): learned_words deprecated - count coordizer_vocabulary with token_role='generation' instead
+  generationWords: integer("generation_words").notNull().default(0),
   highPhiWords: integer("high_phi_words").notNull(),
   mergeRules: integer("merge_rules").notNull(),
   lastUpdated: timestamp("last_updated").defaultNow(),

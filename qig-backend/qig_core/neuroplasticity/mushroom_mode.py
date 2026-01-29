@@ -25,19 +25,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # Import Fisher-Rao distance for geometric purity (2026-01-15)
-try:
-    from qig_geometry import fisher_rao_distance
-except ImportError:
-    # Fallback if qig_geometry not available
-    def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        p = np.abs(p) + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) + 1e-10
-        q = q / q.sum()
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
-        return float(np.arccos(bc))
+from qig_geometry.canonical import fisher_rao_distance
 
 from qigkernels.physics_constants import (
     KAPPA_STAR,
@@ -230,14 +223,14 @@ class MushroomMode:
             Tuple of (perturbed_basin, perturbation_magnitude)
         """
         coords = basin.coordinates
-        norm = np.linalg.norm(coords)
+        norm = np.sqrt(np.sum(coords**2))
         if norm < 1e-10:
             norm = 1.0
         coords_normalized = coords / norm
         
         raw_noise = np.random.randn(len(coords))
         
-        tangent_noise = raw_noise - np.dot(raw_noise, coords_normalized) * coords_normalized
+        tangent_noise = raw_noise - bhattacharyya(raw_noise, coords_normalized) * coords_normalized
         tangent_norm = np.linalg.norm(tangent_noise)
         if tangent_norm > 1e-10:
             tangent_noise = tangent_noise / tangent_norm
@@ -292,7 +285,7 @@ class MushroomMode:
         
         # Compute geometric centroid (arithmetic mean as approximation)
         # For true Fréchet mean, use trajectory_decoder.frechet_mean()
-        centroid = np.mean(coords, axis=0)
+        centroid = frechet_mean(coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         
         # Use Fisher-Rao distance (geometric) instead of Euclidean
         distances = [fisher_rao_distance(c, centroid) for c in coords]

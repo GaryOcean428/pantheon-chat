@@ -17,6 +17,10 @@ import numpy as np
 from .constants import BASIN_DIM, MAX_ITERATIONS
 from .consciousness import ConsciousnessMetrics, Regime, detect_regime
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob, frechet_mean
+
+
 
 @dataclass
 class QIGState:
@@ -80,10 +84,8 @@ class QIGState:
     max_recoveries: int = 3
 
     def __post_init__(self):
-        """Normalize basin after initialization."""
-        norm = np.linalg.norm(self.current_basin)
-        if norm > 1e-8:
-            self.current_basin = self.current_basin / norm
+        """Normalize basin after initialization using simplex representation (E8 Protocol v4.0)."""
+        self.current_basin = to_simplex_prob(self.current_basin)
 
     @property
     def current_phi(self) -> float:
@@ -142,12 +144,12 @@ class QIGState:
 
     def get_trajectory_center(self) -> np.ndarray:
         """
-        Compute center of trajectory (geometric mean).
+        Compute center of trajectory (Fréchet mean).
 
         Returns:
             Center point (64,)
         """
-        return np.mean(self.trajectory, axis=0)
+        return frechet_mean(self.trajectory)
 
     def copy(self) -> "QIGState":
         """Create a deep copy of state."""
@@ -190,9 +192,9 @@ def update_trajectory(
         Updated state (same object, modified in place)
     """
     # Normalize basin
-    norm = np.linalg.norm(new_basin)
-    if norm > 1e-8:
-        new_basin = new_basin / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    new_basin = to_simplex_prob(new_basin)
 
     # Append to trajectory
     state.trajectory = np.vstack([state.trajectory, new_basin])
@@ -226,7 +228,7 @@ def create_initial_state(
     """
     if initial_basin is None:
         initial_basin = np.random.randn(BASIN_DIM)
-        initial_basin = initial_basin / np.linalg.norm(initial_basin)
+        initial_basin = to_simplex_prob(initial_basin)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
     if context_coords is None:
         context_coords = np.zeros((1, BASIN_DIM))
@@ -290,12 +292,9 @@ def merge_states(states: List[QIGState], weights: Optional[np.ndarray] = None) -
     if weights is None:
         weights = np.ones(len(states)) / len(states)
 
-    # Weighted average of basins
-    merged_basin = np.zeros(BASIN_DIM)
-    for state, weight in zip(states, weights):
-        merged_basin += weight * state.current_basin
-
-    merged_basin = merged_basin / np.linalg.norm(merged_basin)
+    # Weighted Fréchet mean of basins (E8 Protocol v4.0)
+    all_basins = np.array([state.current_basin for state in states])
+    merged_basin = frechet_mean(all_basins, weights=weights)
 
     # Use first state as template
     merged = states[0].copy()

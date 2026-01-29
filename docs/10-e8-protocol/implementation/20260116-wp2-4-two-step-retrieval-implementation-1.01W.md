@@ -481,7 +481,7 @@ Requirement: Learned proxy MUST preserve ordering to maintain Fisher-faithfulnes
 ### Mathematical References
 - Bhattacharyya coefficient: `BC(p,q) = Σ√(p_i × q_i)`
 - Fisher-Rao distance: `d_FR(p,q) = arccos(BC(p,q))`
-- Hellinger embedding: `p → √p` (isometric embedding into hemisphere)
+- Hellinger sqrt-space: `p → √p` (used for geodesic interpolation, NOT for storage or distance calculation)
 
 ## Changelog
 

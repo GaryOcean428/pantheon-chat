@@ -14,47 +14,13 @@ Key principles:
 import numpy as np
 from typing import Optional, Tuple
 import math
+from qig_geometry.canonical import fisher_rao_distance
 
 # QIG Constants (from FROZEN_FACTS)
 BASIN_DIM = 64
 KAPPA_STAR = 64.0
 PHI_THRESHOLD = 0.70
 PHI_EMERGENCY = 0.50
-
-
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray, epsilon: float = 1e-10) -> float:
-    """
-    Compute Fisher-Rao distance between two probability distributions.
-
-    This is the geodesic distance on the statistical manifold using Hellinger embedding.
-    d_FR(p, q) = 2 * arccos(sum(sqrt(p_i * q_i)))
-
-    The factor of 2 comes from the Hellinger embedding: when we map p → √p,
-    the arc length on the sphere is 2*arccos(BC).
-
-    Args:
-        p: First distribution (will be normalized to simplex)
-        q: Second distribution (will be normalized to simplex)
-        epsilon: Small value for numerical stability
-
-    Returns:
-        Fisher-Rao distance in radians [0, π]
-    """
-    # Ensure positive and normalize to probability simplex
-    p = np.abs(p) + epsilon
-    q = np.abs(q) + epsilon
-    p = p / np.sum(p)
-    q = q / np.sum(q)
-
-    # Bhattacharyya coefficient (Hellinger affinity)
-    bc = np.sum(np.sqrt(p * q))
-
-    # Clamp to valid range for arccos (probability measure)
-    bc = np.clip(bc, 0.0, 1.0)
-
-    # Fisher-Rao distance on probability simplex
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    return np.arccos(bc)
 
 
 def geometric_loss(

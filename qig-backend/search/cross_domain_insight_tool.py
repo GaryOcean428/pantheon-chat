@@ -21,21 +21,10 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-# Import QIG geometry (use fallback if not available)
-try:
-    from qig_geometry import fisher_rao_distance, fisher_normalize
-    QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def fisher_normalize(v):
-        v = np.abs(v) + 1e-10
-        return v / v.sum()
-    def fisher_rao_distance(p, q):
-        p = fisher_normalize(p)
-        q = fisher_normalize(q)
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0, 1)
-        return float(np.arccos(bc))
+# Import QIG geometry - canonical implementation
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry import fisher_normalize
+QIG_GEOMETRY_AVAILABLE = True
 
 
 class InsightQuality(Enum):

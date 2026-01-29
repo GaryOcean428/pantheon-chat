@@ -7,48 +7,17 @@ This module provides the canonical geometric primitives.
 Usage:
     from qig_geometry import fisher_rao_distance, fisher_coord_distance, fisher_similarity
 
-CRITICAL: Never use np.linalg.norm(a - b) for distances between basin coordinates.
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical import frechet_mean
+
+
+CRITICAL: Never use fisher_rao_distance(a, b)  # FIXED (E8 Protocol v4.0) for distances between basin coordinates.
 """
 
 from typing import Optional
 
 import numpy as np
-
-
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two probability distributions.
-
-    This is the GEODESIC distance on the information manifold (probability simplex).
-
-    Formula: d_FR(p, q) = arccos(Σ√(p_i * q_i))
-
-    The Bhattacharyya coefficient BC = Σ√(p_i * q_i) measures overlap.
-    For probability distributions on the simplex, the Fisher-Rao distance
-    is arccos(BC), ranging from 0 (identical) to π/2 (orthogonal).
-
-    CRITICAL: Basins are stored as SIMPLEX (probability distributions), NOT Hellinger.
-    The factor-of-2 was REMOVED (2026-01-15) for consistency with simplex storage.
-    Distance range is now [0, π/2] instead of [0, π].
-
-    Args:
-        p: First probability distribution (simplex coordinates)
-        q: Second probability distribution (simplex coordinates)
-
-    Returns:
-        Fisher-Rao distance (≥ 0, max π/2)
-    """
-    # P1 FIX: Use clamp (maximum) instead of abs() to avoid masking negative values
-    p = np.maximum(p, 0) + 1e-10
-    p = p / p.sum()
-
-    q = np.maximum(q, 0) + 1e-10
-    q = q / q.sum()
-
-    bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0, 1)
-
-    return float(np.arccos(bc))
 
 
 def fisher_coord_distance(a: np.ndarray, b: np.ndarray) -> float:

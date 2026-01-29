@@ -27,7 +27,7 @@ import { qfiAttention, type AttentionQuery } from "../gary-kernel";
 import { geometricMemory } from "../geometric-memory";
 import { logger } from "../lib/logger";
 import { oceanConstellation } from "../ocean-constellation-stub";
-import { vocabularyExpander } from "../vocabulary-expander";
+import { vocabularyExpander } from "../vocabulary-expander-api";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -240,7 +240,7 @@ export class HypothesisGenerator {
 		}
 
 		// 4. COMMON BRAIN WALLET PHRASES
-		const commonPhrases = this.generateCommonBrainWalletPhrases();
+		const commonPhrases = await this.generateCommonBrainWalletPhrases();
 		hypotheses.push(...commonPhrases);
 
 		logger.info(
@@ -535,7 +535,7 @@ export class HypothesisGenerator {
 		return hypotheses;
 	}
 
-	private generateCommonBrainWalletPhrases(): OceanHypothesis[] {
+	private async generateCommonBrainWalletPhrases(): Promise<OceanHypothesis[]> {
 		const hypotheses: OceanHypothesis[] = [];
 
 		// Classic common phrases
@@ -568,7 +568,7 @@ export class HypothesisGenerator {
 
 		// Add vocabulary manifold patterns
 		const manifoldHypotheses =
-			vocabularyExpander.generateManifoldHypotheses(10);
+			await vocabularyExpander.generateManifoldHypotheses(10);
 		for (const phrase of manifoldHypotheses) {
 			hypotheses.push(
 				this.createHypothesis(

@@ -19,6 +19,10 @@ pairs should be merged into new vocabulary tokens.
 Usage:
     from coordizers import get_coordizer
     from coordizers.geometric_pair_merging import GeometricPairMerging
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     
     coordizer = get_coordizer()
     merger = GeometricPairMerging(num_merges=1000)

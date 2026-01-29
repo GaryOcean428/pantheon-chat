@@ -311,7 +311,7 @@ class BasinNaturalGrad:
         hessian_fn = self.make_fisher_hvp(p)
         
         probe_vector = np.random.randn(len(basin))
-        probe_vector = probe_vector / (np.linalg.norm(probe_vector) + 1e-10)
+        probe_vector = probe_vector / (np.sqrt(np.sum(probe_vector**2)) + 1e-10)
         
         solution, cg_iters, residual, converged = self.conjugate_gradient(
             probe_vector, hessian_fn

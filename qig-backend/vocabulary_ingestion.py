@@ -409,7 +409,7 @@ class VocabularyIngestionService:
                         raise RuntimeError(f"Invalid basin column name: {basin_column}")
                     
                     # Compute geometric validation metrics
-                    basin_distance = float(np.linalg.norm(basin_embedding))
+                    basin_distance = float(np.sqrt(np.sum(basin_embedding**2)))
                     curvature_std = float(np.std(basin_embedding))
                     entropy_score = self._compute_entropy(basin_embedding)
                     

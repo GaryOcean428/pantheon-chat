@@ -31,6 +31,10 @@ from abc import ABC, abstractmethod
 import os
 import sys
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -324,9 +328,9 @@ class FisherCoordizer(BaseCoordizer):
             List of (word, fisher_rao_distance) tuples
         """
         # Normalize basin
-        norm = np.linalg.norm(target_basin)
-        if norm > 1e-10:
-            target_basin = target_basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        target_basin = to_simplex_prob(target_basin)
         
         # POS filtering not supported in base implementation
         if allowed_pos:
@@ -346,7 +350,7 @@ class FisherCoordizer(BaseCoordizer):
             
             # Bhattacharyya coefficient (proxy for Fisher-Rao distance)
             sqrt_token = np.sqrt(token_basin + 1e-10)
-            bhattacharyya = np.dot(sqrt_target, sqrt_token)
+            bhattacharyya = bhattacharyya(target, token)
             
             # Higher Bhattacharyya = closer (convert to distance proxy)
             proxy_distance = 1.0 - bhattacharyya
@@ -361,7 +365,7 @@ class FisherCoordizer(BaseCoordizer):
         for token, token_basin, _ in candidates:
             # Fisher-Rao distance = arccos(Bhattacharyya coefficient)
             sqrt_token = np.sqrt(token_basin + 1e-10)
-            bhattacharyya = np.clip(np.dot(sqrt_target, sqrt_token), 0, 1)
+            bhattacharyya = np.clip(bhattacharyya(target, token), 0, 1)
             fisher_distance = np.arccos(bhattacharyya)
             results.append((token, fisher_distance))
         
@@ -393,6 +397,52 @@ class FisherCoordizer(BaseCoordizer):
     def supports_pos_filtering(self) -> bool:
         """POS filtering not supported in base FisherCoordizer."""
         return False
+    
+    def encode(self, text: str) -> np.ndarray:
+        """
+        Encode text to basin coordinates.
+        
+        For single-token text, returns the token's basin coordinate.
+        For multi-token text, returns mean of token coordinates (centroid).
+        
+        Args:
+            text: Input text string
+        
+        Returns:
+            64D basin coordinates (simplex representation: sum=1, non-negative)
+        """
+        # Import simplex normalization from canonical module
+        try:
+            from qig_geometry.canonical_upsert import to_simplex_prob
+        except ImportError:
+            # Fallback if canonical_upsert not available
+            def to_simplex_prob(v):
+                v = np.abs(v) + 1e-10
+                return v / v.sum()
+        
+        # Simple whitespace tokenization
+        tokens = text.lower().split()
+        
+        if not tokens:
+            # Empty text - return UNK coordinate
+            return self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim)
+        
+        # Get coordinates for all tokens
+        coordinates = []
+        for token in tokens:
+            if token in self.basin_coords:
+                coordinates.append(self.basin_coords[token])
+            else:
+                # Unknown token - use UNK coordinate
+                coordinates.append(self.basin_coords.get("<UNK>", np.ones(self.coordinate_dim) / self.coordinate_dim))
+        
+        # Return mean coordinate (centroid in simplex space)
+        result = frechet_mean(coordinates)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
+        
+        # Normalize to simplex (sum=1, non-negative) per E8 Protocol v4.0 §02
+        result = to_simplex_prob(result)
+        
+        return result
     
     # =====================================================================
     # Legacy Methods (maintained for backward compatibility)
@@ -546,7 +596,9 @@ class FisherCoordizer(BaseCoordizer):
         perturbation = self._von_neumann_perturbation(token, token_id)
         
         # Combine via geodesic blending (not Euclidean addition)
-        if np.linalg.norm(perturbation) > 1e-6:
+        # Check if perturbation is significant using Fisher-Rao distance from uniform
+        uniform = np.ones_like(perturbation) / len(perturbation)
+        if fisher_coord_distance(perturbation, uniform) > 1e-3:
             coord = geodesic_interpolation(coord, perturbation, 0.1)
         
         return fisher_normalize(coord)
@@ -897,7 +949,7 @@ class FisherCoordizer(BaseCoordizer):
                 no_nan_inf = False
                 errors.append(f"Coordinate {i} contains NaN or inf")
             
-            norm = np.linalg.norm(coord)
+            norm = np.sqrt(np.sum(coord**2))
             if not (0.99 < norm < 1.01):
                 passes_simplex = False
                 if len(errors) < 10:  # Limit error messages

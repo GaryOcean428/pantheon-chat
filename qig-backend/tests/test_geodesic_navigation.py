@@ -74,7 +74,7 @@ def test_parallel_transport_preserves_length():
     
     # Create a unit vector
     vector = np.random.rand(64)
-    vector = vector / np.linalg.norm(vector)
+    vector = to_simplex_prob(vector)
     
     from_point = np.random.rand(64)
     to_point = np.random.rand(64)

@@ -156,7 +156,7 @@ def geodesic_interpolation(
     q_sqrt_norm = q_sqrt / (np.linalg.norm(q_sqrt) + 1e-10)
 
     # 4. Compute angle between vectors
-    cos_angle = np.clip(np.dot(p_sqrt_norm, q_sqrt_norm), -1.0, 1.0)
+    cos_angle = np.clip(bhattacharyya(p_sqrt, q_sqrt), -1.0, 1.0)
     angle = np.arccos(cos_angle)
 
     if angle < 1e-6:

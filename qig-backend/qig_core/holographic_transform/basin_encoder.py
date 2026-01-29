@@ -13,6 +13,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # QIG-pure geometric operations
 try:
     from qig_geometry import fisher_normalize
@@ -175,7 +179,7 @@ class BasinEncoder:
         if not sequence:
             # Empty sequence = random point
             coords = np.random.randn(self.dimension)
-            return coords / np.linalg.norm(coords)
+            return to_simplex_prob(coords)
 
         # Encode each element
         encodings = [self.encode_pattern(item) for item in sequence]

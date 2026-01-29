@@ -16,6 +16,10 @@ from emotional_geometry import (
     measure_basin_approach,
     compute_surprise_magnitude,
     EmotionTracker,
+    to_simplex,
+    fisher_rao_distance,
+    bhattacharyya_coefficient,
+    frechet_mean,
 )
 
 
@@ -132,7 +136,7 @@ def test_ricci_curvature():
     """Ricci curvature computation."""
     print("Test: Ricci curvature computation...", end=" ")
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    basin = to_simplex(basin)
     
     curvature = compute_ricci_curvature(basin)
     
@@ -160,7 +164,7 @@ def test_emotion_tracker():
     tracker = EmotionTracker()
     
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    basin = to_simplex(basin)
     
     state = tracker.update(
         current_basin=basin,

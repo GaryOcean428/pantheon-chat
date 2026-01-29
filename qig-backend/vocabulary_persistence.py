@@ -130,6 +130,13 @@ class VocabularyPersistence:
                     # UPDATED 2026-01-16: Use QFI-computed phi_score from basin geometry, NOT raw training phi
                     # The phi_score column should match qfi_score (both derived from basin via QFI formula)
                     
+                    # ⚠️ SYNCHRONIZATION WARNING:
+                    # This UPSERT may race with concurrent reads by:
+                    # 1. PostgresCoordizer._load_encoding_vocabulary() - reads all tokens without token_role filter
+                    # 2. PostgresCoordizer._load_generation_vocabulary() - reads WHERE token_role IN ('generation', 'both')
+                    # RISK: token_role transition (encoding→both) may not be visible to concurrent generation vocab loads
+                    # MITIGATION: ON CONFLICT uses CASE statement to preserve existing values or upgrade to 'both'
+                    
                     # Compute QFI-based phi from basin if available
                     qfi_phi = None
                     if validation and validation.qfi_score is not None:
@@ -139,7 +146,8 @@ class VocabularyPersistence:
                             from qig_core.phi_computation import compute_phi_approximation
                             basin_array = np.array(basin_vector)
                             qfi_phi = compute_phi_approximation(basin_array)
-                        except Exception:
+                        except Exception as e:
+                            print(f"[VocabularyPersistence] QFI computation failed for '{word_val}': {e}")
                             qfi_phi = None
                     
                     if qfi_phi is not None:
@@ -486,12 +494,61 @@ class VocabularyPersistence:
             return []
     
     def record_god_vocabulary(self, god_name: str, word: str, relevance_score: float) -> bool:
+        """
+        Record god vocabulary preference in coordizer_vocabulary.god_profile.
+        
+        SINGLE TABLE GENERATION: Updates denormalized god_profile JSONB column.
+        """
         if not self.enabled:
             return False
         try:
+            import json
+            from datetime import datetime
+            
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("INSERT INTO god_vocabulary_profiles (god_name, word, relevance_score, usage_count) VALUES (%s, %s, %s, 1) ON CONFLICT (god_name, word) DO UPDATE SET relevance_score = (god_vocabulary_profiles.relevance_score + %s) / 2, usage_count = god_vocabulary_profiles.usage_count + 1, last_used = NOW()", (god_name, word, relevance_score, relevance_score))
+                    # SINGLE TABLE UPDATE: Update coordizer_vocabulary.god_profile
+                    # First check if token exists
+                    cur.execute("""
+                        SELECT id, god_profile FROM coordizer_vocabulary WHERE token = %s
+                    """, (word,))
+                    row = cur.fetchone()
+                    
+                    if not row:
+                        # Token doesn't exist, skip
+                        return False
+                    
+                    token_id, existing_profile = row
+                    
+                    # Update or add god profile entry
+                    if existing_profile is None:
+                        existing_profile = {}
+                    
+                    # Calculate new relevance score (average with existing if present)
+                    if god_name in existing_profile:
+                        old_relevance = existing_profile[god_name].get('relevance_score', 0.5)
+                        old_count = existing_profile[god_name].get('usage_count', 0)
+                        new_relevance = (old_relevance + relevance_score) / 2
+                        new_count = old_count + 1
+                    else:
+                        new_relevance = relevance_score
+                        new_count = 1
+                    
+                    # Update god profile
+                    existing_profile[god_name] = {
+                        'relevance_score': new_relevance,
+                        'usage_count': new_count,
+                        'last_used': datetime.utcnow().isoformat(),
+                        'learned_from_phi': relevance_score
+                    }
+                    
+                    # Write back to database using json.dumps for proper serialization
+                    cur.execute("""
+                        UPDATE coordizer_vocabulary 
+                        SET god_profile = %s::jsonb,
+                            updated_at = NOW()
+                        WHERE id = %s
+                    """, (json.dumps(existing_profile), token_id))
                     conn.commit()
                     return True
         except Exception as e:
@@ -499,12 +556,31 @@ class VocabularyPersistence:
             return False
     
     def get_god_vocabulary(self, god_name: str, min_relevance: float = 0.5, limit: int = 100) -> List[Tuple[str, float]]:
+        """
+        Get god vocabulary from coordizer_vocabulary.god_profile.
+        
+        SINGLE TABLE GENERATION: Reads from denormalized god_profile JSONB column.
+        """
         if not self.enabled:
             return []
         try:
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT word, relevance_score FROM god_vocabulary_profiles WHERE god_name = %s AND relevance_score >= %s ORDER BY relevance_score DESC, usage_count DESC LIMIT %s", (god_name, min_relevance, limit))
+                    # SINGLE TABLE QUERY: Read from coordizer_vocabulary.god_profile
+                    cur.execute("""
+                        SELECT 
+                            token,
+                            CAST(god_profile->%s->>'relevance_score' AS FLOAT) as relevance_score
+                        FROM coordizer_vocabulary
+                        WHERE god_profile ? %s
+                        AND CAST(god_profile->%s->>'relevance_score' AS FLOAT) >= %s
+                        AND active = true
+                        ORDER BY 
+                            CAST(god_profile->%s->>'relevance_score' AS FLOAT) DESC,
+                            COALESCE(CAST(god_profile->%s->>'usage_count' AS INT), 0) DESC
+                        LIMIT %s
+                    """, (god_name, god_name, god_name, min_relevance, 
+                          god_name, god_name, limit))
                     return [(row[0], float(row[1])) for row in cur.fetchall()]
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get god vocabulary: {e}")
@@ -512,21 +588,34 @@ class VocabularyPersistence:
     
     def get_vocabulary_stats(self) -> Dict:
         if not self.enabled:
-            return {'total_words': 0, 'bip39_words': 0, 'learned_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
+            return {'total_words': 0, 'bip39_words': 0, 'generation_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
         try:
             with self._connect() as conn:
                 with conn.cursor() as cur:
-                    cur.execute("SELECT total_words, bip39_words, learned_words, high_phi_words, merge_rules, last_updated FROM vocabulary_stats ORDER BY last_updated DESC LIMIT 1")
+                    # Query coordizer_vocabulary directly for generation token count
+                    # Migration 017 (2026-01-19) deprecated learned_words - use coordizer_vocabulary instead
+                    cur.execute("""
+                        SELECT 
+                            (SELECT COUNT(*) FROM coordizer_vocabulary) as total_words,
+                            0 as bip39_words,
+                            (SELECT COUNT(*) FROM coordizer_vocabulary WHERE token_role IN ('generation', 'both')) as generation_words,
+                            (SELECT COUNT(*) FROM coordizer_vocabulary WHERE qfi_score >= 0.7) as high_phi_words,
+                            0 as merge_rules
+                    """)
                     row = cur.fetchone()
                     if row:
-                        return {'total_words': int(row[0]), 'bip39_words': int(row[1]), 'learned_words': int(row[2]), 'high_phi_words': int(row[3]), 'merge_rules': int(row[4]), 'last_updated': row[5].isoformat()}
+                        return {
+                            'total_words': int(row[0]), 
+                            'bip39_words': int(row[1]), 
+                            'generation_words': int(row[2]), 
+                            'high_phi_words': int(row[3]), 
+                            'merge_rules': int(row[4])
+                        }
                     else:
-                        cur.execute("SELECT update_vocabulary_stats()")
-                        conn.commit()
-                        return self.get_vocabulary_stats()
+                        return {'total_words': 0, 'bip39_words': 0, 'generation_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
         except Exception as e:
             print(f"[VocabularyPersistence] Failed to get stats: {e}")
-            return {'total_words': 0, 'bip39_words': 0, 'learned_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
+            return {'total_words': 0, 'bip39_words': 0, 'generation_words': 0, 'high_phi_words': 0, 'merge_rules': 0}
     
     def learn_word(self, word: str, context: str = "") -> Dict:
         """

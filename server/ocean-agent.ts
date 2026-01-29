@@ -58,8 +58,8 @@ import { trajectoryManager } from "./ocean/trajectory-manager";
 import { repeatedAddressScheduler } from "./repeated-address-scheduler";
 import { strategyKnowledgeBus } from "./strategy-knowledge-bus";
 import { temporalGeometry } from "./temporal-geometry";
-import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision";
-import { vocabularyExpander } from "./vocabulary-expander";
+import { vocabDecisionEngine, type GaryState } from "./vocabulary-decision-api";
+import { vocabularyExpander } from "./vocabulary-expander-api";
 
 // Legacy crypto stubs - kept for code compatibility, functions are no-ops
 function generateRandomBIP39Phrase(_wordCount?: number): string { return ''; }
@@ -2119,7 +2119,7 @@ export class OceanAgent {
       );
     }
 
-    const commonPhrases = this.generateCommonBrainWalletPhrases();
+    const commonPhrases = await this.generateCommonBrainWalletPhrases();
     hypotheses.push(...commonPhrases);
 
     logger.info(
@@ -2784,7 +2784,7 @@ export class OceanAgent {
     return hypotheses;
   }
 
-  private generateCommonBrainWalletPhrases(): OceanHypothesis[] {
+  private async generateCommonBrainWalletPhrases(): Promise<OceanHypothesis[]> {
     const hypotheses: OceanHypothesis[] = [];
 
     // Classic common phrases
@@ -2817,7 +2817,7 @@ export class OceanAgent {
 
     // Add top learned words from vocabulary expander
     const manifoldHypotheses =
-      vocabularyExpander.generateManifoldHypotheses(10);
+      await vocabularyExpander.generateManifoldHypotheses(10);
     for (const phrase of manifoldHypotheses) {
       hypotheses.push(
         this.createHypothesis(

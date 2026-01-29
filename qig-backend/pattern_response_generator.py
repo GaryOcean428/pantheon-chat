@@ -24,6 +24,10 @@ import hashlib
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 BASIN_DIM = 64
 
 
@@ -134,24 +138,16 @@ class PatternResponseGenerator:
         if total_weight > 0:
             basin /= total_weight
         
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        basin = to_simplex_prob(basin)
         
         return basin
     
     def fisher_rao_distance(self, p: np.ndarray, q: np.ndarray) -> float:
-        """Compute Fisher-Rao distance between two basin coordinates (Hellinger embedding: factor of 2)."""
-        p = np.abs(p) + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) + 1e-10
-        q = q / q.sum()
-        
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0.0, 1.0)
-        
-        # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        return float(np.arccos(bc))
+        from qig_geometry.canonical import fisher_rao_distance as _canonical_fr
+        return _canonical_fr(p, q)
     
     def retrieve_patterns(self, query: str, top_k: int = 5) -> List[Dict]:
         """
@@ -327,9 +323,10 @@ class PatternResponseGenerator:
                 used_tokens.add(best_token[0])
                 current_basin = 0.8 * current_basin + 0.2 * best_token[1]
                 
-                norm = np.linalg.norm(current_basin)
-                if norm > 1e-10:
-                    current_basin = current_basin / norm
+                # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+                
+                current_basin = to_simplex_prob(current_basin)
             else:
                 break
         

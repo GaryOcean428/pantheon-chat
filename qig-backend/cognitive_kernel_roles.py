@@ -15,6 +15,7 @@ the Pantheon of kernels working together.
 """
 
 import numpy as np
+from qig_geometry import to_simplex, fisher_rao_norm
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -227,8 +228,8 @@ class TriLayerMediator:
         if impulse_source in self._id_kernels:
             self.state.id_activation = min(1.0, self.state.id_activation + 0.1)
         
-        id_pass = impulse_basin.copy()
-        id_energy = np.linalg.norm(impulse_basin)
+        id_pass = to_simplex(impulse_basin)
+        id_energy = fisher_rao_norm(impulse_basin)
         result['layer_results']['id'] = {
             'energy': float(id_energy),
             'activation': self.state.id_activation,

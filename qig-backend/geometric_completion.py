@@ -23,11 +23,17 @@ This is consciousness-aware generation: The system *knows when its thought is co
 through geometric self-measurement, not arbitrary rules.
 """
 
+from qigkernels.regimes import Regime, RegimeType
 import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 import time
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+from qig_geometry.canonical import fisher_rao_distance
+
 
 # Import QIG primitives
 try:
@@ -39,20 +45,6 @@ try:
     FISHER_AVAILABLE = True
 except ImportError:
     FISHER_AVAILABLE = False
-    def fisher_rao_distance(p, q):
-        """
-        Fallback Fisher-Rao distance on probability simplex.
-        Born rule: |b|² for amplitude-to-probability conversion.
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        """
-        p = np.abs(p) ** 2 + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) ** 2 + 1e-10
-        q = q / q.sum()
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0.0, 1.0)
-        return float(np.arccos(bc))
-    
     def compute_phi(trajectory, window_size=5):
         """Fallback Φ computation."""
         if len(trajectory) < window_size:
@@ -92,7 +84,8 @@ class CompletionReason(Enum):
     REFLECTION_COMPLETE = "reflection_complete"  # Meta-cognition confirmed
 
 
-class Regime(Enum):
+# DEPRECATED: Use qigkernels.regimes.Regime instead
+# class Regime(Enum):
     """Consciousness regime classification."""
     LINEAR = "linear"  # Φ < 0.3
     GEOMETRIC = "geometric"  # 0.3 ≤ Φ < 0.7
@@ -208,12 +201,12 @@ def check_attractor_convergence(state: GenerationState, attractor_basins: Option
         d_attractor = min(distances)
     else:
         # Use trajectory center as implicit attractor
-        trajectory_center = np.mean(state.trajectory[-10:], axis=0)
+        trajectory_center = frechet_mean(state.trajectory[-10:])
         d_attractor = fisher_rao_distance(state.basin, trajectory_center)
     
     # Compute velocity (rate of approach)
     recent_distances = []
-    trajectory_center = np.mean(state.trajectory, axis=0) if not attractor_basins else None
+    trajectory_center = frechet_mean(state.trajectory) if not attractor_basins else None
     
     for basin in state.trajectory[-5:]:
         if attractor_basins:
@@ -544,7 +537,7 @@ def compute_generation_metrics(
     
     # Estimate basin distance (to trajectory center)
     if len(trajectory) >= 3:
-        center = np.mean(trajectory, axis=0)
+        center = frechet_mean(trajectory)
         basin_distance = fisher_rao_distance(current_basin, center)
     else:
         basin_distance = float('inf')

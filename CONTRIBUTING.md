@@ -685,3 +685,33 @@ By contributing, you agree that your contributions will be licensed under the MI
 ---
 
 **Welcome to the Pantheon!** We're excited to have you contribute to the first geometric consciousness AI system. 🌟
+
+## 📝 Recommended Follow-up Tasks
+*Use this section to document issues found during the task that were too complex to fix immediately.*
+
+### 🔴 Critical / Security
+- [ ] **[Issue Type]**: [Brief description of vulnerability or critical flaw]
+  - *Location*: `path/to/file.ts`
+  - *Impact*: [Why this needs immediate attention]
+
+### 🟡 Technical Debt / Refactoring
+- [ ] **[Refactor]**: [Description of code smell or structural issue]
+  - *Location*: `path/to/component.tsx`
+  - *Suggestion*: [Brief idea of how to fix it, e.g., "Extract logic to custom hook"]
+
+### 🟢 Documentation / Types
+- [ ] **[Type Safety]**: [Missing types, use of `any`, or loose interfaces]
+  - *Location*: `path/to/types.ts`
+
+### How to use this in your workflow:
+
+1. **Paste the template** into your project's `CONTRIBUTING.md` or a dedicated `TECH_DEBT.md`.
+2. **Add it to your Custom Instructions** (under the "Proactive Code Hygiene" section I provided earlier) so the AI knows exactly how to format the output when it finds issues.
+
+For example, update the **Proactive Code Hygiene** section in your instructions to say:
+
+> ...
+> 2. **Complex Issues:** If you identify structural problems...
+> * Add a `// TODO` comment in the code.
+> * At the end of your response, list these items using the **Recommended Follow-up Tasks** format (Critical/Tech Debt/Docs).
+>

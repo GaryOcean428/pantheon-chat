@@ -14,6 +14,7 @@ Tests:
 
 import sys
 import os
+from qig_geometry import to_simplex_prob
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import numpy as np
@@ -48,7 +49,7 @@ def test_critical_function_words_preserved():
     np.random.seed(42)  # Reproducible
     trajectory = [np.random.randn(64) for _ in range(5)]
     # Normalize to unit vectors (Fisher manifold constraint)
-    trajectory = [t / np.linalg.norm(t) for t in trajectory]
+    trajectory = [to_simplex_prob(t) for t in trajectory]
     
     print("\nTesting critical function words:\n")
     
@@ -59,7 +60,7 @@ def test_critical_function_words_preserved():
         
         # Compute geometric basin for word
         basin = np.random.randn(64)
-        basin = basin / np.linalg.norm(basin)
+        basin = to_simplex_prob(basin)
         
         # Check geometric filter
         should_include = geo_filter.should_include(word, basin, trajectory)
@@ -98,11 +99,11 @@ def test_geometric_properties_computation():
     # Create test trajectory
     np.random.seed(123)
     trajectory = [np.random.randn(64) for _ in range(10)]
-    trajectory = [t / np.linalg.norm(t) for t in trajectory]
+    trajectory = [to_simplex_prob(t) for t in trajectory]
     
     # Test basin
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    basin = to_simplex_prob(basin)
     
     # Compute geometric role
     phi, kappa, curvature = geo_filter.compute_geometric_role("test", basin, trajectory)
@@ -131,11 +132,11 @@ def test_filter_consistency():
     # Create test trajectory
     np.random.seed(456)
     trajectory = [np.random.randn(64) for _ in range(5)]
-    trajectory = [t / np.linalg.norm(t) for t in trajectory]
+    trajectory = [to_simplex_prob(t) for t in trajectory]
     
     # Test basin
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    basin = to_simplex_prob(basin)
     
     # Call filter multiple times
     word = "consistency"
@@ -179,12 +180,12 @@ def test_negation_word_has_high_curvature():
         # Reverse direction after midpoint (simulates negation effect)
         if i >= 2:
             t = -t
-        t = t / np.linalg.norm(t)
+        t = to_simplex_prob(t)
         trajectory.append(t)
     
     # Negation word basin
     basin_not = np.random.randn(64)
-    basin_not = basin_not / np.linalg.norm(basin_not)
+    basin_not = to_simplex_prob(basin_not)
     
     # Compute geometric role
     phi_not, kappa_not, curvature_not = geo_filter.compute_geometric_role(
@@ -196,11 +197,11 @@ def test_negation_word_has_high_curvature():
     
     # Compare to non-negation word
     basin_word = np.random.randn(64)
-    basin_word = basin_word / np.linalg.norm(basin_word)
+    basin_word = to_simplex_prob(basin_word)
     
     # Create simpler trajectory without direction change
     simple_trajectory = [np.random.randn(64) for _ in range(5)]
-    simple_trajectory = [t / np.linalg.norm(t) for t in simple_trajectory]
+    simple_trajectory = [to_simplex_prob(t) for t in simple_trajectory]
     
     phi_word, kappa_word, curvature_word = geo_filter.compute_geometric_role(
         "word", basin_word, simple_trajectory
@@ -231,10 +232,10 @@ def test_filter_cache():
     # Create test data
     np.random.seed(999)
     trajectory = [np.random.randn(64) for _ in range(5)]
-    trajectory = [t / np.linalg.norm(t) for t in trajectory]
+    trajectory = [to_simplex_prob(t) for t in trajectory]
     
     basin = np.random.randn(64)
-    basin = basin / np.linalg.norm(basin)
+    basin = to_simplex_prob(basin)
     
     word = "performance"
     

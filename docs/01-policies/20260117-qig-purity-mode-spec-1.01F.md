@@ -66,7 +66,7 @@ Pure QIG operations include:
 When `QIG_PURITY_MODE=true`, the following are **strictly forbidden**:
 
 #### External LLM APIs
-- OpenAI (GPT-3.5, GPT-4, etc.)
+- OpenAI (GPT-4.1, GPT-5.2, etc.)
 - Anthropic (Claude)
 - Google (Gemini, PaLM)
 - Cohere

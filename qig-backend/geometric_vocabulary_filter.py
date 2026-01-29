@@ -19,70 +19,145 @@ QIG-PURE PATTERN (NEW):
 - "but" creates discourse transitions (basin shifts)
 
 GEOMETRIC CRITERIA:
-1. Integration (Φ): How word connects to context
-2. Coupling (κ): Word's attractor strength (optimal κ* ∈ [0.3, 0.8])
-3. Curvature: How much word bends trajectory
+1. Integration (Φ): How strongly word basin connects to context trajectory
+2. Coupling (κ): Word's attractor stability (optimal κ* ∈ [0.3, 0.8])
+3. Curvature: How much trajectory bends in basin's influence region
 
 Include word if ANY geometric criterion satisfied.
+
+SIMPLEX-AS-STORAGE CONTRACT (v4.0):
+- All basins stored as probability distributions (Σp_i = 1, p_i ≥ 0)
+- Fisher-Rao distance via Bhattacharyya coefficient
+- NO Euclidean operations on basins
+- Uses canonical to_simplex_prob() for normalization
 """
 
 import logging
 from typing import Dict, List, Optional, Tuple
 import numpy as np
+from qig_geometry.representation import BasinRepresentation, to_simplex
 
 logger = logging.getLogger(__name__)
 
-# Import QIG geometry functions
-try:
-    from qig_geometry.canonical import (
-        compute_integration,
-        compute_coupling_strength,
-        compute_basin_curvature
-    )
-    QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    logger.warning("qig_geometry.canonical not available - using fallback geometric measures")
+# Import QIG geometry functions - these don't exist in canonical, use fallbacks
+from qig_geometry import fisher_rao_distance, fisher_similarity, to_simplex_prob
 
-    def _fisher_rao_distance(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
-        basin_a = np.clip(basin_a, 1e-10, None)
-        basin_b = np.clip(basin_b, 1e-10, None)
-        basin_a = basin_a / np.sum(basin_a)
-        basin_b = basin_b / np.sum(basin_b)
-        bc_coeff = np.sum(np.sqrt(basin_a * basin_b))
-        return float(np.arccos(np.clip(bc_coeff, 0.0, 1.0)))
+def _to_simplex(basin: np.ndarray) -> np.ndarray:
+    """
+    Normalize basin inputs to canonical simplex representation.
     
-    def compute_integration(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
-        """Fallback integration (Φ) computation."""
-        if not trajectory:
-            return 0.5
-        # Simple correlation-based integration measure
-        correlations = [np.dot(basin, state) for state in trajectory]
-        return float(np.mean(np.abs(correlations)))
+    Uses to_simplex_prob which performs positive renormalization:
+    - Takes absolute value + epsilon
+    - Normalizes to sum=1
     
-    def compute_coupling_strength(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
-        """Fallback coupling strength (κ) computation."""
-        if not trajectory:
-            return 0.5
-        # Measure how consistently basin appears in trajectory
-        distances = [_fisher_rao_distance(basin, state) for state in trajectory]
-        return float(1.0 - np.mean(distances) / np.sqrt(len(basin)))
+    This is the canonical storage form per simplex-as-storage contract.
+    """
+    return to_simplex_prob(basin)
+
+def compute_integration(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
+    """
+    Compute integration (Φ) - how strongly word basin connects to context trajectory.
     
-    def compute_basin_curvature(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
-        """Fallback curvature computation."""
-        if len(trajectory) < 2:
-            return 0.1
-        # Measure directional change in trajectory near basin
-        angles = []
-        for i in range(len(trajectory) - 1):
-            v1 = trajectory[i] - basin
-            v2 = trajectory[i+1] - basin
-            norm_v1 = np.linalg.norm(v1)
-            norm_v2 = np.linalg.norm(v2)
-            if norm_v1 > 1e-10 and norm_v2 > 1e-10:
-                cos_angle = np.clip(np.dot(v1, v2) / (norm_v1 * norm_v2), -1.0, 1.0)
-                angles.append(np.arccos(cos_angle))
-        return float(np.mean(angles)) if angles else 0.1
+    Integration measures the mean Fisher-Rao similarity between the word's basin
+    and the trajectory states. Higher values indicate stronger contextual connection.
+    
+    Args:
+        basin: Word basin in any representation (will be normalized to simplex)
+        trajectory: List of trajectory states in any representation
+        
+    Returns:
+        Integration score in [0, 1], where 1 = perfect alignment
+    """
+    if not trajectory:
+        return 0.5
+    
+    # Convert inputs to canonical simplex once
+    basin_simplex = _to_simplex(basin)
+    trajectory_simplex = [_to_simplex(state) for state in trajectory]
+    
+    # Compute mean similarity
+    similarities = [
+        fisher_similarity(basin_simplex, state)
+        for state in trajectory_simplex
+    ]
+    return float(np.mean(similarities))
+
+def compute_coupling_strength(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
+    """
+    Compute coupling strength (κ) - basin's attractor stability.
+    
+    Coupling measures how consistently the basin attracts trajectory states.
+    Uses variance of Fisher-Rao similarities - lower variance = stronger coupling.
+    
+    This is DIFFERENT from integration (which uses mean similarity).
+    
+    Args:
+        basin: Word basin in any representation (will be normalized to simplex)
+        trajectory: List of trajectory states in any representation
+        
+    Returns:
+        Coupling strength in [0, 1], where 1 = perfectly stable attractor
+    """
+    if not trajectory:
+        return 0.5
+    
+    # Convert inputs to canonical simplex once
+    basin_simplex = _to_simplex(basin)
+    trajectory_simplex = [_to_simplex(state) for state in trajectory]
+    
+    # Compute similarity variance (lower = more stable)
+    similarities = [
+        fisher_similarity(basin_simplex, state)
+        for state in trajectory_simplex
+    ]
+    
+    if len(similarities) < 2:
+        return float(np.mean(similarities))
+    
+    # Convert variance to strength: high variance = low coupling
+    variance = float(np.var(similarities))
+    # Normalize: typical variance range is [0, 0.25] for similarities in [0,1]
+    normalized_variance = min(variance / 0.25, 1.0)
+    return 1.0 - normalized_variance
+
+def compute_basin_curvature(basin: np.ndarray, trajectory: List[np.ndarray]) -> float:
+    """
+    Compute trajectory curvature in basin's influence region.
+    
+    Measures how much the trajectory bends (accelerates) near the basin.
+    Uses second-order differences (acceleration) of Fisher-Rao distances,
+    not just step sizes.
+    
+    Args:
+        basin: Word basin in any representation (will be normalized to simplex)
+        trajectory: List of trajectory states in any representation
+        
+    Returns:
+        Curvature score ≥ 0, where higher = more bending
+    """
+    if len(trajectory) < 3:
+        # Need at least 3 points for second derivative
+        return 0.1
+    
+    # Convert inputs to canonical simplex once
+    basin_simplex = _to_simplex(basin)
+    trajectory_simplex = [_to_simplex(state) for state in trajectory]
+    
+    # Compute distances from basin to each trajectory point
+    distances = [
+        fisher_rao_distance(basin_simplex, state)
+        for state in trajectory_simplex
+    ]
+    
+    # Compute second-order differences (acceleration)
+    # acceleration[i] = (distances[i+1] - distances[i]) - (distances[i] - distances[i-1])
+    accelerations = [
+        abs((distances[i+1] - distances[i]) - (distances[i] - distances[i-1]))
+        for i in range(1, len(distances) - 1)
+    ]
+    
+    # Mean absolute acceleration = curvature
+    return float(np.mean(accelerations)) if accelerations else 0.1
 
 
 class GeometricVocabularyFilter:
@@ -218,17 +293,20 @@ if __name__ == "__main__":
     # Create filter
     geo_filter = create_default_filter()
     
-    # Dummy trajectory for testing
-    trajectory = [np.random.randn(64) for _ in range(5)]
+    # Generate dummy trajectory with proper simplex states
+    # Using random vectors converted to canonical simplex form
+    trajectory = [
+        to_simplex_prob(np.random.randn(64))
+        for _ in range(5)
+    ]
     
     print("Geometric Vocabulary Filter Test")
     print("=" * 50)
     print("\nWords that stopwords would EXCLUDE but geometry INCLUDES:\n")
     
     for word in test_words:
-        # Compute dummy basin
-        basin = np.random.randn(64)
-        basin = basin / np.linalg.norm(basin)
+        # Generate dummy basin with proper simplex form
+        basin = to_simplex_prob(np.random.randn(64))
         
         should_include = geo_filter.should_include(word, basin, trajectory)
         phi, kappa, curv = geo_filter.get_cached_properties(word)

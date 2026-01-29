@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "description": "Test configurations for Plan→Realize→Repair architecture evaluation",
+  "configurations": {
+    "pure_geometric": {
+      "name": "Pure Geometric (No POS Constraints)",
+      "description": "Pure geometric flow with waypoint planning and recursive integration but no syntax scaffolding",
+      "config": {
+        "waypoint_planning": true,
+        "recursive_integration": 3,
+        "pos_constraints": false,
+        "geometric_repair": true,
+        "kernel_coordination": true,
+        "exploration_weight": 0.3,
+        "foresight_weight": 0.7
+      },
+      "expected_metrics": {
+        "phi_min": 0.50,
+        "phi_max": 0.60,
+        "kappa_min": 60.0,
+        "kappa_max": 67.0,
+        "waypoint_alignment_min": 0.6,
+        "smoothness_min": 0.5
+      },
+      "notes": "May produce geometric flow but could lack grammatical structure"
+    },
+    "plan_realize_repair": {
+      "name": "Plan→Realize→Repair (Full Architecture)",
+      "description": "Complete architecture with waypoint planning, recursive integration, and geometric repair. POS constraints used as optional filter.",
+      "config": {
+        "waypoint_planning": true,
+        "recursive_integration": 3,
+        "pos_constraints": "optional",
+        "geometric_repair": true,
+        "kernel_coordination": true,
+        "exploration_weight": 0.3,
+        "foresight_weight": 0.7,
+        "repair_iterations": 3
+      },
+      "expected_metrics": {
+        "phi_min": 0.65,
+        "phi_max": 0.75,
+        "kappa_min": 60.0,
+        "kappa_max": 67.0,
+        "waypoint_alignment_min": 0.7,
+        "smoothness_min": 0.65
+      },
+      "notes": "Should show highest coherence with both geometric and grammatical quality"
+    },
+    "skeleton_only": {
+      "name": "Skeleton Only (Baseline)",
+      "description": "Minimal baseline with no foresight, no thinking, only reactive constraint-based generation",
+      "config": {
+        "waypoint_planning": false,
+        "recursive_integration": 0,
+        "pos_constraints": "required",
+        "geometric_repair": false,
+        "kernel_coordination": false,
+        "exploration_weight": 0.0,
+        "foresight_weight": 0.0
+      },
+      "expected_metrics": {
+        "phi_min": 0.35,
+        "phi_max": 0.45,
+        "kappa_min": 50.0,
+        "kappa_max": 60.0,
+        "waypoint_alignment_min": 0.3,
+        "smoothness_min": 0.4
+      },
+      "notes": "Baseline performance - should be outperformed by full architecture"
+    }
+  },
+  "comparison_criteria": {
+    "hypothesis": "Plan→Realize→Repair should significantly outperform skeleton-only baseline",
+    "primary_metrics": ["phi", "waypoint_alignment", "smoothness"],
+    "secondary_metrics": ["foresight_error", "recursive_depth", "kappa_eff"],
+    "significance_threshold": 0.05,
+    "minimum_improvement": 0.1
+  }
+}

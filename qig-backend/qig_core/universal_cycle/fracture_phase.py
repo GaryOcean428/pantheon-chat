@@ -12,6 +12,7 @@ In the FRACTURE phase:
 from typing import Dict, List, Any, Optional
 import numpy as np
 from .foam_phase import Bubble
+from qig_geometry import canonical_frechet_mean as frechet_mean
 
 
 class FracturePhase:
@@ -45,7 +46,7 @@ class FracturePhase:
         if 'basin_center' in pattern:
             center = pattern['basin_center']
         elif 'trajectory' in pattern and len(pattern['trajectory']) > 0:
-            center = np.mean(pattern['trajectory'], axis=0)
+            center = frechet_mean(pattern['trajectory'])
         else:
             # Random center if no data
             center = np.random.randn(64)
@@ -66,7 +67,7 @@ class FracturePhase:
             bubble_coords = center + perturbation
             
             # Normalize to manifold
-            bubble_coords = bubble_coords / (np.linalg.norm(bubble_coords) + 1e-10)
+            bubble_coords = bubble_coords / (np.sqrt(np.sum(bubble_coords**2)) + 1e-10)
             
             bubble = Bubble(
                 basin_coords=bubble_coords,

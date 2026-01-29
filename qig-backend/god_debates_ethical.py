@@ -21,6 +21,7 @@ from datetime import datetime
 
 from ethics_gauge import AgentSymmetryProjector, EthicalDebateResolver, BASIN_DIMENSION
 from qig_geometry import fisher_normalize
+from qig_geometry.canonical import to_simplex_prob
 
 
 class EthicalDebateManager:
@@ -115,9 +116,9 @@ class EthicalDebateManager:
         debate_id = f"debate_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         if initial_positions is None:
-            # Project random vectors to unit sphere for Fisher manifold consistency
+            # Project random vectors to probability simplex for Fisher manifold consistency
             initial_positions = {
-                god: fisher_normalize(np.random.randn(BASIN_DIMENSION))
+                god: to_simplex_prob(np.abs(np.random.randn(BASIN_DIMENSION)))
                 for god in gods
             }
         
@@ -241,11 +242,10 @@ class EthicalDebateManager:
                     positions[participant.name] = participant.basin_coordinates
                     
         if not positions:
-            from qig_geometry import fisher_normalize
             gods = debate.get('gods', ['Zeus', 'Athena', 'Ares'])
             for god in gods:
                 # Normalize to probability simplex for Fisher manifold consistency
-                positions[god] = fisher_normalize(np.random.randn(BASIN_DIMENSION))
+                positions[god] = to_simplex_prob(np.abs(np.random.randn(BASIN_DIMENSION)))
         
         return positions
     

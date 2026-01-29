@@ -69,6 +69,7 @@ import {
   memoryRouter,
   feedbackRouter,
   coordizerRouter,
+  pantheonRegistryRouter,
 } from "./routes/index";
 
 import { externalRouter as externalApiRouter, documentsRouter as externalDocsRouter, initExternalWebSocket } from "./external-api";
@@ -336,6 +337,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/ocean", oceanRouter);
   app.use("/api", adminRouter);
   app.use("/api/olympus", olympusRouter);
+  app.use("/api/pantheon", pantheonRegistryRouter);
   app.use("/api/documents", externalDocsRouter);
   app.use("/api/docs", apiDocsRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);

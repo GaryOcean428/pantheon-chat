@@ -106,10 +106,17 @@ ALTER TABLE kernel_geometry
     ADD COLUMN IF NOT EXISTS mentor_kernel_id VARCHAR(64);
 
 -- Add constraint for valid lifecycle stages
-ALTER TABLE kernel_geometry
-    ADD CONSTRAINT IF NOT EXISTS valid_lifecycle_stage CHECK (
-        lifecycle_stage IN ('active', 'protected', 'split', 'merged', 'pruned', 'promoted')
-    );
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'kernel_geometry_valid_lifecycle_stage'
+    ) THEN
+        ALTER TABLE kernel_geometry
+            ADD CONSTRAINT kernel_geometry_valid_lifecycle_stage CHECK (
+                lifecycle_stage IN ('active', 'protected', 'split', 'merged', 'pruned', 'promoted')
+            );
+    END IF;
+END $$;
 
 -- Create index for lifecycle stage queries
 CREATE INDEX IF NOT EXISTS idx_kernel_geometry_lifecycle_stage 
@@ -212,7 +219,6 @@ CREATE OR REPLACE VIEW active_kernels_lifecycle AS
 SELECT
     kernel_id,
     god_name,
-    kernel_name,
     lifecycle_stage,
     protection_cycles_remaining,
     phi,

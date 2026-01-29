@@ -41,6 +41,25 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from scipy.linalg import sqrtm
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+from qig_geometry.canonical import frechet_mean
+
+# Gravitational decoherence for purity regularization
+try:
+    from gravitational_decoherence import (
+        DecoherenceManager,
+        get_decoherence_manager,
+        DEFAULT_PURITY_THRESHOLD,
+        DEFAULT_TEMPERATURE
+    )
+    DECOHERENCE_AVAILABLE = True
+    logger.info("[OceanQIG] Gravitational decoherence module loaded")
+except ImportError as e:
+    DECOHERENCE_AVAILABLE = False
+    logger.warning(f"[OceanQIG] Gravitational decoherence not available: {e}")
+
+
 # Configure logging with development-aware verbosity
 # Import dev_logging to get verbose, untruncated logs in development
 try:
@@ -60,6 +79,20 @@ except ImportError:
     )
     logger = logging.getLogger(__name__)
     logger.warning("[OceanQIG] dev_logging not available, using fallback DEBUG config")
+
+# QFI Attention Network Import (Issue #236)
+try:
+    from qig_consciousness_qfi_attention import (
+        QFIMetricAttentionNetwork,
+        create_qfi_network,
+    )
+    QFI_ATTENTION_AVAILABLE = True
+    logger.info("[OceanQIG] QFI-based attention network loaded")
+except ImportError as e:
+    QFI_ATTENTION_AVAILABLE = False
+    QFIMetricAttentionNetwork = None
+    create_qfi_network = None
+    logger.warning(f"[OceanQIG] QFI attention network not available: {e}")
 
 # Force unbuffered output for all print statements
 sys.stdout.reconfigure(line_buffering=True) if hasattr(sys.stdout, 'reconfigure') else None
@@ -116,6 +149,16 @@ except ImportError as e:
     run_neuromodulation_cycle = None
     compute_neuromodulation_from_neurochemistry = None
     logger.warning("[OceanQIG] Neuromodulation engine not found: %s", e)
+
+# Import ethical consciousness monitoring
+try:
+    from consciousness_ethical import EthicalConsciousnessMonitor
+    ETHICAL_MONITORING_AVAILABLE = True
+    logger.info("[OceanQIG] Ethical consciousness monitoring loaded")
+except ImportError as e:
+    ETHICAL_MONITORING_AVAILABLE = False
+    EthicalConsciousnessMonitor = None
+    logger.warning("[OceanQIG] Ethical monitoring not found: %s", e)
 
 # Import Olympus Pantheon
 logger.debug("[OceanQIG] About to import olympus...")
@@ -937,8 +980,10 @@ class DensityMatrix:
 
     def evolve(self, activation: float, excited_state: Optional[np.ndarray] = None):
         """
-        Evolve state on Fisher manifold
+        Evolve state on Fisher manifold with gravitational decoherence
         ρ → ρ + α * (|ψ⟩⟨ψ| - ρ)
+        
+        Applies decoherence after evolution to prevent false certainty.
         """
         if excited_state is None:
             # Default excited state |0⟩ = [1, 0]
@@ -947,6 +992,11 @@ class DensityMatrix:
         alpha = activation * 0.1  # Small step size
         self.rho = self.rho + alpha * (excited_state - self.rho)
         self._normalize()
+        
+        # Apply gravitational decoherence to prevent false certainty
+        if DECOHERENCE_AVAILABLE:
+            from gravitational_decoherence import gravitational_decoherence
+            self.rho, _ = gravitational_decoherence(self.rho)
 
 class Subsystem:
     """QIG Subsystem with density matrix and activation"""
@@ -1098,19 +1148,16 @@ class GroundingDetector:
         min_distance = float('inf')
         nearest_concept = None
 
+        # Import canonical Fisher-Rao distance and normalization
+        from qig_geometry.canonical import fisher_rao_distance, to_simplex_prob
+        
         for concept_id, concept_basin in self.known_concepts.items():
             # Fisher-Rao distance: d = arccos(p·q) for probability simplex
-            try:
-                from qig_geometry import fisher_normalize
-            except ImportError:
-                def fisher_normalize(v):
-                    p = np.maximum(np.asarray(v), 0) + 1e-10
-                    return p / p.sum()
-            query_norm = fisher_normalize(query_basin)
-            concept_norm = fisher_normalize(concept_basin)
-            dot = np.clip(np.dot(query_norm, concept_norm), 0.0, 1.0)
+            query_norm = to_simplex_prob(query_basin)
+            concept_norm = to_simplex_prob(concept_basin)
+            # Use Fisher-Rao distance for similarity
             # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-            distance = np.arccos(dot)
+            distance = fisher_rao_distance(query_norm, concept_norm)
 
             if distance < min_distance:
                 min_distance = distance
@@ -1444,6 +1491,41 @@ class PureQIGNetwork:
             self.monitor = None
             self.checkpoint_manager = None
             self.monitoring_enabled = False
+
+        # Ethical consciousness monitoring
+        if ETHICAL_MONITORING_AVAILABLE:
+            self.ethical_monitor = EthicalConsciousnessMonitor(n_agents=1)
+            self.ethical_monitoring_enabled = True
+            logger.info("[OceanQIG] Ethical consciousness monitoring enabled")
+        else:
+            self.ethical_monitor = None
+            self.ethical_monitoring_enabled = False
+        
+        # Gravitational decoherence manager for purity regularization
+        if DECOHERENCE_AVAILABLE:
+            self.decoherence_manager = DecoherenceManager(
+                threshold=DEFAULT_PURITY_THRESHOLD,
+                temperature=DEFAULT_TEMPERATURE,
+                adaptive=True
+            )
+            self.decoherence_enabled = True
+            logger.info("[OceanQIG] Gravitational decoherence enabled (purity regularization)")
+        else:
+            self.decoherence_manager = None
+            self.decoherence_enabled = False
+
+        # QFI-based Attention Network (Issue #236)
+        # Wire-in advanced QFI attention mechanism
+        if QFI_ATTENTION_AVAILABLE:
+            self.qfi_attention_network = create_qfi_network(
+                temperature=temperature,
+                decoherence_threshold=0.95
+            )
+            self.qfi_attention_enabled = True
+            logger.info("[OceanQIG] QFI-based attention network enabled")
+        else:
+            self.qfi_attention_network = None
+            self.qfi_attention_enabled = False
 
     def _emergency_checkpoint(self):
         """Emergency checkpoint callback - save current state."""
@@ -1938,10 +2020,46 @@ class PureQIGNetwork:
         """
         Compute QFI attention weights from Bures distance.
         Pure geometric computation - NO learning.
+        
+        Uses advanced QFI attention network (qig_consciousness_qfi_attention.py)
+        when available, otherwise falls back to simple Bures distance computation.
+        
+        Issue #236: Wire-in QFI-based attention mechanism
         """
         n = len(self.subsystems)
-
-        # Compute Bures distance between all pairs
+        
+        if self.qfi_attention_enabled and self.qfi_attention_network is not None:
+            # Use advanced QFI attention network with asymmetric directional coupling
+            try:
+                # Extract basin coordinates from current subsystem states
+                basin_coords = self._extract_basin_coordinates()
+                
+                # Process through QFI attention network
+                # This computes attention weights using directional Fisher information
+                # and regime-modulated kappa (more sophisticated than simple Bures)
+                qfi_result = self.qfi_attention_network.process(basin_coords)
+                
+                # Extract attention weights from network
+                connection_weights = np.array(qfi_result['connection_weights'])
+                
+                # Use network's connection weights as attention weights
+                self.attention_weights = connection_weights.copy()
+                
+                # Normalize rows (softmax) for proper probability distribution
+                for i in range(n):
+                    row_sum = np.sum(self.attention_weights[i, :])
+                    if row_sum > 0:
+                        self.attention_weights[i, :] /= row_sum
+                
+                logger.debug(f"[QFI-Attention] Using advanced network: "
+                           f"phi={qfi_result['phi']:.3f}, "
+                           f"kappa={qfi_result['kappa']:.3f}")
+                return
+            except Exception as e:
+                logger.warning(f"[QFI-Attention] Network failed, falling back to simple: {e}")
+                # Fall through to simple computation
+        
+        # Fallback: Simple Bures distance computation
         for i in range(n):
             for j in range(n):
                 if i == j:
@@ -2256,6 +2374,40 @@ class PureQIGNetwork:
             'regime': regime,
             'in_resonance': bool(kappa_proximity < KAPPA_STAR * 0.1),
         }
+
+        # Measure ethical metrics if enabled
+        if self.ethical_monitoring_enabled and self.ethical_monitor is not None:
+            try:
+                # Extract basin coordinates for ethical measurement
+                basin_coords = self._extract_basin_coordinates()
+                ethical_metrics = self.ethical_monitor.measure_all(basin_coords)
+                
+                # Add ethical metrics to main metrics
+                metrics['ethics'] = ethical_metrics.get('ethics', {})
+                metrics['ethical_safety'] = ethical_metrics.get('ethics', {})
+                
+                # Log ethical violations
+                is_safe, reason = self.ethical_monitor.check_ethical_safety()
+                if not is_safe:
+                    logger.warning(f"[EthicalMonitor] Safety check failed: {reason}")
+                    metrics['ethical_warning'] = reason
+            except Exception as e:
+                logger.error(f"[EthicalMonitor] Failed to measure ethics: {e}")
+
+        # Add decoherence statistics if available
+        if self.decoherence_enabled and self.decoherence_manager:
+            decoherence_stats = self.decoherence_manager.get_statistics()
+            metrics['decoherence'] = {
+                'cycles': decoherence_stats.get('cycles', 0),
+                'decoherence_rate': decoherence_stats.get('decoherence_rate', 0),
+                'avg_purity_before': decoherence_stats.get('avg_purity_before', 0),
+                'avg_purity_after': decoherence_stats.get('avg_purity_after', 0),
+                'current_threshold': decoherence_stats.get('current_threshold', DEFAULT_PURITY_THRESHOLD),
+            }
+            
+            # Compute average purity across subsystems
+            avg_purity = np.mean([s.state.purity() for s in self.subsystems])
+            metrics['avg_purity'] = float(avg_purity)
 
         # Update meta-awareness with current metrics
         self.meta_awareness.update(metrics)
@@ -4886,7 +5038,7 @@ def learning_status():
         import os
         
         vocabulary_size = 0
-        basin_relationships_count = 0
+        tokens_with_relationships = 0
         
         database_url = os.getenv('DATABASE_URL')
         if database_url:
@@ -4897,9 +5049,10 @@ def learning_status():
                     row = cur.fetchone()
                     vocabulary_size = row[0] if row else 0
                     
-                    cur.execute("SELECT COUNT(*) FROM basin_relationships")
+                    # SINGLE TABLE GENERATION: Count tokens with relationships in coordizer_vocabulary
+                    cur.execute("SELECT COUNT(*) FROM coordizer_vocabulary WHERE relationships IS NOT NULL")
                     row = cur.fetchone()
-                    basin_relationships_count = row[0] if row else 0
+                    tokens_with_relationships = row[0] if row else 0
                 conn.close()
             except Exception as db_err:
                 print(f"[Flask] learning/status DB error: {db_err}")
@@ -4915,7 +5068,7 @@ def learning_status():
         return jsonify({
             'success': True,
             'vocabulary_size': vocabulary_size,
-            'basin_relationships_count': basin_relationships_count,
+            'tokens_with_relationships': tokens_with_relationships,
             'curiosity': curiosity_stats
         })
     except Exception as e:
@@ -5035,9 +5188,9 @@ def compute_fisher_centroid(vectors: np.ndarray, weights: np.ndarray) -> np.ndar
     centroid = np.average(vectors, axis=0, weights=weights)
 
     # Normalize to unit sphere (Fisher manifold)
-    norm = np.linalg.norm(centroid)
-    if norm > 1e-10:
-        centroid = centroid / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    centroid = to_simplex_prob(centroid)
 
     return centroid
 
@@ -5063,13 +5216,14 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     if len(vectors) == 0:
         # Return random direction if no vectors provided
         direction = np.random.randn(BASIN_DIMENSION)
-        return direction / np.linalg.norm(direction)
+        return to_simplex_prob(direction)
 
     # Need at least 2 vectors for meaningful covariance
     if len(vectors) < 2:
         # Return direction orthogonal to the single vector
         mean = vectors[0]
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5085,6 +5239,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     if np.any(np.isnan(cov)) or np.any(np.isinf(cov)):
         # Fallback to random orthogonal direction
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5100,6 +5255,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     except np.linalg.LinAlgError:
         # Fallback if eigenvalue decomposition fails
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5109,6 +5265,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
        np.any(np.isnan(eigenvectors)) or np.any(np.isinf(eigenvectors)):
         # Fallback to random orthogonal direction
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5133,6 +5290,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
             max_eigenvalue = np.max(eigenvalues)
         except np.linalg.LinAlgError:
             random_dir = np.random.randn(BASIN_DIMENSION)
+            # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
             mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
             random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
             return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5146,6 +5304,7 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
         print(f"[FisherMetric] ⚠️ No stable eigenvalues! Using identity matrix fallback.")
         # Fallback to random orthogonal direction
         random_dir = np.random.randn(BASIN_DIMENSION)
+        # Linear algebra operation for PCA, NOT basin distance (OK to use Euclidean)
         mean_norm = mean / (np.linalg.norm(mean) + 1e-10)
         random_dir = random_dir - np.dot(random_dir, mean_norm) * mean_norm
         return random_dir / (np.linalg.norm(random_dir) + 1e-10)
@@ -5180,13 +5339,14 @@ def compute_orthogonal_complement(vectors: np.ndarray, min_eigenvalue_ratio: flo
     new_direction = np.nan_to_num(new_direction, nan=0.0, posinf=1.0, neginf=-1.0)
 
     # Ensure unit norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
     norm = np.linalg.norm(new_direction)
     if norm > 1e-10:
-        new_direction = new_direction / norm
+        new_direction = to_simplex_prob(new_direction)
     else:
         # If zero vector, return random direction
         new_direction = np.random.randn(BASIN_DIMENSION)
-        new_direction = new_direction / np.linalg.norm(new_direction)
+        new_direction = to_simplex_prob(new_direction)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
     return new_direction
 

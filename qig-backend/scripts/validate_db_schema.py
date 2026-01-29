@@ -12,6 +12,7 @@ Validates PostgreSQL schema compatibility with new training features:
 import os
 import sys
 from typing import Dict, List, Any
+from persistence.base_persistence import get_db_connection
 
 # Import psycopg2
 try:
@@ -22,25 +23,6 @@ except ImportError:
     PSYCOPG2_AVAILABLE = False
     print("WARNING: psycopg2 not available. Install with: pip install psycopg2-binary")
     # Don't exit - allow script to run with warning
-
-
-def get_db_connection():
-    """Get database connection from environment."""
-    if not PSYCOPG2_AVAILABLE:
-        print("ERROR: psycopg2 not available")
-        sys.exit(1)
-    
-    db_url = os.getenv('DATABASE_URL')
-    if not db_url:
-        print("ERROR: DATABASE_URL not set")
-        sys.exit(1)
-    
-    try:
-        conn = psycopg2.connect(db_url)
-        return conn
-    except Exception as e:
-        print(f"ERROR: Failed to connect to database: {e}")
-        sys.exit(1)
 
 
 def check_table_exists(cursor, table_name: str, schema: str = 'public') -> bool:

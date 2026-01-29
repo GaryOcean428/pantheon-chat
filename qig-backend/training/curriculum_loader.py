@@ -22,6 +22,18 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import numpy as np
 
+# Import QFI computation for basin quality assessment
+try:
+    from qig_geometry import compute_qfi_score
+    HAS_QFI_COMPUTE = True
+except ImportError:
+    try:
+        from ..qig_geometry import compute_qfi_score
+        HAS_QFI_COMPUTE = True
+    except ImportError:
+        HAS_QFI_COMPUTE = False
+        compute_qfi_score = None
+
 # Import Lightning Kernel for cross-domain insight generation
 try:
     from olympus.lightning_kernel import ingest_system_event as lightning_ingest
@@ -148,17 +160,34 @@ def content_to_basin_coords(content: str, coordizer=None) -> np.ndarray:
     """
     Convert text content to 64D basin coordinates.
 
-    Uses the coordizer if available, otherwise creates
+    Uses the coordizer if available (via encode() method), otherwise creates
     a deterministic hash-based embedding.
+    
+    IMPORTANT: Always returns simplex-normalized coordinates (sum=1, non-negative).
     """
     BASIN_DIM = 64
 
     if coordizer is not None:
         try:
-            # Use coordizer's embed method
-            return coordizer.embed(content)
-        except Exception:
-            pass
+            # Use coordizer's encode method (NOT embed - that method doesn't exist)
+            if hasattr(coordizer, 'encode'):
+                coords = coordizer.encode(content)
+                # Validate and normalize to simplex
+                if coords is not None and len(coords) == BASIN_DIM:
+                    # Ensure non-negative and sum=1 (simplex constraint)
+                    coords = np.abs(coords)  # Force non-negative
+                    coord_sum = np.sum(coords)
+                    if coord_sum > 1e-10:
+                        coords = coords / coord_sum
+                        return coords
+                    else:
+                        print(f"[CurriculumLoader] WARNING: Coordizer returned zero basin, using fallback for: {content[:50]}...")
+                else:
+                    print(f"[CurriculumLoader] WARNING: Invalid coordizer result (len={len(coords) if coords is not None else 'None'}), using fallback")
+            else:
+                print(f"[CurriculumLoader] WARNING: Coordizer missing 'encode' method, using fallback")
+        except Exception as e:
+            print(f"[CurriculumLoader] WARNING: Coordizer.encode() failed ({e}), using fallback for: {content[:50]}...")
 
     # Fallback: deterministic hash-based embedding
     # This preserves semantic locality through consistent hashing
@@ -168,7 +197,7 @@ def content_to_basin_coords(content: str, coordizer=None) -> np.ndarray:
     content_hash = hashlib.sha256(content.encode()).digest()
     seed = int.from_bytes(content_hash[:4], 'big')
 
-    # Generate deterministic "embedding"
+    # Generate deterministic "embedding" using Dirichlet (already on simplex)
     rng = np.random.RandomState(seed)
     coords = rng.dirichlet(np.ones(BASIN_DIM))
 
@@ -222,10 +251,35 @@ def load_curriculum_for_god(
                     coordizer=coordizer
                 )
 
+                # Compute QFI score for basin quality (if available)
+                # This measures how well the basin represents information content
+                qfi_score = None
+                if HAS_QFI_COMPUTE and compute_qfi_score is not None:
+                    try:
+                        qfi_score = compute_qfi_score(basin_coords)
+                    except Exception as e:
+                        print(f"[CurriculumLoader] WARNING: QFI computation failed: {e}")
+                        qfi_score = 0.5  # Default moderate quality
+
+                # Use QFI score to determine training signal quality
+                # Higher QFI = more informative basin = higher reward/phi
+                base_reward = 0.3
+                base_phi = 0.6
+                if qfi_score is not None:
+                    # Scale reward and phi based on QFI (range typically 0.0-1.0)
+                    # QFI > 0.7 = high quality, QFI < 0.3 = low quality
+                    qfi_boost = max(0.0, min(0.2, (qfi_score - 0.5) * 0.4))
+                    reward = base_reward + qfi_boost
+                    phi = base_phi + qfi_boost
+                else:
+                    reward = base_reward
+                    phi = base_phi
+
                 example = {
                     "basin_coords": basin_coords.tolist(),
-                    "reward": 0.3,  # Curriculum is positive learning signal
-                    "phi": 0.6,  # Moderate integration expected
+                    "reward": reward,  # QFI-adjusted reward
+                    "phi": phi,  # QFI-adjusted integration expectation
+                    "qfi_score": qfi_score,  # Store QFI for analysis
                     "source": "curriculum",
                     "source_file": parsed["filename"],
                     "section": section["heading"],
