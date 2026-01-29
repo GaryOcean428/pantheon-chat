@@ -145,9 +145,7 @@ export async function shouldGaryLearnWord(
       reasoning: data.reasoning
     };
   } catch (error) {
-    logger.error('[VocabularyDecisionAPI] Error deciding word:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyDecisionAPI] Error deciding word:');
     throw error;
   }
 }
@@ -181,9 +179,7 @@ export async function observeWord(
       throw new Error(`Vocabulary decision API error: ${response.status}`);
     }
   } catch (error) {
-    logger.error('[VocabularyDecisionAPI] Error observing word:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyDecisionAPI] Error observing word:');
     throw error;
   }
 }
@@ -230,9 +226,7 @@ export async function tryConsolidation(
       reason: data.reason
     };
   } catch (error) {
-    logger.error('[VocabularyDecisionAPI] Error trying consolidation:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyDecisionAPI] Error trying consolidation:');
     throw error;
   }
 }
@@ -270,9 +264,7 @@ export async function getVocabDecisionStats(): Promise<{
       iterationsSinceSleep: data.iterations_since_sleep
     };
   } catch (error) {
-    logger.error('[VocabularyDecisionAPI] Error getting stats:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyDecisionAPI] Error getting stats:');
     throw error;
   }
 }
@@ -292,9 +284,18 @@ export async function tickConsolidationCycle(): Promise<void> {
       throw new Error(`Vocabulary decision API error: ${response.status}`);
     }
   } catch (error) {
-    logger.error('[VocabularyDecisionAPI] Error ticking cycle:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyDecisionAPI] Error ticking cycle:');
     throw error;
   }
 }
+
+/**
+ * Export vocabDecisionEngine object for backward compatibility
+ */
+export const vocabDecisionEngine = {
+  shouldGaryLearnWord,
+  observeWord,
+  tryConsolidation,
+  getVocabDecisionStats,
+  tickConsolidationCycle
+};

@@ -51,9 +51,7 @@ export async function observe(
       throw new Error(`Vocabulary tracker API error: ${response.status}`);
     }
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error observing phrase:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error observing phrase:');
     throw error;
   }
 }
@@ -77,9 +75,7 @@ export async function classifyPhraseCategory(text: string): Promise<PhraseCatego
     const data = await response.json();
     return data.category;
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error classifying phrase:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error classifying phrase:');
     throw error;
   }
 }
@@ -114,9 +110,7 @@ export async function getCandidates(topK: number = 20): Promise<VocabularyCandid
       components: candidate.components
     }));
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error getting candidates:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error getting candidates:');
     throw error;
   }
 }
@@ -169,9 +163,7 @@ export async function getTrackerStats(): Promise<{
       candidatesReady: data.candidates_ready
     };
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error getting stats:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error getting stats:');
     throw error;
   }
 }
@@ -198,9 +190,7 @@ export async function getCategoryStats(): Promise<{
     const data = await response.json();
     return data;
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error getting category stats:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error getting category stats:');
     throw error;
   }
 }
@@ -242,9 +232,7 @@ export async function exportForTokenizer(): Promise<Array<{
       phraseCategory: obs.phrase_category
     }));
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error exporting for tokenizer:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error exporting for tokenizer:');
     throw error;
   }
 }
@@ -264,9 +252,7 @@ export async function waitForData(): Promise<void> {
       throw new Error(`Vocabulary tracker API error: ${response.status}`);
     }
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error waiting for data:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error waiting for data:');
     throw error;
   }
 }
@@ -289,9 +275,21 @@ export async function isDataLoaded(): Promise<boolean> {
     const data = await response.json();
     return data.loaded;
   } catch (error) {
-    logger.error('[VocabularyTrackerAPI] Error checking if data loaded:', { 
-      error: error instanceof Error ? error.message : String(error) 
-    });
+    logger.error({ err: error }, '[VocabularyTrackerAPI] Error checking if data loaded:');
     throw error;
   }
 }
+
+/**
+ * Export vocabularyTracker object for backward compatibility
+ */
+export const vocabularyTracker = {
+  observe,
+  classifyPhraseCategory,
+  getCandidates,
+  getTrackerStats,
+  getCategoryStats,
+  exportForTokenizer,
+  waitForData,
+  isDataLoaded
+};

@@ -228,7 +228,7 @@ export class GeometricVocabularyExpander {
   async checkAutoExpansion(): Promise<ExpansionEvent[]> {
     if (!this.autoExpand) return [];
     
-    const candidates = vocabularyTracker.getCandidates(10);
+    const candidates = await vocabularyTracker.getCandidates(10);
     const expanded: ExpansionEvent[] = [];
     
     for (const candidate of candidates) {
@@ -406,7 +406,7 @@ export class GeometricVocabularyExpander {
    * Bootstrap from VocabularyTracker (PostgreSQL-backed vocabulary_observations)
    */
   async bootstrapFromVocabularyTracker(): Promise<void> {
-    const candidates = vocabularyTracker.getCandidates(200);
+    const candidates = await vocabularyTracker.getCandidates(200);
     console.log(`[VocabExpander] Bootstrapping from ${candidates.length} VocabularyTracker candidates...`);
     
     let added = 0;

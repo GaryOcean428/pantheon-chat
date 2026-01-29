@@ -89,7 +89,7 @@ export async function addWord(
       geodesicOrigin: data.geodesic_origin
     };
   } catch (error) {
-    logger.error('[VocabularyExpanderAPI] Error adding word:', error);
+    logger.error({ err: error }, '[VocabularyExpanderAPI] Error adding word:');
     throw error;
   }
 }
@@ -120,7 +120,7 @@ export async function checkAutoExpansion(): Promise<ExpansionEvent[]> {
       reasoning: event.reasoning
     }));
   } catch (error) {
-    logger.error('[VocabularyExpanderAPI] Error checking auto expansion:', error);
+    logger.error({ err: error }, '[VocabularyExpanderAPI] Error checking auto expansion:');
     throw error;
   }
 }
@@ -156,7 +156,7 @@ export async function getWord(text: string): Promise<ManifoldWord | null> {
       geodesicOrigin: data.geodesic_origin
     };
   } catch (error) {
-    logger.error('[VocabularyExpanderAPI] Error getting word:', error);
+    logger.error({ err: error }, '[VocabularyExpanderAPI] Error getting word:');
     throw error;
   }
 }
@@ -195,7 +195,7 @@ export async function findNearbyWords(
       geodesicOrigin: word.geodesic_origin
     }));
   } catch (error) {
-    logger.error('[VocabularyExpanderAPI] Error finding nearby words:', error);
+    logger.error({ err: error }, '[VocabularyExpanderAPI] Error finding nearby words:');
     throw error;
   }
 }
@@ -219,7 +219,7 @@ export async function generateManifoldHypotheses(count: number = 20): Promise<st
     const data = await response.json();
     return data.hypotheses;
   } catch (error) {
-    logger.error('[VocabularyExpanderAPI] Error generating hypotheses:', error);
+    logger.error({ err: error }, '[VocabularyExpanderAPI] Error generating hypotheses:');
     throw error;
   }
 }
@@ -264,7 +264,19 @@ export async function getExpanderStats(): Promise<{
       topWords: data.top_words
     };
   } catch (error) {
-    logger.error('[VocabularyExpanderAPI] Error getting stats:', error);
+    logger.error({ err: error }, '[VocabularyExpanderAPI] Error getting stats:');
     throw error;
   }
 }
+
+/**
+ * Export vocabularyExpander object for backward compatibility
+ */
+export const vocabularyExpander = {
+  addWord,
+  checkAutoExpansion,
+  getWord,
+  findNearbyWords,
+  generateManifoldHypotheses,
+  getExpanderStats
+};
