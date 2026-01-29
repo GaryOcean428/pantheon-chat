@@ -61,7 +61,7 @@ export async function computeConfidence(tracker: StabilityTracker): Promise<Conf
       explanation: data.explanation
     };
   } catch (error) {
-    logger.error('[ConfidenceAPI] Error computing confidence:', error);
+    logger.error({ err: error }, '[ConfidenceAPI] Error computing confidence:');
     throw error;
   }
 }
@@ -106,7 +106,7 @@ export async function estimateSingleSampleConfidence(
       explanation: data.explanation
     };
   } catch (error) {
-    logger.error('[ConfidenceAPI] Error estimating single sample confidence:', error);
+    logger.error({ err: error }, '[ConfidenceAPI] Error estimating single sample confidence:');
     throw error;
   }
 }
@@ -150,7 +150,7 @@ export async function computeRecoveryConfidence(
     const data = await response.json();
     return data;
   } catch (error) {
-    logger.error('[ConfidenceAPI] Error computing recovery confidence:', error);
+    logger.error({ err: error }, '[ConfidenceAPI] Error computing recovery confidence:');
     throw error;
   }
 }
@@ -188,7 +188,7 @@ export async function detectConfidenceTrend(
       volatility: data.volatility
     };
   } catch (error) {
-    logger.error('[ConfidenceAPI] Error detecting trend:', error);
+    logger.error({ err: error }, '[ConfidenceAPI] Error detecting trend:');
     throw error;
   }
 }

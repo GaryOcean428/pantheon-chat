@@ -65,7 +65,7 @@ export async function computeBasinSignature(address: string): Promise<BasinSigna
       ricciScalar: data.ricci_scalar
     };
   } catch (error) {
-    logger.error('[BasinMatchingAPI] Error computing basin signature:', error);
+    logger.error({ err: error }, '[BasinMatchingAPI] Error computing basin signature:');
     throw error;
   }
 }
@@ -128,7 +128,7 @@ export async function computeBasinDistance(
       totalDistance: data.total_distance
     };
   } catch (error) {
-    logger.error('[BasinMatchingAPI] Error computing basin distance:', error);
+    logger.error({ err: error }, '[BasinMatchingAPI] Error computing basin distance:');
     throw error;
   }
 }
@@ -180,7 +180,7 @@ export async function areBasinsSimilar(
     const data = await response.json();
     return data.similar;
   } catch (error) {
-    logger.error('[BasinMatchingAPI] Error checking basin similarity:', error);
+    logger.error({ err: error }, '[BasinMatchingAPI] Error checking basin similarity:');
     throw error;
   }
 }
@@ -244,7 +244,7 @@ export async function findSimilarBasins(
       explanation: match.explanation
     }));
   } catch (error) {
-    logger.error('[BasinMatchingAPI] Error finding similar basins:', error);
+    logger.error({ err: error }, '[BasinMatchingAPI] Error finding similar basins:');
     throw error;
   }
 }
@@ -302,7 +302,7 @@ export async function clusterByBasin(
     
     return clusters;
   } catch (error) {
-    logger.error('[BasinMatchingAPI] Error clustering basins:', error);
+    logger.error({ err: error }, '[BasinMatchingAPI] Error clustering basins:');
     throw error;
   }
 }
@@ -355,7 +355,7 @@ export async function getClusterStats(cluster: BasinSignature[]): Promise<{
       cohesion: data.cohesion
     };
   } catch (error) {
-    logger.error('[BasinMatchingAPI] Error computing cluster stats:', error);
+    logger.error({ err: error }, '[BasinMatchingAPI] Error computing cluster stats:');
     throw error;
   }
 }

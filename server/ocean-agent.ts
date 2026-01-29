@@ -2119,7 +2119,7 @@ export class OceanAgent {
       );
     }
 
-    const commonPhrases = this.generateCommonBrainWalletPhrases();
+    const commonPhrases = await this.generateCommonBrainWalletPhrases();
     hypotheses.push(...commonPhrases);
 
     logger.info(
@@ -2784,7 +2784,7 @@ export class OceanAgent {
     return hypotheses;
   }
 
-  private generateCommonBrainWalletPhrases(): OceanHypothesis[] {
+  private async generateCommonBrainWalletPhrases(): Promise<OceanHypothesis[]> {
     const hypotheses: OceanHypothesis[] = [];
 
     // Classic common phrases
@@ -2817,7 +2817,7 @@ export class OceanAgent {
 
     // Add top learned words from vocabulary expander
     const manifoldHypotheses =
-      vocabularyExpander.generateManifoldHypotheses(10);
+      await vocabularyExpander.generateManifoldHypotheses(10);
     for (const phrase of manifoldHypotheses) {
       hypotheses.push(
         this.createHypothesis(
