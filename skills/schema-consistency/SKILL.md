@@ -1,14 +1,6 @@
 ---
 name: schema-consistency
 description: Validate database migrations match SQLAlchemy models, check for NULL columns, orphaned tables, and vocabulary architecture. Use when reviewing migrations, modifying database models, or debugging schema issues with Neon/PostgreSQL.
-license: Apache-2.0
-compatibility: Requires Python 3.11+, PostgreSQL/Neon, Drizzle. References .github/agents/schema-consistency-agent.md
-metadata:
-  author: pantheon-chat
-  version: "2.0"
-  protocol: "E8 Protocol v4.0"
-  last-updated: "2026-01-29"
-allowed-tools: Bash(python3:*) Bash(drizzle-kit:*) Read
 ---
 
 # Schema Consistency
