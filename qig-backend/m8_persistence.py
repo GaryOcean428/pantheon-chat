@@ -755,10 +755,10 @@ def compute_m8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
     while len(m8_coords) < 8:
         m8_coords = np.append(m8_coords, 0.0)
     
-    # Normalize M8 coordinates
-    m8_norm = np.sqrt(np.sum(m8_coords**2))
-    if m8_norm > 1e-10:
-        m8_coords = m8_coords / m8_norm * math.sqrt(8)
+    # Normalize M8 coordinates to simplex (sum=1, non-negative)
+    # Fisher-Rao geometry requires simplex normalization, not L2 normalization
+    m8_coords = np.abs(m8_coords) + 1e-12
+    m8_coords = m8_coords / m8_coords.sum()
     
     # Determine octant (2^8 = 256 regions)
     octant = sum(1 << i for i, v in enumerate(m8_coords) if v >= 0)
@@ -769,8 +769,11 @@ def compute_m8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
         angle = math.atan2(m8_coords[i + 1], m8_coords[i])
         angles.append(angle)
     
-    # Calculate radial distance from origin
-    radial = float(np.sqrt(np.sum(m8_coords**2)))
+    # Calculate radial distance using Fisher-Rao distance from uniform distribution
+    # This measures "how far from uniform" the M8 projection is
+    from qig_geometry.canonical import fisher_rao_distance
+    uniform_8d = np.ones(8) / 8.0
+    radial = float(fisher_rao_distance(m8_coords, uniform_8d))
     
     # Determine position name
     if octant in M8_SPECIAL_POSITIONS:

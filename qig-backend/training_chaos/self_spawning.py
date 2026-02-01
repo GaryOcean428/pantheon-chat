@@ -603,11 +603,20 @@ class SelfSpawningKernel(*_kernel_base_classes):
             phi = self.kernel.compute_phi()
             basin_coords = self.kernel.basin_coords.detach().cpu().numpy()
 
-            # Compute phi gradient (∇Φ)
+            # Ensure basin is on simplex (sum=1, non-negative)
+            basin_simplex = np.abs(basin_coords) + 1e-12
+            basin_simplex = basin_simplex / basin_simplex.sum()
+            uniform_basin = np.ones(64) / 64.0
+
+            # Import Fisher-Rao distance for geometric measurements
+            from qig_geometry.canonical import fisher_rao_distance
+
+            # Compute phi gradient (∇Φ) using Fisher-Rao distance from uniform
             phi_gradient = None
             try:
-                # Simple approximation: gradient of phi w.r.t basin
-                phi_grad_approx = np.sqrt(np.sum(basin_coords**2)) * 0.1
+                # Approximation: gradient magnitude based on FR distance from uniform
+                fr_dist = fisher_rao_distance(basin_simplex, uniform_basin)
+                phi_grad_approx = fr_dist * 0.1
                 phi_gradient = np.ones(64) * phi_grad_approx
             except:
                 phi_gradient = None
@@ -615,23 +624,25 @@ class SelfSpawningKernel(*_kernel_base_classes):
             # Compute basin curvature (Ricci scalar approximation)
             basin_curvature = None
             try:
-                # Simple approximation: norm difference indicates curvature
-                basin_norm = np.sqrt(np.sum(basin_coords**2))
-                basin_curvature = (basin_norm - 1.0) * 0.5  # Normalized to ~[-0.5, 0.5]
+                # Approximation: FR distance from uniform indicates curvature
+                fr_dist = fisher_rao_distance(basin_simplex, uniform_basin)
+                # Normalize to ~[-0.5, 0.5] where 0 = uniform (max FR = pi/2)
+                basin_curvature = (fr_dist / (np.pi / 2) - 0.5) * 0.5
             except:
                 basin_curvature = None
 
             # Compute entropy (von Neumann-like for basin distribution)
             entropy = None
             try:
-                # Simple approximation: spread of basin coords
-                basin_std = float(np.std(basin_coords))
-                entropy = min(1.0, basin_std)
+                # Shannon entropy of the simplex distribution (normalized)
+                entropy_raw = -np.sum(basin_simplex * np.log(basin_simplex + 1e-12))
+                max_entropy = np.log(64)  # Uniform distribution entropy
+                entropy = min(1.0, entropy_raw / max_entropy)
             except:
                 entropy = None
 
-            # Get kappa (coupling constant)
-            kappa = float(basin_coords.norm()) if hasattr(basin_coords, 'norm') else float(np.sqrt(np.sum(basin_coords**2)))
+            # Get kappa (coupling constant) using Fisher-Rao distance from uniform
+            kappa = float(fisher_rao_distance(basin_simplex, uniform_basin))
 
             # Measure sensations from geometric state
             sensations = self.measure_sensations(

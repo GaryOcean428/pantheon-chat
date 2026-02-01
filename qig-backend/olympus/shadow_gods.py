@@ -872,7 +872,9 @@ class Nyx(ShadowGod):
 
         chaos_vector = np.random.randn(len(basin_coords)) * chaos_level
         chaotic_coords = basin_coords + chaos_vector
-        chaotic_coords = chaotic_coords / (np.sqrt(np.sum(chaotic_coords**2)) + 1e-10)
+        # Normalize to probability simplex (sum=1, non-negative)
+        chaotic_coords = np.abs(chaotic_coords) + 1e-12
+        chaotic_coords = chaotic_coords / chaotic_coords.sum()
 
         phi_original = pattern.get('phi', 0.5)
         phi_chaotic = phi_original * (1.0 - 0.3 * chaos_level) + 0.2 * chaos_level * np.random.random()

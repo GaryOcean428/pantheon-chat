@@ -73,17 +73,19 @@ class FoamPhase:
         new_bubbles = []
         
         if seed_coords is None:
-            # Start from random point on manifold
+            # Start from random point on probability simplex
             seed_coords = np.random.randn(self.basin_dim)
-            seed_coords = seed_coords / (np.sqrt(np.sum(seed_coords**2)) + 1e-10)
+            seed_coords = np.abs(seed_coords) + 1e-12
+            seed_coords = seed_coords / seed_coords.sum()
         
         for _ in range(n_bubbles):
             # Generate random perturbation
             perturbation = np.random.randn(self.basin_dim) * exploration_radius
             bubble_coords = seed_coords + perturbation
             
-            # Normalize to manifold
-            bubble_coords = bubble_coords / (np.sqrt(np.sum(bubble_coords**2)) + 1e-10)
+            # Normalize to probability simplex (sum=1, non-negative)
+            bubble_coords = np.abs(bubble_coords) + 1e-12
+            bubble_coords = bubble_coords / bubble_coords.sum()
             
             # Create bubble with high entropy (unexplored)
             bubble = Bubble(

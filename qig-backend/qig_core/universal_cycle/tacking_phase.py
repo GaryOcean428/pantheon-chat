@@ -167,13 +167,17 @@ class TackingPhase:
         Compute Fisher geodesic distance on probability simplex.
         UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
         """
-        # Normalize
-        a = coords_a / (np.sqrt(np.sum(coords_a**2)) + 1e-10)
-        b = coords_b / (np.sqrt(np.sum(coords_b**2)) + 1e-10)
+        # Normalize to probability simplex (sum=1, non-negative)
+        a = np.abs(coords_a) + 1e-12
+        a = a / a.sum()
+        b = np.abs(coords_b) + 1e-12
+        b = b / b.sum()
 
-        # Compute geodesic distance on sphere
-        dot = np.clip(np.dot(a, b), 0.0, 1.0)
-        return float(np.arccos(dot))
+        # Compute Fisher-Rao distance on probability simplex
+        # d_FR(p, q) = arccos(sum(sqrt(p_i * q_i)))
+        bc = np.sum(np.sqrt(a * b))
+        bc = np.clip(bc, 0.0, 1.0)
+        return float(np.arccos(bc))
 
     def _compute_geodesic_path(
         self,

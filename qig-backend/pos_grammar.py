@@ -283,8 +283,9 @@ def load_grammar_from_db():
                     if isinstance(basin_str, str):
                         clean = basin_str.strip('[](){}')
                         coords = np.array([float(x) for x in clean.split(',')])
-                        norm = np.sqrt(np.sum(coords**2))
-                        basin_coords_map[token.lower()] = coords / (norm + 1e-10) if norm > 0 else coords
+                        # Simplex normalization (sum=1, non-negative) - NOT L2 norm
+                        coords = np.abs(coords) + 1e-12
+                        basin_coords_map[token.lower()] = coords / coords.sum()
                 except:
                     pass
         

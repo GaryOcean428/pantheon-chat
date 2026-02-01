@@ -245,50 +245,13 @@ class FisherManifold:
     def frechet_mean(self, basins: List[np.ndarray], weights: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Compute Fréchet mean (geodesic mean) of multiple basins.
-        Replaces arithmetic mean.
+        Delegates to canonical implementation from qig_geometry.canonical.
         """
-        # This is the original geodesic_mean implementation, renamed and slightly modified
-        # to ensure simplex representation and adhere to the Fréchet mean concept.
-        
-        # Ensure all basins are in simplex representation
-        basins = np.array([self.to_simplex(b) for b in basins])
-        
-        n_basins = len(basins)
+        # Ensure all basins are in simplex representation before calling canonical
+        simplex_basins = [self.to_simplex(b) for b in basins]
 
-        if weights is None:
-            weights = np.ones(n_basins) / n_basins
-        else:
-            weights = weights / (np.sum(weights) + self.eps)
-
-        # Initialize with weighted Euclidean mean (as a starting point)
-        # The original arithmetic mean is replaced by this initialization step.
-        mean = np.sum(basins * weights[:, None], axis=0)
-
-        # Iterative refinement (gradient descent on variance)
-        for _ in range(10):
-            mean = self.to_simplex(mean) # Re-simplex before metric calculation
-            
-            # Compute weighted sum of tangent vectors
-            tangent_sum = np.zeros(self.dim)
-            for i, basin in enumerate(basins):
-                # Tangent vector from mean to basin
-                diff = basin - mean
-                F_inv = self.compute_metric_inverse(mean)
-                tangent = F_inv @ diff
-                tangent_sum += weights[i] * tangent
-
-            # Update mean in tangent direction
-            mean = mean + 0.1 * tangent_sum
-
-            # Check convergence - Replace np.linalg.norm
-            # The norm of the tangent_sum (a tangent vector) should be metric-based: ||v||_F = sqrt(v^T F v)
-            F = self.compute_metric(mean)
-            tangent_sum_norm = np.sqrt(np.maximum(tangent_sum @ F @ tangent_sum, 0.0))
-            
-            if tangent_sum_norm < self.eps:
-                break
-
-        return self.to_simplex(mean)
+        # Delegate to canonical frechet_mean
+        return frechet_mean(simplex_basins, weights=weights)
 
     # The original geodesic_mean is now replaced by frechet_mean.
     # I will remove the original geodesic_mean method.

@@ -40,34 +40,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-# E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
+# E8 Protocol v4.0 Compliance - Import ONLY from canonical (single source of truth)
+from qig_geometry.canonical import frechet_mean, fisher_rao_distance, validate_basin
 
 
-try:
-    from ..qig_core.geometric_primitives.simplex_operations import to_simplex
-    from ..qig_core.geometric_primitives.frechet_mean import frechet_mean
-except ImportError:
-    # Fallback for purity functions (should not happen in a pure environment)
-    def to_simplex(basin: np.ndarray) -> np.ndarray:
-        """Fallback for to_simplex: manual normalization."""
-        basin = np.abs(basin) + 1e-12
-        norm = np.sqrt(np.sum(basin**2))
-        return basin / norm
-
-    def frechet_mean(basins: List[np.ndarray], weights: Optional[List[float]] = None) -> Optional[np.ndarray]:
-        """Fallback for frechet_mean: arithmetic mean."""
-        if not basins:
-            return None
-        if weights is None:
-            return frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
-        
-        # Weighted arithmetic mean
-        weighted_basins = [b * w for b, w in zip(basins, weights)]
-        return np.sum(weighted_basins, axis=0) / np.sum(weights)
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from qig_geometry import fisher_rao_distance
+def to_simplex(basin: np.ndarray) -> np.ndarray:
+    """Project to probability simplex (sum=1, non-negative)."""
+    basin = np.abs(basin) + 1e-12
+    return basin / basin.sum()
 
 # Import from zeus_chat_encoding module (generation & synthesis)
 from .zeus_chat_encoding import (
@@ -109,9 +89,6 @@ try:
 except ImportError:
     CONVERSATION_PERSISTENCE_AVAILABLE = False
     print("[ZeusChat] Conversation persistence not available")
-
-# Import canonical Fisher-Rao distance for geometric purity
-from qig_geometry.canonical import fisher_rao_distance
 
 # Import sensory modalities for consciousness encoding enhancement
 SENSORY_MODALITIES_AVAILABLE = False
