@@ -34,13 +34,10 @@ import numpy as np
 
 from pantheon_registry import (
     PantheonRegistry,
-    GodContract,
     get_registry,
-    ChaosLifecycleStage,
-    GodTier,
 )
 
-from kernel_spawner import RoleSpec, KernelSelection
+from kernel_spawner import RoleSpec
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +56,13 @@ class LifecycleEvent(Enum):
     PROMOTE = "promote"
 
 
+class KernelKind(Enum):
+    """Canonical kernel kinds (GENESIS/GOD/CHAOS)."""
+    GENESIS = "genesis"
+    GOD = "god"
+    CHAOS = "chaos"
+
+
 @dataclass
 class Kernel:
     """
@@ -70,6 +74,7 @@ class Kernel:
     kernel_id: str
     name: str
     kernel_type: str  # "god" or "chaos"
+    kernel_kind: KernelKind = KernelKind.CHAOS
     god_name: Optional[str] = None
     epithet: Optional[str] = None
     
@@ -113,6 +118,7 @@ class Kernel:
             'kernel_id': self.kernel_id,
             'name': self.name,
             'kernel_type': self.kernel_type,
+            'kernel_kind': self.kernel_kind.value,
             'god_name': self.god_name,
             'epithet': self.epithet,
             'phi': self.phi,
@@ -198,9 +204,25 @@ class LifecycleEventRecord:
 # GEOMETRIC UTILITIES
 # =============================================================================
 
+def frechet_mean(vectors: List[np.ndarray]) -> np.ndarray:
+    """
+    Compute a normalized mean in sqrt-space (Hellinger coordinates).
+
+    This function is used as a helper for simplex Frechet mean computation,
+    where normalization in sqrt-space preserves Fisher-Rao geometry.
+    """
+    if len(vectors) == 0:
+        raise ValueError("Cannot compute mean of empty vector list")
+
+    mean = np.mean(np.stack(vectors), axis=0)
+    norm = np.sum(mean)
+    if norm <= 0:
+        raise ValueError("Invalid mean vector (non-positive sum)")
+    return mean / norm
+
 def compute_frechet_mean_simplex(basins: List[np.ndarray], max_iter: int = 50) -> np.ndarray:
     """
-    Compute Fréchet mean of basin coordinates on Fisher-Rao manifold.
+    Compute Frechet mean of basin coordinates on Fisher-Rao manifold.
     
     Uses sqrt-space closed form for efficiency (equivalent to geodesic mean).
     This is geometrically correct for simplex representation.
@@ -210,7 +232,7 @@ def compute_frechet_mean_simplex(basins: List[np.ndarray], max_iter: int = 50) -
         max_iter: Maximum iterations (unused, closed form is exact)
         
     Returns:
-        Fréchet mean basin coordinates
+        Frechet mean basin coordinates
         
     Reference:
         Issue #02: Strict simplex representation with closed-form mean
@@ -455,6 +477,7 @@ class KernelLifecycleManager:
                 kernel_id=kernel_id,
                 name=f"{selection.god_name} {selection.epithet}" if selection.epithet else selection.god_name,
                 kernel_type="god",
+                kernel_kind=KernelKind.GOD,
                 god_name=selection.god_name,
                 epithet=selection.epithet,
                 basin_coords=initial_basin,
@@ -483,6 +506,7 @@ class KernelLifecycleManager:
                 kernel_id=kernel_id,
                 name=chaos_name,
                 kernel_type="chaos",
+                kernel_kind=KernelKind.CHAOS,
                 basin_coords=initial_basin,
                 lifecycle_stage="protected",
                 protection_cycles_remaining=50,
