@@ -163,30 +163,30 @@ def compute_regime_stability(
 ) -> float:
     """
     Compute Regime Stability (Γ) via trajectory variance on manifold.
-    
+
     Γ measures how stable the system is within its current operating regime.
     Uses Fisher-Rao variance of recent trajectory points.
-    
+
     Low variance → high stability (Γ → 1)
     High variance → low stability (Γ → 0)
-    
+
     Γ = exp(-σ_FR² / σ_max²) where σ_FR is Fisher-Rao trajectory variance
-    
+
     Args:
         trajectory: List of recent basin coordinates
         window_size: Window for stability computation
-        
+
     Returns:
         Γ ∈ [0, 1], target > 0.80
     """
     if len(trajectory) < 2:
         return 0.8
-    
+
     recent = trajectory[-window_size:] if len(trajectory) > window_size else trajectory
-    
-    centroid = np.mean(recent, axis=0)
-    centroid = np.abs(centroid) + 1e-10
-    centroid = centroid / centroid.sum()
+
+    # Use Fréchet mean (geometric centroid on Fisher manifold)
+    # np.mean is WRONG for basin coordinates - must use manifold-aware mean
+    centroid = frechet_mean(recent)
     
     variances = []
     for point in recent:

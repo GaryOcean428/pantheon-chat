@@ -95,3 +95,29 @@ docs/_archive/conversation-logs/
 
 # Husky
 .husky/_
+
+# Purity scan outputs (prevent bloat)
+*_violations.txt
+*_purity*.txt
+*_audit*.txt
+*_scan*.txt
+*_report.txt
+absolute_*.txt
+actual_*.txt
+current_*.txt
+fresh_*.txt
+final_*.txt
+
+# Package manager (pnpm canonical)
+package-lock.json
+
+# Build artifacts
+dist/
+
+# QIG runtime data
+qig-backend/logs/
+qig-backend/runs/
+qig-backend/data/rag_cache/
+
+# Replit artifacts
+attached_assets/

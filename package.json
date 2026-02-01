@@ -34,7 +34,7 @@
     "validate:db-integrity": "tsx tools/verify_db_integrity.ts",
     "validate:qfi": "bash scripts/validate-qfi-db-integrity.sh",
     "validate:simplex": "python3 qig-backend/scripts/validate_simplex_storage.py --dry-run --batch-size 500",
-    "validate:geometry": "tsx scripts/validate-geometric-purity.ts",
+    "validate:geometry": "python3 scripts/qig_purity_scan.py",
     "validate:geometry:scan": "python3 scripts/qig_purity_scan.py",
     "validate:geometry:full": "npm run validate:geometry:scan && npm run test:geometry",
     "validate:purity": "bash scripts/validate-purity-patterns.sh",

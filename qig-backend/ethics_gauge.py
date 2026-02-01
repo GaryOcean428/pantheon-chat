@@ -152,15 +152,16 @@ class AgentSymmetryProjector:
         return asymmetry
 
     def _geometric_consensus_logic(self, positions: List[np.ndarray]) -> np.ndarray:
-        """Internal Fréchet mean implementation."""
+        """Internal Fréchet mean implementation using canonical geometry."""
         if not positions:
             return np.zeros(BASIN_DIMENSION)
-        
-        stacked = np.array([p for p in positions if len(p) > 0])
-        if len(stacked) == 0:
+
+        valid_positions = [p for p in positions if len(p) > 0]
+        if len(valid_positions) == 0:
             return np.zeros(BASIN_DIMENSION)
-            
-        consensus = fisher_normalize(np.mean(stacked, axis=0))
+
+        # Use canonical Fréchet mean (not arithmetic mean which is WRONG for basins)
+        consensus = frechet_mean(valid_positions)
         
         for _ in range(20):
             gradient = np.zeros_like(consensus)

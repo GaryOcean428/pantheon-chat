@@ -1042,7 +1042,9 @@ class ShadowPantheon:
             if isinstance(coords, np.ndarray) and len(coords) > 0:
                 modification = np.random.randn(len(coords)) * 0.1
                 modified_coords = coords + modification
-                modified_coords = modified_coords / (np.sqrt(np.sum(modified_coords**2)) + 1e-10)
+                # Normalize to probability simplex (sum=1, non-negative)
+                modified_coords = np.abs(modified_coords) + 1e-12
+                modified_coords = modified_coords / modified_coords.sum()
                 modified_pattern['basin_coords'] = modified_coords.tolist()
 
         modified_pattern['therapy_modified'] = True

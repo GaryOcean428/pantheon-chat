@@ -1,35 +1,16 @@
 # This module provides geometric operations for basin coordinates.
-# It should contain the geometric operations required by other modules.
+# It re-exports canonical functions - NO LOCAL RE-IMPLEMENTATIONS.
 
 import numpy as np
-from .canonical import fisher_rao_distance
+from .canonical import fisher_rao_distance, frechet_mean, validate_basin  # noqa: F401 (re-exported)
+
+__all__ = ['fisher_rao_distance', 'frechet_mean', 'validate_basin', 'to_simplex', 'bhattacharyya_coefficient']
 
 
 def to_simplex(p):
     """Projects a vector to the probability simplex."""
     p = np.abs(p)
     return p / p.sum()
-
-
-def frechet_mean(basins):
-    """Compute the Fréchet mean of a set of basins.
-    
-    This is a simplified implementation using the arithmetic mean in sqrt-space.
-    """
-    if len(basins) == 0:
-        raise ValueError("Cannot compute Fréchet mean of empty set")
-    
-    # Convert to sqrt-space
-    sqrt_basins = [np.sqrt(np.abs(b)) for b in basins]
-    
-    # Compute arithmetic mean in sqrt-space
-    mean_sqrt = np.mean(sqrt_basins, axis=0)
-    
-    # Convert back to probability space
-    mean = mean_sqrt ** 2
-    
-    # Normalize to simplex
-    return to_simplex(mean)
 
 
 def bhattacharyya_coefficient(p, q):

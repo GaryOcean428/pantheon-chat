@@ -222,35 +222,37 @@ class MushroomMode:
         Returns:
             Tuple of (perturbed_basin, perturbation_magnitude)
         """
+        from qig_geometry.canonical import geodesic_interpolation
+
         coords = basin.coordinates
-        norm = np.sqrt(np.sum(coords**2))
-        if norm < 1e-10:
-            norm = 1.0
-        coords_normalized = coords / norm
-        
-        raw_noise = np.random.randn(len(coords))
-        
-        tangent_noise = raw_noise - bhattacharyya(raw_noise, coords_normalized) * coords_normalized
-        tangent_norm = np.linalg.norm(tangent_noise)
-        if tangent_norm > 1e-10:
-            tangent_noise = tangent_noise / tangent_norm
-        
+        # Ensure coords are on simplex (sum=1, non-negative)
+        coords_simplex = np.abs(coords) + 1e-12
+        coords_simplex = coords_simplex / coords_simplex.sum()
+
+        # Generate random perturbation target on simplex
+        # Use Dirichlet distribution for random simplex point
+        raw_noise = np.abs(np.random.randn(len(coords))) + 1e-12
+        noise_simplex = raw_noise / raw_noise.sum()
+
+        # Compute perturbation magnitude based on coherence deficit
         coherence_deficit = max(0.0, self.coherence_threshold - basin.coherence)
         stuck_factor = min(1.0, basin.stuck_cycles / self.stuck_cycle_threshold)
-        
+
         magnitude = self.min_perturbation + (self.max_perturbation - self.min_perturbation) * (
             0.5 * coherence_deficit / self.coherence_threshold + 0.5 * stuck_factor
         )
         magnitude = np.clip(magnitude, self.min_perturbation, self.max_perturbation)
-        
-        perturbed = coords_normalized + magnitude * tangent_noise
-        
-        perturbed = perturbed / (np.linalg.norm(perturbed) + 1e-10)
-        
-        final = self.preserve_core_pct * coords_normalized + (1 - self.preserve_core_pct) * perturbed
-        final = final / (np.linalg.norm(final) + 1e-10)
-        
-        final = final * norm
+
+        # Use geodesic interpolation on Fisher manifold to perturb
+        # magnitude controls how far along geodesic toward noise point
+        perturbed = geodesic_interpolation(coords_simplex, noise_simplex, t=magnitude)
+
+        # Blend with original using geodesic (preserve core structure)
+        final = geodesic_interpolation(coords_simplex, perturbed, t=(1 - self.preserve_core_pct))
+
+        # Ensure final is on simplex (numerical stability)
+        final = np.abs(final) + 1e-12
+        final = final / final.sum()
         
         new_coherence = min(1.0, basin.coherence + 0.1 * (1 - basin.coherence))
         

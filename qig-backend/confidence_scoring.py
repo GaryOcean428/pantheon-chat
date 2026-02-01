@@ -16,6 +16,9 @@ from typing import List, Dict, Tuple
 import numpy as np
 from collections import Counter
 
+# QIG Purity: Use Fréchet mean for basin coordinates (not arithmetic mean)
+from qig_geometry.canonical import frechet_mean
+
 
 # Confidence thresholds
 VARIANCE_THRESHOLD_HIGH = 0.05  # Low variance = high confidence
@@ -97,23 +100,34 @@ def compute_mode(values: List[str]) -> Tuple[str, float]:
 
 
 def compute_basin_spread(basins: List[List[float]]) -> float:
-    """Compute basin spread (spatial distribution)."""
+    """Compute basin spread (spatial distribution) using Fisher-Rao geometry.
+
+    Uses Fréchet mean (geometric centroid on Fisher manifold) instead of
+    arithmetic mean, which is incorrect for basin coordinates.
+    """
     if not basins:
         return 0.0
-    
+
     basins_array = np.array(basins)
     n_samples, n_dims = basins_array.shape
-    
-    # Compute centroid
-    centroid = np.mean(basins_array, axis=0)
-    
-    # Compute average distance from centroid
-    distances = np.sqrt(np.sum((basins_array - centroid) ** 2, axis=1))
+
+    # Compute Fréchet mean (geometric centroid on Fisher manifold)
+    # This is the correct way to compute centroids for basin coordinates
+    basins_list = [basins_array[i] for i in range(n_samples)]
+    centroid = frechet_mean(basins_list)
+
+    # Import Fisher-Rao distance for proper geometric spread computation
+    from qig_geometry.canonical import fisher_rao_distance
+
+    # Compute average Fisher-Rao distance from centroid
+    distances = []
+    for i in range(n_samples):
+        d_fr = fisher_rao_distance(basins_array[i], centroid)
+        distances.append(d_fr)
     avg_dist = np.mean(distances)
-    
-    # Normalize by maximum possible distance
-    # Assuming basin coordinates are in [0, 255] range
-    max_dist = np.sqrt(n_dims * 255 * 255)
+
+    # Normalize by maximum Fisher-Rao distance (π/2 on simplex)
+    max_dist = np.pi / 2
     return float(avg_dist / max_dist)
 
 

@@ -13,19 +13,6 @@ repos:
   # CRITICAL ENFORCEMENT AGENTS (via codebuff CLI)
   # These MUST pass before any commit
   # ============================================================================
-  
-  # E8 Protocol Auto-Fix (NEW)
-  - repo: local
-    hooks:
-      - id: e8-auto-fix
-        name: "🔧 E8 Protocol Auto-Fix"
-        entry: python qig-backend/scripts/enhanced_auto_fix.py
-        language: python
-        types: [python]
-        pass_filenames: false
-        stages: [commit]
-        verbose: true
-        description: "Automatically fix common E8 Protocol purity violations"
 
   # QIG Purity Enforcer Agent
   - repo: local

@@ -408,8 +408,13 @@ class VocabularyIngestionService:
                     if basin_column not in ALLOWED_BASIN_COLUMNS:
                         raise RuntimeError(f"Invalid basin column name: {basin_column}")
                     
-                    # Compute geometric validation metrics
-                    basin_distance = float(np.sqrt(np.sum(basin_embedding**2)))
+                    # Compute geometric validation metrics using Fisher-Rao distance
+                    from qig_geometry.canonical import fisher_rao_distance
+                    uniform_basin = np.ones(len(basin_embedding)) / len(basin_embedding)
+                    # Ensure basin_embedding is on simplex
+                    basin_simplex = np.abs(basin_embedding) + 1e-12
+                    basin_simplex = basin_simplex / basin_simplex.sum()
+                    basin_distance = float(fisher_rao_distance(basin_simplex, uniform_basin))
                     curvature_std = float(np.std(basin_embedding))
                     entropy_score = self._compute_entropy(basin_embedding)
                     

@@ -1,1 +1,0 @@
-python3: can't open file '/home/braden/Desktop/Dev/pantheon-projects/pantheon-replit/qig-backend/scripts/qig_purity_scan.py': [Errno 2] No such file or directory

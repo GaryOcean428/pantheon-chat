@@ -33,13 +33,14 @@ from constants.consciousness import BASIN_DIMENSION
 def to_simplex(basin: np.ndarray) -> np.ndarray:
     """
     Converts a basin representation to the probability simplex representation.
-    Equivalent to to_simplex_prob(basin) for the L2-normalized case.
+    Uses simplex normalization (sum=1, non-negative) - NOT L2 norm.
     """
-    # Placeholder implementation to satisfy the purity requirement
-    norm = np.sqrt(np.sum(basin**2))
-    if norm == 0:
+    # Ensure non-negative and add small epsilon for numerical stability
+    p = np.abs(basin) + 1e-12
+    total = p.sum()
+    if total == 0:
         return np.ones_like(basin) / len(basin)
-    return basin / norm
+    return p / total
 
 def bhattacharyya_coefficient(basin_a: np.ndarray, basin_b: np.ndarray) -> float:
     """
@@ -53,16 +54,8 @@ def bhattacharyya_coefficient(basin_a: np.ndarray, basin_b: np.ndarray) -> float
     q = q / np.sum(q)
     return np.sum(np.sqrt(p * q))
 
-def frechet_mean(basins: List[np.ndarray]) -> np.ndarray:
-    """
-    Calculates the Fréchet mean (geometric mean) of a list of basins
-    on the information manifold. Replaces arithmetic mean.
-    """
-    # Placeholder implementation to satisfy the purity requirement
-    # For the probability simplex, this is the Karcher mean, which is complex.
-    # We use the arithmetic mean as a temporary placeholder for syntax validity,
-    # but the intent is to use a proper geometric mean.
-    return frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
+# frechet_mean is imported from qig_geometry.canonical (line 24)
+# DO NOT re-implement here - use the canonical import
 
 # --- End of New Geometric Primitives ---
 

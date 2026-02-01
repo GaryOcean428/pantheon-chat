@@ -323,12 +323,17 @@ class ArtifactValidator:
                 )
                 return False
             
-            # Check unit norm
+            # Check simplex constraint (sum=1, non-negative) - NOT L2 unit norm
             coord_array = np.array(basin_coord, dtype=np.float64)
-            norm = np.sqrt(np.sum(coord_array**2))
-            if not (0.99 < norm < 1.01):
+            coord_sum = coord_array.sum()
+            if not (0.99 < coord_sum < 1.01):
                 self.add_error(
-                    f"Special symbol {symbol} not unit-normalized: norm={norm:.6f}"
+                    f"Special symbol {symbol} not simplex-normalized: sum={coord_sum:.6f}"
+                )
+                return False
+            if np.any(coord_array < -1e-10):
+                self.add_error(
+                    f"Special symbol {symbol} has negative coordinates (not on simplex)"
                 )
                 return False
         

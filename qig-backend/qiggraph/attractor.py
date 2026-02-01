@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional, List, TYPE_CHECKING
 import numpy as np
 from qig_geometry import fisher_rao_distance
+from qig_geometry.canonical import frechet_mean
 
 from .constants import (
     BASIN_DIM,
@@ -486,12 +487,13 @@ def learn_attractor_from_examples(
     Returns:
         Learned BasinAttractor
     """
-    # Compute geometric mean of all examples
+    # Compute geometric mean of all examples using Fréchet mean (not arithmetic mean)
     all_points = np.concatenate(examples)
-    center = np.mean(all_points, axis=0)
+    # Convert to list for frechet_mean
+    points_list = [all_points[i] for i in range(len(all_points))]
+    center = frechet_mean(points_list)
     # Use canonical fisher normalization
     from qig_geometry import fisher_normalize, fisher_coord_distance
-    center = fisher_normalize(center)
 
     # Compute radius from Fisher-Rao variance
     distances = [fisher_coord_distance(p, center) for p in all_points]

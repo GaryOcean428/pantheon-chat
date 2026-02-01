@@ -32,6 +32,9 @@ from enum import Enum
 
 import numpy as np
 
+# E8 Protocol v4.0 - Import from canonical geometry module (single source of truth)
+from qig_geometry.canonical import frechet_mean as canonical_frechet_mean
+
 from pantheon_registry import (
     PantheonRegistry,
     get_registry,
@@ -206,61 +209,20 @@ class LifecycleEventRecord:
 # GEOMETRIC UTILITIES
 # =============================================================================
 
-def frechet_mean(vectors: List[np.ndarray]) -> np.ndarray:
-    """
-    Compute a normalized mean in sqrt-space (Hellinger coordinates).
-
-    This function is used as a helper for simplex Frechet mean computation,
-    where normalization in sqrt-space preserves Fisher-Rao geometry.
-    """
-    if len(vectors) == 0:
-        raise ValueError("Cannot compute mean of empty vector list")
-
-    mean = np.mean(np.stack(vectors), axis=0)
-    norm = np.sum(mean)
-    if norm <= 0:
-        raise ValueError("Invalid mean vector (non-positive sum)")
-    return mean / norm
-
 def compute_frechet_mean_simplex(basins: List[np.ndarray], max_iter: int = 50) -> np.ndarray:
     """
     Compute Frechet mean of basin coordinates on Fisher-Rao manifold.
-    
-    Uses sqrt-space closed form for efficiency (equivalent to geodesic mean).
-    This is geometrically correct for simplex representation.
-    
+
+    Delegates to canonical implementation from qig_geometry.canonical.
+
     Args:
         basins: List of basin coordinate arrays (simplex representation)
-        max_iter: Maximum iterations (unused, closed form is exact)
-        
+        max_iter: Maximum iterations (passed to canonical function)
+
     Returns:
         Frechet mean basin coordinates
-        
-    Reference:
-        Issue #02: Strict simplex representation with closed-form mean
     """
-    if len(basins) == 0:
-        raise ValueError("Cannot compute Fréchet mean of empty basin list")
-    
-    if len(basins) == 1:
-        return basins[0].copy()
-    
-    # Convert to sqrt-space (Hellinger coordinates)
-    sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
-    
-    # Compute mean in sqrt-space (closed form)
-    sqrt_mean = frechet_mean(sqrt_basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
-    
-    # Normalize
-    sqrt_mean = sqrt_mean / (np.sum(sqrt_mean) + 1e-10)
-    
-    # Convert back to simplex (square the coordinates)
-    frechet_mean = sqrt_mean ** 2
-    
-    # Final normalization to ensure sum = 1
-    frechet_mean = frechet_mean / (np.sum(frechet_mean) + 1e-10)
-    
-    return frechet_mean
+    return canonical_frechet_mean(basins, max_iter=max_iter)
 
 
 def compute_fisher_distance(basin1: np.ndarray, basin2: np.ndarray) -> float:

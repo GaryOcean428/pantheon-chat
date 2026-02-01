@@ -162,12 +162,19 @@ class GeometricVocabFilter:
                 if context:
                     context_basin = self.coordizer.coordize(context)
                 else:
-                    # Start from uniform basin
-                    context_basin = np.zeros(64)
-                
-                # Get next character probability
-                # (simplified: use basin norm as proxy for predictability)
-                p_next = np.sqrt(np.sum(context_basin**2)) / 64.0
+                    # Start from uniform basin (simplex)
+                    context_basin = np.ones(64) / 64.0
+
+                # Get next character probability using Fisher-Rao distance from uniform
+                # (measures how "peaked" the distribution is - higher = more predictable)
+                from qig_geometry.canonical import fisher_rao_distance
+                uniform_basin = np.ones(64) / 64.0
+                # Ensure context_basin is on simplex
+                context_basin = np.abs(context_basin) + 1e-12
+                context_basin = context_basin / context_basin.sum()
+                # Fisher-Rao distance from uniform, normalized to [0, 1]
+                fr_distance = fisher_rao_distance(context_basin, uniform_basin)
+                p_next = fr_distance / (np.pi / 2)  # Normalize by max FR distance
                 char_probs.append(max(p_next, 0.01))  # Avoid log(0)
             
             # QFI ≈ variance of log probabilities

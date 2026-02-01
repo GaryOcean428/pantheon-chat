@@ -941,19 +941,23 @@ class FisherCoordizer(BaseCoordizer):
         if not dimension_consistent:
             errors.append(f"Invalid coordinate dimension: {coords_matrix.shape}")
         
-        # Check simplex constraints (unit norm)
+        # Check simplex constraints (sum=1, non-negative) - NOT L2 unit norm
         passes_simplex = True
         no_nan_inf = True
         for i, coord in enumerate(coords_matrix):
             if np.any(np.isnan(coord)) or np.any(np.isinf(coord)):
                 no_nan_inf = False
                 errors.append(f"Coordinate {i} contains NaN or inf")
-            
-            norm = np.sqrt(np.sum(coord**2))
-            if not (0.99 < norm < 1.01):
+
+            coord_sum = coord.sum()
+            if not (0.99 < coord_sum < 1.01):
                 passes_simplex = False
                 if len(errors) < 10:  # Limit error messages
-                    errors.append(f"Coordinate {i} not unit-normalized: norm={norm:.6f}")
+                    errors.append(f"Coordinate {i} not simplex-normalized: sum={coord_sum:.6f}")
+            if np.any(coord < -1e-10):
+                passes_simplex = False
+                if len(errors) < 10:
+                    errors.append(f"Coordinate {i} has negative values (not on simplex)")
         
         # Check special symbols are deterministic
         special_symbols_ok = all(

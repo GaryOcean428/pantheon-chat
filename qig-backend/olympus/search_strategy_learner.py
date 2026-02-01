@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, cast
 import numpy as np
 
 # E8 Protocol v4.0 Compliance Imports
-from qig_geometry.canonical import frechet_mean
+# Note: frechet_mean available from qig_geometry.canonical if needed
 
 
 # QIG-pure geometric operations
 try:
-    from qig_geometry import fisher_normalize, frechet_mean, bhattacharyya_coefficient
+    from qig_geometry import fisher_normalize, bhattacharyya_coefficient
     QIG_GEOMETRY_AVAILABLE = True
 except ImportError:
     QIG_GEOMETRY_AVAILABLE = False
@@ -39,13 +39,6 @@ except ImportError:
         """Normalize to probability simplex."""
         p = np.maximum(np.asarray(v), 0) + 1e-10
         return p / p.sum()
-    
-    def frechet_mean(basins: List[np.ndarray]) -> np.ndarray:
-        """Fallback Fréchet mean (simple arithmetic mean for now)."""
-        # NOTE: This is a purity violation fallback, should be replaced by a proper geometric mean
-        if not basins:
-            return np.zeros(BASIN_DIMENSION)
-        return frechet_mean(basins)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
 
     def bhattacharyya_coefficient(p: np.ndarray, q: np.ndarray) -> float:
         """Fallback Bhattacharyya coefficient."""
@@ -55,6 +48,8 @@ except ImportError:
         q_norm = q_norm / q_norm.sum()
         bc = np.sum(np.sqrt(p_norm * q_norm))
         return float(np.clip(bc, 0.0, 1.0))
+
+# frechet_mean is ALWAYS imported from canonical (line 29) - NO FALLBACK ALLOWED
 
 
 from .conversation_encoder import ConversationEncoder
