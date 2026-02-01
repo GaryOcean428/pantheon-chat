@@ -23,7 +23,9 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical_upsert import to_simplex_prob
-from qig_geometry.geometric_operations import frechet_mean, to_simplex, fisher_rao_distance, bhattacharyya_coefficient
+from qig_geometry import fisher_rao_distance, frechet_mean
+from qig_geometry.representation import to_simplex
+from qig_geometry.geometry_ops import bhattacharyya_coefficient
 
 
 if TYPE_CHECKING:

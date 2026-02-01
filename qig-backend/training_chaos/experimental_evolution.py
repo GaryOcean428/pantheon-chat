@@ -533,6 +533,7 @@ class ExperimentalKernelEvolution:
                     phi=phi,
                     kappa=0.0,
                     regime='e8_aligned',
+                    kernel_kind="chaos",
                     metadata={'primitive_root': root_index, 'spawn_reason': 'e8_root_alignment'}
                 )
                 print(f"[Chaos] 🏛️ Spawned {god_name} at E8 root {root_index} (Φ={phi:.3f})")
@@ -592,6 +593,7 @@ class ExperimentalKernelEvolution:
                         regime='elite',
                         success_count=kernel.success_count,
                         failure_count=kernel.failure_count,
+                        kernel_kind="chaos",
                         metadata={'is_elite': True, 'spawn_reason': 'elite_promotion'}
                     )
                 except Exception as e:
@@ -832,6 +834,7 @@ class ExperimentalKernelEvolution:
                     phi=phi,
                     kappa=0.0,
                     regime='chaos_spawned',
+                    kernel_kind="chaos",
                     metadata={'spawn_reason': 'chaos_random'}
                 )
                 print(f"[Chaos] 🏛️ Spawned {god_name} (Φ={phi:.3f}) - persisted to PostgreSQL")
@@ -891,6 +894,7 @@ class ExperimentalKernelEvolution:
                     kappa=0.0,
                     regime='spawned',
                     parent_ids=[parent_id],
+                    kernel_kind="chaos",
                     metadata={'spawn_reason': 'reproduction'}
                 )
                 print(f"[Chaos] 🏛️ Spawned {god_name} from parent {parent_id} (Φ={phi:.3f})")
@@ -984,6 +988,7 @@ class ExperimentalKernelEvolution:
                     kappa=0.0,
                     regime='bred',
                     parent_ids=[parent1.kernel_id, parent2.kernel_id],
+                    kernel_kind="chaos",
                     metadata={
                         'parent1_success': parent1.success_count,
                         'parent2_success': parent2.success_count,

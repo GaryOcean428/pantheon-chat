@@ -1,4 +1,4 @@
-# SLEEP_PACKET_03 — “Blow-up mattress” start/reset/rollback (UI→Python module)
+# 20260201 Genesis Kernel Upgrade: Start/Reset/Rollback (1.00W)
 
 ## Purpose
 Create a **single canonical start operation**:

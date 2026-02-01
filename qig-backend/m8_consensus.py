@@ -34,7 +34,17 @@ except ImportError:
 from pantheon_kernel_orchestrator import (
     KernelProfile,
     KernelMode,
+    PantheonKernelOrchestrator,
 )
+from qig_geometry.canonical_upsert import to_simplex_prob
+from m8_persistence import compute_m8_position
+
+# Import physics constants with fallback
+try:
+    from qigkernels.physics_constants import PHI_INIT_SPAWNED, KAPPA_INIT_SPAWNED
+except ImportError:
+    PHI_INIT_SPAWNED = 0.25
+    KAPPA_INIT_SPAWNED = 64.21
 
 class SpawnReason(Enum):
     """Reasons for spawning a new kernel."""

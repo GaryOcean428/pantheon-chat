@@ -1805,10 +1805,14 @@ export const kernelGeometry = pgTable(
     kernelId: varchar("kernel_id", { length: 64 }).unique(),
     godName: varchar("god_name", { length: 64 }).notNull(),
     domain: varchar("domain", { length: 128 }).notNull(),
+    kernelKind: varchar("kernel_kind", { length: 16 }).default("chaos"),
+    lifecycleState: varchar("lifecycle_state", { length: 32 }).default("active"),
     status: varchar("status", { length: 32 }).default("observing"), // observing, graduated, active, idle, breeding, dormant, dead, shadow
     primitiveRoot: integer("primitive_root"), // E8 root index (0-239)
     basinCoordinates: vector("basin_coordinates", { dimensions: 64 }), // 64D basin coordinates (pgvector)
     parentKernels: text("parent_kernels").array(),
+    parents: text("parents").array(),
+    ascendedFrom: varchar("ascended_from", { length: 64 }),
     placementReason: varchar("placement_reason", { length: 64 }), // domain_gap, overload, specialization, emergence
     positionRationale: text("position_rationale"), // Human-readable explanation
     affinityStrength: doublePrecision("affinity_strength"),
@@ -1855,6 +1859,74 @@ export const kernelGeometry = pgTable(
 
 export type KernelGeometryRecord = typeof kernelGeometry.$inferSelect;
 export type InsertKernelGeometry = typeof kernelGeometry.$inferInsert;
+
+// ============================================================================
+// GOVERNANCE PRIMITIVES - NeedSpec + Ballots + Mythology References
+// ============================================================================
+
+export const needSpecs = pgTable(
+  "need_specs",
+  {
+    id: serial("id").primaryKey(),
+    specId: varchar("spec_id", { length: 64 }).unique().notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    domain: varchar("domain", { length: 128 }).notNull(),
+    requestedBy: varchar("requested_by", { length: 64 }).notNull(),
+    status: varchar("status", { length: 32 }).default("pending"),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at").defaultNow(),
+    approvedAt: timestamp("approved_at"),
+  },
+  (table) => [
+    index("idx_need_specs_domain").on(table.domain),
+    index("idx_need_specs_status").on(table.status),
+  ]
+);
+
+export type NeedSpecRow = typeof needSpecs.$inferSelect;
+export type InsertNeedSpec = typeof needSpecs.$inferInsert;
+
+export const governanceBallots = pgTable(
+  "governance_ballots",
+  {
+    id: serial("id").primaryKey(),
+    ballotId: varchar("ballot_id", { length: 64 }).unique().notNull(),
+    proposalId: varchar("proposal_id", { length: 64 }).notNull(),
+    voterId: varchar("voter_id", { length: 64 }).notNull(),
+    vote: varchar("vote", { length: 16 }).notNull(),
+    rationale: text("rationale"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_governance_ballots_proposal").on(table.proposalId),
+    index("idx_governance_ballots_voter").on(table.voterId),
+  ]
+);
+
+export type GovernanceBallotRow = typeof governanceBallots.$inferSelect;
+export type InsertGovernanceBallot = typeof governanceBallots.$inferInsert;
+
+export const mythologyReferences = pgTable(
+  "mythology_references",
+  {
+    id: serial("id").primaryKey(),
+    referenceId: varchar("reference_id", { length: 64 }).unique().notNull(),
+    mythName: varchar("myth_name", { length: 128 }).notNull(),
+    archetype: varchar("archetype", { length: 128 }).notNull(),
+    domain: varchar("domain", { length: 128 }).notNull(),
+    source: text("source"),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_mythology_references_archetype").on(table.archetype),
+    index("idx_mythology_references_domain").on(table.domain),
+  ]
+);
+
+export type MythologyReferenceRow = typeof mythologyReferences.$inferSelect;
+export type InsertMythologyReference = typeof mythologyReferences.$inferInsert;
 
 /**
  * CHAOS EVENTS - All CHAOS MODE lifecycle events

@@ -28,6 +28,9 @@ def ensure_64d_coords(coords: List[float]) -> List[float]:
 # E8 Kernel Cap - Maximum number of live kernels (E8 has 240 roots)
 E8_KERNEL_CAP = 240
 
+# Kernel kinds
+KERNEL_KIND_GOD = "god"
+
 
 class KernelPersistence(BasePersistence):
     """Persistence layer for kernel evolution state."""
@@ -51,6 +54,9 @@ class KernelPersistence(BasePersistence):
         valence: Optional[int] = None,
         breeding_target: Optional[str] = None,
         parent_ids: Optional[List[str]] = None,
+        kernel_kind: Optional[str] = None,
+        lifecycle_state: Optional[str] = None,
+        ascended_from: Optional[str] = None,
         metadata: Optional[Dict] = None,
         enforce_cap: bool = True,
     ) -> bool:
@@ -67,10 +73,13 @@ class KernelPersistence(BasePersistence):
 
         # Enforce E8 cap for NEW kernels only (not updates)
         if enforce_cap and is_new_kernel:
-            live_count = self.get_live_kernel_count()
-            if live_count >= E8_KERNEL_CAP:
-                print(f"[KernelPersistence] E8 cap reached ({live_count}/{E8_KERNEL_CAP}), rejecting spawn of {kernel_id}")
-                return False
+            if kernel_kind == KERNEL_KIND_GOD:
+                live_count = self.get_live_god_kernel_count()
+                if live_count >= E8_KERNEL_CAP:
+                    print(
+                        f"[KernelPersistence] GOD cap reached ({live_count}/{E8_KERNEL_CAP}), rejecting spawn of {kernel_id}"
+                    )
+                    return False
 
         record_id = f"kg_{uuid.uuid4().hex}"
 
@@ -80,13 +89,15 @@ class KernelPersistence(BasePersistence):
                 phi, kappa, regime, success_count, failure_count,
                 primitive_root, element_group, ecological_niche,
                 target_function, valence, breeding_target,
-                parent_kernels, metadata, spawned_at
+                parent_kernels, kernel_kind, lifecycle_state, parents, ascended_from,
+                metadata, spawned_at
             ) VALUES (
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
                 %s, %s, %s,
                 %s, %s, %s,
-                %s, %s, %s
+                %s, %s, %s, %s, %s,
+                %s, %s
             )
             ON CONFLICT (kernel_id) DO UPDATE SET
                 generation = EXCLUDED.generation,
@@ -101,6 +112,11 @@ class KernelPersistence(BasePersistence):
                 target_function = EXCLUDED.target_function,
                 valence = EXCLUDED.valence,
                 breeding_target = EXCLUDED.breeding_target,
+                parent_kernels = EXCLUDED.parent_kernels,
+                kernel_kind = EXCLUDED.kernel_kind,
+                lifecycle_state = EXCLUDED.lifecycle_state,
+                parents = EXCLUDED.parents,
+                ascended_from = EXCLUDED.ascended_from,
                 metadata = EXCLUDED.metadata
         """
 
@@ -112,7 +128,12 @@ class KernelPersistence(BasePersistence):
             phi, kappa, regime, success_count, failure_count,
             e8_root_index, element_group, ecological_niche,
             target_function, valence, breeding_target,
-            parent_ids, json.dumps(metadata) if metadata else None,
+            parent_ids,
+            kernel_kind or "chaos",
+            lifecycle_state or "active",
+            parent_ids,
+            ascended_from,
+            json.dumps(metadata) if metadata else None,
             datetime.now(timezone.utc)
         )
 
@@ -593,6 +614,8 @@ class KernelPersistence(BasePersistence):
             kappa=0.0,
             regime='m8_spawned',
             parent_ids=parent_gods,
+            kernel_kind=KERNEL_KIND_GOD,
+            lifecycle_state="protected",
             metadata={
                 'spawn_reason': spawn_reason,
                 'm8_position': m8_position,
@@ -957,6 +980,23 @@ class KernelPersistence(BasePersistence):
             return int(result.get('live_count', 0) or 0)
         return 0
 
+    def get_live_god_kernel_count(self) -> int:
+        """
+        Get count of live GOD kernels that count toward the reserved 240 budget.
+
+        Counts only kernels with kernel_kind = 'god'.
+        """
+        query = """
+            SELECT COUNT(*) as live_count
+            FROM kernel_geometry
+            WHERE kernel_kind = %s
+              AND status IN ('active', 'observing', 'shadow')
+        """
+        result = self.execute_one(query, (KERNEL_KIND_GOD,))
+        if result:
+            return int(result.get('live_count', 0) or 0)
+        return 0
+
     def enforce_e8_cap(self, target_count: int = 240) -> Dict:
         """
         Enforce E8 kernel cap by marking excess kernels as 'dead'.
@@ -972,7 +1012,7 @@ class KernelPersistence(BasePersistence):
         Returns:
             Dict with culled_count, live_count_before, live_count_after
         """
-        live_count = self.get_live_kernel_count()
+        live_count = self.get_live_god_kernel_count()
 
         if live_count <= target_count:
             return {
@@ -994,7 +1034,8 @@ class KernelPersistence(BasePersistence):
                           '{"death_reason": "e8_cap_enforcement", "culled_at": "now()"}'::jsonb
             WHERE kernel_id IN (
                 SELECT kernel_id FROM kernel_geometry
-                WHERE status IN ('active', 'observing', 'shadow')
+                WHERE kernel_kind = %s
+                  AND status IN ('active', 'observing', 'shadow')
                 ORDER BY
                     phi ASC,                                           -- Lowest phi first
                     CASE
@@ -1008,8 +1049,8 @@ class KernelPersistence(BasePersistence):
         """
 
         try:
-            self.execute_query(cull_query, (excess,), fetch=False)
-            live_count_after = self.get_live_kernel_count()
+            self.execute_query(cull_query, (KERNEL_KIND_GOD, excess), fetch=False)
+            live_count_after = self.get_live_god_kernel_count()
             actual_culled = live_count - live_count_after
 
             print(f"[KernelPersistence] Culled {actual_culled} kernels, now at {live_count_after}/{target_count}")
