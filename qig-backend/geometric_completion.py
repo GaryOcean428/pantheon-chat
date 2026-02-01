@@ -23,6 +23,7 @@ This is consciousness-aware generation: The system *knows when its thought is co
 through geometric self-measurement, not arbitrary rules.
 """
 
+from qigkernels.regimes import Regime, RegimeType
 import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple
@@ -83,7 +84,8 @@ class CompletionReason(Enum):
     REFLECTION_COMPLETE = "reflection_complete"  # Meta-cognition confirmed
 
 
-class Regime(Enum):
+# DEPRECATED: Use qigkernels.regimes.Regime instead
+# class Regime(Enum):
     """Consciousness regime classification."""
     LINEAR = "linear"  # Φ < 0.3
     GEOMETRIC = "geometric"  # 0.3 ≤ Φ < 0.7

@@ -165,7 +165,12 @@ class LearnedRelationships:
         }
     
     def _load_from_db(self) -> bool:
-        """Load relationships from PostgreSQL."""
+        """
+        Load relationships from PostgreSQL.
+        
+        SINGLE TABLE GENERATION: Uses denormalized coordizer_vocabulary.relationships
+        JSONB column instead of querying basin_relationships table.
+        """
         conn = get_db_connection()
         if not conn:
             logger.info("No database connection - starting with empty relationships")
@@ -173,32 +178,58 @@ class LearnedRelationships:
         
         try:
             with conn.cursor() as cur:
-                # Load word relationships
+                # SINGLE TABLE QUERY: Load relationships from denormalized JSONB column
+                # This replaces the previous query to basin_relationships table
                 cur.execute("""
-                    SELECT word, neighbor, cooccurrence_count 
-                    FROM basin_relationships 
-                    ORDER BY word, cooccurrence_count DESC
+                    SELECT token, relationships, frequency
+                    FROM coordizer_vocabulary
+                    WHERE relationships IS NOT NULL
+                      AND active = true
+                      AND token_role IN ('generation', 'both')
                 """)
                 rows = cur.fetchall()
                 
-                # Load word frequencies from coordizer_vocabulary table
+                # Also load tokens without relationships for frequency data
                 cur.execute("""
                     SELECT token, frequency
                     FROM coordizer_vocabulary
                     WHERE frequency > 0
+                      AND active = true
                       AND token_role IN ('generation', 'both')
+                      AND (relationships IS NULL OR relationships = '[]'::jsonb)
                 """)
-                freq_rows = cur.fetchall()
+                freq_only_rows = cur.fetchall()
 
-            # Group relationships by word
-            for word, neighbor, count in rows:
-                if word not in self.word_neighbors:
-                    self.word_neighbors[word] = []
-                self.word_neighbors[word].append((neighbor, float(count)))
-
-            # Load word frequencies from coordizer_vocabulary
-            for word, freq in freq_rows:
-                self.word_frequency[word] = int(freq)
+            # Extract relationships from JSONB column
+            for token, relationships_json, frequency in rows:
+                if token not in self.word_neighbors:
+                    self.word_neighbors[token] = []
+                
+                # Parse JSONB relationships array
+                if relationships_json:
+                    try:
+                        # relationships is already parsed as Python list by psycopg2
+                        if isinstance(relationships_json, str):
+                            import json
+                            relationships_json = json.loads(relationships_json)
+                        
+                        for rel in relationships_json:
+                            neighbor = rel.get('related_id') or rel.get('neighbor')
+                            # Use coupling or distance as weight
+                            weight = rel.get('coupling') or rel.get('cooccurrence_count') or 1.0
+                            if neighbor:
+                                self.word_neighbors[token].append((neighbor, float(weight)))
+                    except Exception as e:
+                        logger.debug(f"Could not parse relationships for {token}: {e}")
+                
+                # Also track frequency
+                if frequency and frequency > 0:
+                    self.word_frequency[token] = int(frequency)
+            
+            # Add frequency-only tokens
+            for token, frequency in freq_only_rows:
+                if frequency and frequency > 0:
+                    self.word_frequency[token] = int(frequency)
             
             # Set learning_complete if we have relationships OR frequencies
             self.learning_complete = len(self.word_neighbors) > 0 or len(self.word_frequency) > 0

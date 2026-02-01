@@ -23,7 +23,7 @@ GEOMETRIC PURITY:
 """
 
 import numpy as np
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any, List
 from dataclasses import dataclass
 from enum import Enum
 from qig_geometry import fisher_rao_distance

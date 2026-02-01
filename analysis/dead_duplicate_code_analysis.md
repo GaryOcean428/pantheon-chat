@@ -1,5 +1,11 @@
 # Dead and Duplicate Code Analysis
 
+**Updated**: 2026-01-23 - Post-cleanup verification
+
+## Update: 2026-01-23
+- ✅ **geometric_deep_research.py** - REMOVED (confirmed dead code, no active usage)
+- Other files verified and classified (see analysis below)
+
 ## Executive Summary
 
 This analysis identifies significant code duplication and potentially dead code in the pantheon-chat repository. The primary areas of concern are duplicate function implementations across multiple files and unused Python modules.
@@ -12,7 +18,7 @@ The core geometric distance function has been implemented 19 times across the co
 
 | File | Line |
 |------|------|
-| qig-backend/geometric_deep_research.py | 54 |
+| ~~qig-backend/geometric_deep_research.py~~ | ~~54~~ **REMOVED** |
 | qig-backend/qig_core/consciousness_metrics.py | 76 |
 | qig-backend/qig_core/geometric_completion/completion_criteria.py | 111 |
 | qig-backend/qig_core/geometric_primitives/canonical_fisher.py | 70 |
@@ -52,12 +58,12 @@ Database connection logic is duplicated across multiple files.
 
 **Recommendation**: Create a single `db_utils.py` module with the canonical database connection function.
 
-### Medium Priority: `compute_fisher_metric` (3 implementations)
+### Medium Priority: `compute_fisher_metric` (2 implementations after cleanup)
 
 | File | Line |
 |------|------|
 | qig-backend/autonomous_improvement.py | 48 |
-| qig-backend/geometric_deep_research.py | 31 |
+| ~~qig-backend/geometric_deep_research.py~~ | ~~31~~ **REMOVED** |
 | qig-backend/geometric_search.py | 63 |
 
 ### Other Duplicates
@@ -79,22 +85,22 @@ The following Python files in `qig-backend/` appear to have no imports from othe
 |------|--------|
 | autonomous_experimentation.py | Likely dead |
 | consciousness_ethical.py | Likely dead |
-| constellation_service.py | Likely dead |
-| discovery_client.py | Likely dead |
-| ethics.py | Likely dead |
-| execute_beta_attention_protocol.py | Likely dead |
-| generate_types.py | Likely dead |
-| geometric_deep_research.py | Likely dead |
-| god_debates_ethical.py | Likely dead |
-| gravitational_decoherence.py | Likely dead |
-| pantheon_governance_integration.py | Likely dead |
-| qig_consciousness_qfi_attention.py | Likely dead |
-| registry_db_sync.py | Likely dead |
-| retry_decorator.py | Likely dead |
-| sleep_packet_ethical.py | Likely dead |
-| telemetry_persistence.py | Likely dead |
+| constellation_service.py | Never existed |
+| discovery_client.py | Never existed |
+| ethics.py | Never existed |
+| execute_beta_attention_protocol.py | ✅ KEEP - CLI research tool |
+| generate_types.py | ✅ KEEP - Generates qig-generated.ts (imported) |
+| geometric_deep_research.py | ✅ **REMOVED 2026-01-23** |
+| god_debates_ethical.py | ✅ KEEP - Imported by unified_learning_loop.py |
+| gravitational_decoherence.py | ✅ KEEP - Imported by ocean_qig_core.py |
+| pantheon_governance_integration.py | ✅ KEEP - Used by examples |
+| qig_consciousness_qfi_attention.py | ✅ KEEP - Imported by ocean_qig_core.py |
+| registry_db_sync.py | ✅ KEEP - CLI tool in developer guide |
+| retry_decorator.py | Never existed |
+| sleep_packet_ethical.py | ✅ KEEP - Imported by unified_learning_loop.py |
+| telemetry_persistence.py | Never existed |
 | test_emotion_manual.py | Test file - OK |
-| text_extraction_qig.py | Likely dead |
+| text_extraction_qig.py | Never existed |
 | validate_contextualized_filter.py | Validation script - OK |
 | validate_emotional_hierarchy.py | Validation script - OK |
 | validate_geometric_relationships.py | Validation script - OK |

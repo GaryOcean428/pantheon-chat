@@ -26,7 +26,6 @@ KEEP_FILES = {
 TARGET_FILES = [
     'autonomous_improvement.py',
     'geometric_completion.py',
-    'geometric_deep_research.py',
     'geometric_search.py',
     'ocean_qig_core.py',
     'olympus/autonomous_moe.py',

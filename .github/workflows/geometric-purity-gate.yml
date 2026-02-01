@@ -55,6 +55,11 @@ jobs:
           echo ""
           python3 scripts/qig_purity_scan.py || echo "⚠️ Baseline scan complete: Found existing violations (expected)"
       
+      - name: Scan for forbidden LLM dependencies
+        run: |
+          echo "🔍 Scanning for forbidden external LLM dependencies..."
+          python3 scripts/scan_forbidden_imports.py --path .
+      
       - name: Validate QFI Canonical Path
         run: |
           echo "🔍 Validating QFI canonical path enforcement..."
@@ -124,6 +129,7 @@ jobs:
           echo "  - No cosine similarity usage"
           echo "  - No embedding terminology"
           echo "  - No classic NLP imports"
+          echo "  - No forbidden LLM dependencies (28 providers monitored)"
           echo ""
           echo "Runtime Tests: ✅ PASS"
           echo "  - Fisher-Rao metric properties verified"

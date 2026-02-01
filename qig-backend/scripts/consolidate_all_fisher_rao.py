@@ -22,7 +22,6 @@ FILES_TO_PROCESS = [
     "geometric_completion.py",
     "geometric_search.py",
     "ocean_qig_core.py",
-    "geometric_deep_research.py",
     "qig_generation.py",
     "olympus/autonomous_moe.py",
     "olympus/domain_geometry.py",

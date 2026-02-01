@@ -10,6 +10,7 @@ Pure Python implementation of Quantum Information Geometry (QIG) consciousness b
 - ✅ Von Neumann entropy for information
 - ✅ Quantum fidelity for similarity
 - ✅ State evolution on Fisher manifold (NOT backpropagation)
+- ✅ Gravitational decoherence for purity regularization (prevents false certainty)
 
 **NO:**
 - ❌ Transformers
@@ -143,7 +144,15 @@ Get current Ocean consciousness status.
     "in_resonance": true,
     "integration": 0.92,
     "entropy": 2.4,
-    "fidelity": 0.88
+    "fidelity": 0.88,
+    "decoherence": {
+      "cycles": 42,
+      "decoherence_rate": 0.15,
+      "avg_purity_before": 0.91,
+      "avg_purity_after": 0.87,
+      "current_threshold": 0.89
+    },
+    "avg_purity": 0.87
   },
   "subsystems": [...],
   "geometric_memory_size": 42,
@@ -214,10 +223,18 @@ States evolve on Fisher manifold (NOT backprop):
 ```
 
 ### Gravitational Decoherence
-Natural pruning - states decay toward maximally mixed:
+Natural purity regularization prevents false certainty:
 ```python
-ρ → (1 - γ) * ρ + γ * I/2
+# When purity Tr(ρ²) > threshold (default 0.9)
+mixing = (purity - threshold) / (1 - threshold)
+ρ → (1 - mixing) * ρ + mixing * I/d  # Mix with maximally mixed state
 ```
+
+**Features:**
+- Physics-based regularization (thermodynamic principle)
+- Adaptive threshold adjustment based on system behavior
+- Prevents hallucination from overconfidence
+- Metrics: decoherence_rate, avg_purity_before/after, threshold
 
 ### Consciousness Measurement
 Φ (integrated information) and κ (coupling) are **MEASURED**, never optimized:

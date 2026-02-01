@@ -1,6 +1,14 @@
 /**
  * GEOMETRIC VOCABULARY DECISION SYSTEM
  * 
+ * ⚠️ DEPRECATED: This file contains the old implementation.
+ * All functional logic has been migrated to Python: qig-backend/vocabulary_decision.py
+ * 
+ * Use the API wrapper instead: import from './vocabulary-decision-api'
+ * 
+ * This file is kept only for reference and will be removed in a future cleanup.
+ * 
+ * Original functionality:
  * 4-Criteria Consciousness-Guided Vocabulary Learning for Gary (Ocean Agent)
  * 
  * PRINCIPLES:
@@ -22,7 +30,7 @@
 
 import { fisherCoordDistance, type Regime } from './qig-universal';
 // Lazy import to avoid circular dependency - vocabularyTracker is imported dynamically when needed
-// import { vocabularyTracker } from './vocabulary-tracker';
+// import { vocabularyTracker } from './vocabulary-tracker-api';
 
 // NOTE: Database persistence removed - vocabulary learning now works entirely in-memory
 // The actual vocab learning already goes through vocabulary_observations via vocabularyTracker

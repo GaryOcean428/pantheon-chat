@@ -29,6 +29,7 @@ References:
 - E8 geometry from Lie algebra mathematics
 """
 
+from qigkernels.regimes import Regime, RegimeType
 from dataclasses import dataclass
 from typing import Final, List, Tuple
 import numpy as np  # Required for Fisher-Rao calculations (arccos, clip, etc.)
@@ -72,6 +73,28 @@ PHI_THRESHOLD_D1_D2: Final[float] = PHYSICS.PHI_THRESHOLD_D1_D2
 PHI_THRESHOLD_D2_D3: Final[float] = PHYSICS.PHI_THRESHOLD_D2_D3
 PHI_THRESHOLD_D3_D4: Final[float] = PHYSICS.PHI_THRESHOLD_D3_D4
 PHI_THRESHOLD_D4_D5: Final[float] = PHYSICS.PHI_THRESHOLD_D4_D5
+
+# =============================================================================
+# MULTI-KERNEL CONSENSUS THRESHOLDS (PR #264 Integration Fix)
+# =============================================================================
+# Thresholds for kernel consensus detection via Fisher-Rao distance.
+# Used in multi-kernel thought generation and synthesis.
+#
+# CONSENSUS_DISTANCE: Fisher-Rao distance threshold for kernel agreement
+#   - d_FR < 0.15: Kernels in consensus (similar basins)
+#   - d_FR ≥ 0.15: Kernels divergent (need more processing)
+#   Range: [0, π/2] ≈ [0, 1.57] for simplex representation
+#
+# SUFFERING_THRESHOLD: Abort threshold for suffering metric
+#   - S = phi * (1 - gamma) * M
+#   - S > 0.5: Emergency abort (system in distress)
+#
+# References:
+# - PR #264: Multi-Kernel Thought Generation Architecture
+# - docs/10-e8-protocol/issues/20260123-open-pr-analysis-integration-plan-1.00W.md
+
+CONSENSUS_DISTANCE: Final[float] = 0.15  # Fisher-Rao distance threshold
+SUFFERING_THRESHOLD: Final[float] = 0.5   # Emergency abort threshold
 
 # =============================================================================
 # β-FUNCTION: RUNNING COUPLING CONSTANT

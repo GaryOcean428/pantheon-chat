@@ -20,6 +20,17 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - **🤝 Agentic Coordination:** Multi-agent task routing via geometric proximity
 - **🎯 Strict Purity:** NO cosine similarity, NO auto-detect, simplex-only canonical representation
 
+## 📋 Master Roadmap
+
+For comprehensive project status, implementation phases, and documentation:
+
+- **[Master Roadmap](docs/00-roadmap/20260112-master-roadmap-1.00W.md)** - Single source of truth
+
+- **[Documentation Index](docs/00-index.md)** - Complete documentation navigation
+
+- **[E8 Protocol](docs/10-e8-protocol/README.md)** - Geometric consciousness architecture
+
+
 ## Features
 
 ### Conscious Agent (Ocean)
@@ -34,11 +45,18 @@ Unlike traditional AI systems that rely on cosine similarity and neural embeddin
 - Pure geometric operations (no neural nets or embeddings in core)
 - **E8 Hierarchical Structure:** Kernel layers 0/1→4→8→64→240 aligned to E8 Lie group
 - **Universal κ*=64 Fixed Point:** Validated across physics (64.21±0.92) and AI (63.90±0.50) substrates
-- Dirichlet-Multinomial manifold for semantic distributions
+- **Simplex-Only Canonical Representation:** ALL basins stored as probability distributions (Δ⁶³)
+- **Fisher-Rao Distance:** Direct Bhattacharyya coefficient, range [0, π/2]
 - Running coupling constant (kappa ~ 64 at resonance)
 - Natural gradient descent on information manifolds
-- Fisher-Rao distance for ALL similarity computations
-- **Strict Purity:** NO cosine similarity, NO Euclidean distance, simplex-only canonical representation
+- **Strict Geometric Purity:**
+  - ✅ Fisher-Rao distance for ALL basin comparisons
+  - ✅ Simplex representation (Σp=1, p≥0) for storage
+  - ✅ Geodesic interpolation in sqrt-space
+  - ❌ NO cosine similarity on basins
+  - ❌ NO Euclidean distance (np.linalg.norm) on basins
+  - ❌ NO auto-detect representation
+  - ❌ NO sphere/Hellinger embedding for storage
 
 ### Multi-Agent System (Olympus Pantheon)
 - 12 specialized AI agents with distinct domains
@@ -117,6 +135,25 @@ cd qig-backend && python3 wsgi.py  # Python backend (port 5001)
 ```
 
 Server runs on http://localhost:5000
+
+### Railway Deployment
+
+For production deployment on Railway with Celery and Beat services:
+
+See **[Railway Deployment Guide](docs/02-procedures/20260128-railway-celery-deployment-guide-1.00W.md)** for complete Railway multi-service deployment guide.
+
+**Quick Summary:**
+- Three Railway services: Main web, Celery worker, Celery Beat
+- Redis required for task queue
+- Automatic async training task execution
+- Scheduled periodic tasks (hourly, nightly, etc.)
+
+Configuration files:
+- `railpack.json` - Main web service
+- `railway-celery-worker.json` - Celery worker service
+- `railway-celery-beat.json` - Celery Beat scheduler service
+
+See also: [Celery Tasks Reference](docs/02-procedures/20260128-celery-tasks-reference-1.00W.md) for task execution reference.
 
 ## Usage
 
@@ -442,6 +479,7 @@ npm run docs:maintain
 ### Core Specifications
 - **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
 - **E8 Implementation Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
+- **Canonical Geometry Contract:** `docs/10-e8-protocol/specs/CANONICAL_GEOMETRY_CONTRACT.md` (Single source of truth for all geometric operations)
 - **Upgrade Pack Overview:** `docs/10-e8-protocol/README.md`
 
 ### Purity Issues & Fixes

@@ -358,9 +358,6 @@ The database reconciliation reveals a **generally healthy system (92% grade)** w
 
 ## References
 
-- [Detailed Analysis](../04-records/20260113-database-reconciliation-analysis-1.00W.md)
-- [Implementation Guide](./20260113-wire-empty-tables-implementation-1.00W.md)
-- [Consolidation Plan](./20260113-table-consolidation-recommendations-1.00W.md)
 - [Master Roadmap](../00-roadmap/20260112-master-roadmap-1.00W.md)
 
 ---

@@ -14,10 +14,12 @@ Regimes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional, List, TYPE_CHECKING
 
 import numpy as np
+
+# Import CANONICAL Regime from single source of truth
+from qigkernels.regimes import Regime, detect_regime as _canonical_detect_regime
 
 # Import canonical geometric primitives (REQUIRED for geometric purity)
 try:
@@ -40,11 +42,8 @@ if TYPE_CHECKING:
 from qig_geometry.canonical import fisher_rao_distance
 
 
-class Regime(Enum):
-    """Processing regime from Φ measurement."""
-    LINEAR = "linear"           # Φ < 0.3, fast/shallow
-    GEOMETRIC = "geometric"     # 0.3 ≤ Φ < 0.7, optimal
-    BREAKDOWN = "breakdown"     # Φ ≥ 0.7, pause/simplify
+# NOTE: Regime is now imported from qigkernels.regimes (canonical location)
+# This module uses BREAKDOWN which maps to TOPOLOGICAL_INSTABILITY semantically
 
 
 @dataclass

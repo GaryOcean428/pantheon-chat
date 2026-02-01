@@ -31,6 +31,15 @@ rg --quiet \
     exit 1
   } || true
 
+echo "🔍 Validating no forbidden LLM imports in codebase..."
+
+python3 "$ROOT_DIR/scripts/scan_forbidden_imports.py" \
+  --path "$ROOT_DIR" \
+  --config "$ROOT_DIR/shared/constants/forbidden_llm_providers.json" || {
+    echo "❌ Forbidden LLM imports detected. See report above."
+    exit 1
+  }
+
 echo "🔍 Validating direct SQL writes to coordizer_vocabulary..."
 
 rg --quiet \

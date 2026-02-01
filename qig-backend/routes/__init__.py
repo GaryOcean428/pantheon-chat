@@ -33,6 +33,24 @@ try:
 except ImportError:
     cron_bp = None
 
+try:
+    from .confidence_routes import confidence_bp, register_confidence_routes
+except ImportError:
+    confidence_bp = None
+    register_confidence_routes = None
+
+try:
+    from .basin_routes import basin_bp, register_basin_routes
+except ImportError:
+    basin_bp = None
+    register_basin_routes = None
+
+try:
+    from .vocabulary_decision_routes import vocabulary_bp, register_vocabulary_routes
+except ImportError:
+    vocabulary_bp = None
+    register_vocabulary_routes = None
+
 
 def register_all_routes(app):
     """Register all route blueprints with the Flask app."""
@@ -75,6 +93,27 @@ def register_all_routes(app):
         except Exception as e:
             print(f"[WARN] Failed to register cron_routes: {e}")
 
+    if register_confidence_routes:
+        try:
+            register_confidence_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register confidence_routes: {e}")
+
+    if register_basin_routes:
+        try:
+            register_basin_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register basin_routes: {e}")
+
+    if register_vocabulary_routes:
+        try:
+            register_vocabulary_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register vocabulary_routes: {e}")
+
     return count
 
 
@@ -84,5 +123,8 @@ __all__ = [
     'search_budget_bp', 'register_search_budget_routes',
     'training_monitor_bp',
     'cron_bp',
+    'confidence_bp', 'register_confidence_routes',
+    'basin_bp', 'register_basin_routes',
+    'vocabulary_bp', 'register_vocabulary_routes',
     'register_all_routes'
 ]

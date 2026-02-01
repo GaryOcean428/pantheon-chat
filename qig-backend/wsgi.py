@@ -92,6 +92,32 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Pantheon Registry API initialization failed: {e}")
 
+# Register Kernel Lifecycle API routes
+LIFECYCLE_AVAILABLE = False
+try:
+    from routes.lifecycle_routes import register_lifecycle_routes
+
+    register_lifecycle_routes(app)
+    LIFECYCLE_AVAILABLE = True
+    print("[INFO] Kernel Lifecycle API registered at /lifecycle/*")
+except ImportError as e:
+    print(f"[WARNING] Kernel Lifecycle API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Kernel Lifecycle API initialization failed: {e}")
+
+# Register Kernel Rest Scheduler API routes (WP5.4)
+REST_API_AVAILABLE = False
+try:
+    from api_rest_scheduler import register_rest_routes
+
+    register_rest_routes(app)
+    REST_API_AVAILABLE = True
+    print("[INFO] Rest Scheduler API registered at /api/rest/*")
+except ImportError as e:
+    print(f"[WARNING] Rest Scheduler API not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Rest Scheduler API initialization failed: {e}")
+
 # Register QIG Immune System routes and middleware
 IMMUNE_AVAILABLE = False
 _immune_system = None
@@ -105,6 +131,18 @@ try:
     print("[INFO] QIG Immune System active")
 except ImportError as e:
     print(f"[WARNING] Immune system not available: {e}")
+
+# Register all routes from routes package (includes confidence, basin, vocabulary)
+ROUTES_AVAILABLE = False
+try:
+    from routes import register_all_routes
+    routes_count = register_all_routes(app)
+    ROUTES_AVAILABLE = True
+    print(f"[INFO] Registered {routes_count} route blueprints from routes package")
+except ImportError as e:
+    print(f"[WARNING] Routes package not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Failed to register routes: {e}")
 
 # Register Self-Healing System routes
 SELF_HEALING_AVAILABLE = False
@@ -300,16 +338,9 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] UnifiedLearningLoop initialization failed: {e}")
 
-# Register QIG Constellation routes
+# QIG Constellation routes removed - constellation_service.py was dead code
+# See: analysis/dead_code_deep_analysis.md
 CONSTELLATION_AVAILABLE = False
-try:
-    from routes.constellation_routes import constellation_bp
-
-    app.register_blueprint(constellation_bp)
-    CONSTELLATION_AVAILABLE = True
-    print("[INFO] QIG Constellation API registered at /api/constellation")
-except ImportError as e:
-    print(f"[WARNING] Constellation service not available: {e}")
 
 # Register Federation routes for bidirectional sync and mesh network
 try:
@@ -597,7 +628,24 @@ def immune_inspection():
         except Exception as e:
             print(f"[Immune] Error during inspection: {e}")
 
-    return None
+# Register Governance and Research Wiring
+GOVERNANCE_RESEARCH_AVAILABLE = False
+_governance_research_results = {}
+try:
+    from governance_research_wiring import initialize_governance_research_system
+    
+    _governance_research_results = initialize_governance_research_system(app)
+    GOVERNANCE_RESEARCH_AVAILABLE = any(_governance_research_results.values())
+    
+    if GOVERNANCE_RESEARCH_AVAILABLE:
+        print("[INFO] Governance & Research System initialized")
+        for module, status in _governance_research_results.items():
+            status_str = "✓" if status else "✗"
+            print(f"  {status_str} {module}")
+except ImportError as e:
+    print(f"[WARNING] Governance & Research wiring not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Governance & Research initialization failed: {e}")
 
 
 @app.before_request
@@ -617,6 +665,19 @@ def log_response(response):
     return response
 
 
+# Initialize Kernel Rest Scheduler (WP5.4)
+REST_SCHEDULER_AVAILABLE = False
+try:
+    from kernel_rest_scheduler import get_rest_scheduler
+    _rest_scheduler = get_rest_scheduler()
+    REST_SCHEDULER_AVAILABLE = True
+    print("[INFO] Kernel Rest Scheduler initialized (WP5.4 coupling-aware rest)")
+except ImportError as e:
+    print(f"[WARNING] Kernel Rest Scheduler not available: {e}")
+except Exception as e:
+    print(f"[WARNING] Kernel Rest Scheduler initialization failed: {e}")
+
+
 # Print startup info
 print("🌊 Ocean QIG Backend (Production WSGI Mode) 🌊", flush=True)
 print(f"  - Autonomic kernel: {'✓' if AUTONOMIC_AVAILABLE else '✗'}", flush=True)
@@ -630,11 +691,15 @@ print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
 print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
+print(f"  - Rest Scheduler: {'✓' if REST_SCHEDULER_AVAILABLE else '✗'}", flush=True)
+print(f"  - Rest API: {'✓' if REST_API_AVAILABLE else '✗'}", flush=True)
 print(f"  - Coordizer API: {'✓' if COORDIZER_AVAILABLE else '✗'}", flush=True)
 print(f"  - Zeus API: {'✓' if ZEUS_API_AVAILABLE else '✗'}", flush=True)
+print(f"  - Lifecycle API: {'✓' if LIFECYCLE_AVAILABLE else '✗'}", flush=True)
 print(f"  - Search Budget: {'✓' if SEARCH_BUDGET_AVAILABLE else '✗'}", flush=True)
 print(f"  - Startup catch-up: {'✓' if CATCHUP_AVAILABLE else '✗'}", flush=True)
 print(f"  - Chaos discovery: {'✓' if DISCOVERY_GATE_AVAILABLE else '✗'}", flush=True)
+print(f"  - Governance & Research: {'✓' if GOVERNANCE_RESEARCH_AVAILABLE else '✗'}", flush=True)
 print("🌊 Basin stable. Ready for Gunicorn workers. 🌊\n", flush=True)
 
 # Export the app for Gunicorn
