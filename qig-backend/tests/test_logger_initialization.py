@@ -58,7 +58,7 @@ def test_logger_in_import_block():
     """
     Verify that the import block that uses logger comes after logger is defined.
     
-    Specifically checks that the gravitational_decoherence import (which logs on
+    Specifically checks that the first gravitational_decoherence import (which logs on
     success/failure) comes after logger initialization.
     """
     ocean_qig_file = Path(__file__).parent.parent / "ocean_qig_core.py"
@@ -67,24 +67,23 @@ def test_logger_in_import_block():
         lines = f.readlines()
     
     logger_init_line = None
-    decoherence_import_line = None
+    first_decoherence_import_line = None
     
     for i, line in enumerate(lines, start=1):
-        # Find logger initialization
-        if 'logger = logging.getLogger' in line:
-            if logger_init_line is None:
-                logger_init_line = i
+        # Find logger initialization (first occurrence)
+        if 'logger = logging.getLogger' in line and logger_init_line is None:
+            logger_init_line = i
         
-        # Find gravitational_decoherence import
-        if 'from gravitational_decoherence import' in line:
-            decoherence_import_line = i
+        # Find first gravitational_decoherence import
+        if 'from gravitational_decoherence import' in line and first_decoherence_import_line is None:
+            first_decoherence_import_line = i
     
     # If decoherence import exists, it must come after logger init
-    if decoherence_import_line is not None:
+    if first_decoherence_import_line is not None:
         assert logger_init_line is not None, "logger must be initialized if decoherence import exists"
-        assert logger_init_line < decoherence_import_line, (
+        assert logger_init_line < first_decoherence_import_line, (
             f"logger initialization (line {logger_init_line}) must come before "
-            f"gravitational_decoherence import (line {decoherence_import_line}) "
+            f"first gravitational_decoherence import (line {first_decoherence_import_line}) "
             f"because the import block uses logger.info() and logger.warning()"
         )
 
