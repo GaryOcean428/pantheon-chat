@@ -69,7 +69,6 @@ except ImportError:
 try:
     from gravitational_decoherence import (
         DecoherenceManager,
-        get_decoherence_manager,
         DEFAULT_PURITY_THRESHOLD,
         DEFAULT_TEMPERATURE
     )
