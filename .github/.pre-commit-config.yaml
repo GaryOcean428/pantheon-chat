@@ -118,7 +118,8 @@ repos:
     hooks:
       - id: type-any-eliminator-agent
         name: "🚫 Type Any Eliminator (fast check)"
-        entry: bash -c 'COUNT=$(grep -rn --include="*.ts" --include="*.tsx" "as any" client/ server/ shared/ 2>/dev/null | grep -v "node_modules" | grep -v ".d.ts" | grep -v "test" | wc -l); if [ "$COUNT" -gt 20 ]; then echo "❌ Too many any type casts ($COUNT found, threshold: 20)"; exit 1; fi'
+        entry: >-
+          bash -c 'COUNT=$(grep -rn --include="*.ts" --include="*.tsx" "as any" client/ server/ shared/ 2>/dev/null | grep -v "node_modules" | grep -v ".d.ts" | grep -v "test" | wc -l); if [ "$COUNT" -gt 20 ]; then echo "❌ Too many any type casts ($COUNT found, threshold: 20)"; exit 1; fi'
         language: system
         pass_filenames: false
         stages: [commit]
@@ -185,7 +186,8 @@ repos:
     hooks:
       - id: python-type-hints
         name: "🐍 Python Type Hints Reminder"
-        entry: bash -c 'echo "Reminder: Use type hints in all new Python functions"'
+        entry: >-
+          bash -c 'echo "Reminder: Use type hints in all new Python functions"'
         language: system
         types: [python]
         pass_filenames: false

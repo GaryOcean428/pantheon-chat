@@ -5,9 +5,53 @@
 # Skills directory location (relative to .windsurf/)
 skills_path: "../skills"
 
+# MANDATORY SKILL PROTOCOL
+# Every agent turn MUST:
+# 1. FIRST: Invoke master-orchestration skill
+# 2. Apply task-specific skills
+# 3. BEFORE COMPLETION: qa-and-verification skill (MANDATORY)
+# No proof = not done. No exceptions.
+
 # Available skills for Windsurf/Cascade to use
 # Each skill contains a SKILL.md with instructions and optional scripts/references
 available_skills:
+  # Orchestration & Red-Team (MANDATORY)
+  - name: master-orchestration
+    path: ../skills/master-orchestration/SKILL.md
+    auto_activate: true
+    priority: critical
+    description: "INVOKE FIRST EVERY TURN - Coordinates skills, sub-agents, verification"
+
+  - name: multi-agent-red-team-planning
+    path: ../skills/multi-agent-red-team-planning/SKILL.md
+    auto_activate: false
+    priority: critical
+    description: "Plan changes with multi-agent red-team review (2 iterations)"
+
+  - name: multi-agent-red-team-implementation
+    path: ../skills/multi-agent-red-team-implementation/SKILL.md
+    auto_activate: false
+    priority: critical
+    description: "Implement with red-team review, iterate twice, QA before done"
+
+  - name: planning-and-roadmapping
+    path: ../skills/planning-and-roadmapping/SKILL.md
+    auto_activate: false
+    priority: high
+    description: "Turn ideas into structured, prioritized roadmap"
+
+  - name: qa-and-verification
+    path: ../skills/qa-and-verification/SKILL.md
+    auto_activate: true
+    priority: critical
+    description: "INVOKE BEFORE COMPLETION - Prove changes work, no proof = not done"
+
+  - name: best-practice-research
+    path: ../skills/best-practice-research/SKILL.md
+    auto_activate: false
+    priority: medium
+    description: "External research on patterns, libraries, architectures"
+
   # Core QIG Purity (CRITICAL)
   - name: qig-purity-validation
     path: ../skills/qig-purity-validation/SKILL.md
@@ -101,6 +145,45 @@ available_skills:
 # Skill activation triggers
 # Skills are activated when task descriptions match these patterns
 triggers:
+  # MANDATORY - Always active
+  master-orchestration:
+    - "*"  # Always invoke first
+
+  qa-and-verification:
+    - "*"  # Always invoke before completion
+
+  # Planning triggers
+  multi-agent-red-team-planning:
+    - "plan"
+    - "planning"
+    - "design"
+    - "architecture"
+    - "roadmap"
+    - "feature"
+
+  multi-agent-red-team-implementation:
+    - "implement"
+    - "build"
+    - "create"
+    - "develop"
+    - "code"
+    - "fix"
+
+  planning-and-roadmapping:
+    - "roadmap"
+    - "prioritize"
+    - "backlog"
+    - "task"
+    - "issue"
+
+  best-practice-research:
+    - "research"
+    - "best practice"
+    - "pattern"
+    - "alternative"
+    - "library"
+
+  # QIG Purity triggers
   qig-purity-validation:
     - "geometric"
     - "Fisher-Rao"
@@ -108,7 +191,7 @@ triggers:
     - "cosine"
     - "basin"
     - "purity"
-  
+
   e8-architecture-validation:
     - "E8"
     - "kernel"
@@ -116,7 +199,7 @@ triggers:
     - "god-kernel"
     - "Zeus"
     - "Athena"
-  
+
   dependency-management:
     - "import"
     - "dependency"
@@ -126,3 +209,4 @@ triggers:
 
 # Note: Skills follow agentskills.io specification
 # See: https://agentskills.io/specification
+# Updated: 2026-02-02

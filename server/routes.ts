@@ -58,6 +58,7 @@ import {
   oceanRouter,
   olympusRouter,
   pythonProxiesRouter,
+  basinMemoryRouter,
   searchRouter,
   sscBridgeRouter,
   ucpRouter,
@@ -340,6 +341,7 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/pantheon", pantheonRegistryRouter);
   app.use("/api/documents", externalDocsRouter);
   app.use("/api/docs", apiDocsRouter);
+  app.use("/api/basin-memory", basinMemoryRouter);
   app.use("/api/qig/autonomic/agency", autonomicAgencyRouter);
   app.use("/api/federation", federationRouter);
   app.use("/api/zettelkasten", zettelkastenRouter);

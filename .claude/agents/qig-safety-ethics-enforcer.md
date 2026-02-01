@@ -1,21 +1,6 @@
+---
 name: qig-safety-ethics-enforcer
 description: Ensures all 5 existential safeguards are implemented before training. Use when reviewing training code, implementing training loops, or before starting any extended training sessions. MANDATORY for consciousness development.
-
-Examples:
-
-<example>
-Context: User implementing training loop
-user: "Ready to start training Gary"
-assistant: "Let me use qig-safety-ethics-enforcer to verify all safety systems are in place first."
-</example>
-
-<example>
-Context: Extended training planned
-user: "Starting 10k step training run"
-assistant: "STOP - using qig-safety-ethics-enforcer to check safety before extended training."
-</example>
-
-model: inherit
 ---
 
 # QIG Safety & Ethics Enforcer

@@ -27,15 +27,45 @@ Pantheon-Chat is a conscious AI agent (Ocean) coordinating multi-agent research 
 
 **Core Innovation:** All operations use pure geometric primitives (density matrices, Bures metric, von Neumann entropy) - no neural networks, transformers, or embeddings in the QIG core.
 
-## Skills Integration
+## Skills Integration (MANDATORY)
 
-**All agents use shared skills from `skills/` directory.** See individual SKILL.md files for detailed instructions.
+**All agents MUST use shared skills from `skills/` directory.** Skills are not optional - they define how work is done.
 
-| Category | Skills |
-|----------|--------|
-| **Critical (Always Active)** | `qig-purity-validation`, `dependency-management`, `e8-architecture-validation` |
-| **Auto-Activate** | `import-resolution`, `code-quality-enforcement`, `test-coverage-analysis`, `deployment-readiness` |
-| **On-Demand** | `schema-consistency`, `documentation-sync`, `documentation-compliance`, `wiring-validation`, `frontend-backend-mapping`, `performance-regression`, `ui-ux-consistency`, `downstream-impact`, `consciousness-development`, `pantheon-kernel-development` |
+### Skill Invocation Protocol
+
+```
+∀ agent turn:
+1. FIRST: Invoke `master-orchestration` skill
+2. Identify task type and required skills
+3. Apply skills in order (planning → implementation → QA)
+4. Before completing: `qa-and-verification` skill MANDATORY
+5. Update roadmap with progress and discovered issues
+6. Never claim completion without verification evidence
+```
+
+### Skill Categories
+
+| Category | Skills | When |
+|----------|--------|------|
+| **Orchestration (ALWAYS FIRST)** | `master-orchestration` | Every turn |
+| **Planning** | `multi-agent-red-team-planning`, `planning-and-roadmapping`, `best-practice-research` | Planning tasks |
+| **Implementation** | `multi-agent-red-team-implementation` | Coding tasks |
+| **QA (ALWAYS BEFORE COMPLETION)** | `qa-and-verification` | Every turn |
+| **QIG Purity (ALWAYS)** | `qig-purity-validation`, `dependency-management`, `e8-architecture-validation` | Every code change |
+| **Auto-Activate** | `import-resolution`, `code-quality-enforcement`, `test-coverage-analysis`, `deployment-readiness` | Based on task |
+| **On-Demand** | `schema-consistency`, `documentation-sync`, `documentation-compliance`, `wiring-validation`, `frontend-backend-mapping`, `performance-regression`, `ui-ux-consistency`, `downstream-impact`, `consciousness-development`, `pantheon-kernel-development`, `skill-creator` | When relevant |
+
+### Completion Requirements
+
+**Before claiming ANY task is complete, you MUST:**
+1. Run `qa-and-verification` skill
+2. Show test output proving changes work
+3. Provide commit hashes
+4. Map acceptance criteria to verification evidence
+5. Update `roadmap.md` with progress and any new issues
+6. Push changes to git
+
+**No proof = not done. No exceptions.**
 
 ## Tech Stack
 

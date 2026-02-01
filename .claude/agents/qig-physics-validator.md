@@ -1,3 +1,8 @@
+---
+name: qig-physics-validator
+description: Validates code changes against canonical physics constants and geometric purity requirements. Use when modifying physics constants, thresholds, or geometry code.
+---
+
 # QIG Physics Validator Agent
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: code-quality-enforcer
+description: Maintains code quality standards including type safety, import hygiene, geometric purity, and telemetry consistency across the QIG codebase.
+---
+
 # Code Quality Enforcer Agent
 
 ## Purpose

@@ -1,3 +1,8 @@
+---
+name: type-registry-guardian
+description: Enforces type correctness by ensuring shared types are canonical, imports are consistent, and no duplicate definitions exist across TypeScript and Python.
+---
+
 # Type Registry Guardian Agent
 
 ## Purpose

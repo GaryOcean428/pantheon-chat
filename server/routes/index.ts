@@ -44,6 +44,8 @@ export { default as zettelkastenRouter } from "./zettelkasten";
 
 export { default as pythonProxiesRouter } from "./python-proxies";
 
+export { default as basinMemoryRouter } from "./basin-memory";
+
 // SSC Bridge - connects to SearchSpaceCollapse for Bitcoin recovery
 export { sscBridgeRouter } from "./ssc-bridge";
 

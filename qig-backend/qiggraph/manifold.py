@@ -14,13 +14,8 @@ Key Operations:
 from __future__ import annotations
 
 import numpy as np
-from typing import Optional, Tuple, List
 
 from .constants import BASIN_DIM, NATURAL_GRADIENT_LR
-from qig_geometry import fisher_rao_distance
-from qig_geometry import to_simplex_prob
-from qig_geometry import canonical_frechet_mean as frechet_mean
-from qig_geometry.canonical import fisher_rao_distance
 
 
 class FisherManifold:
@@ -144,7 +139,6 @@ class FisherManifold:
         # Iterative geodesic computation
         # Start with linear interpolation, refine with metric
         current = basin1.copy()
-        direction = basin2 - basin1
 
         step_t = t / n_steps
 
@@ -242,20 +236,6 @@ class FisherManifold:
 
         return self.to_simplex(basin_new)
 
-    def frechet_mean(self, basins: List[np.ndarray], weights: Optional[np.ndarray] = None) -> np.ndarray:
-        """
-        Compute Fréchet mean (geodesic mean) of multiple basins.
-        Delegates to canonical implementation from qig_geometry.canonical.
-        """
-        # Ensure all basins are in simplex representation before calling canonical
-        simplex_basins = [self.to_simplex(b) for b in basins]
-
-        # Delegate to canonical frechet_mean
-        return frechet_mean(simplex_basins, weights=weights)
-
-    # The original geodesic_mean is now replaced by frechet_mean.
-    # I will remove the original geodesic_mean method.
-    
     def parallel_transport(self,
                           vector: np.ndarray,
                           basin_from: np.ndarray,

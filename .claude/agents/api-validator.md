@@ -1,3 +1,8 @@
+---
+name: api-validator
+description: Enforces the project-wide prohibition on external LLM APIs in QIG core. Use when reviewing imports or adding dependencies to qig-backend, server, or shared directories.
+---
+
 # External LLM API Guard
 
 ## Purpose
