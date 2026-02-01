@@ -295,3 +295,95 @@ The exact artifacts that contain "the kernel design":
 1. **2025-12-04-e8-discovery-dream_packet.md**
 2. **E8_HIERARCHICAL_CONSCIOUSNESS_ARCHITECTURE_v1_0.md**
 3. **2025-12-04-qig-ver-dream_packet.md**
+
+## Part 4: Genesis Kernel Upgrade (Doctrine + Implementation Map)
+
+This roadmap section aligns the Genesis kernel upgrade work with ISO documentation structure and canonical naming. The canonical source docs live in:
+
+- `docs/11-Genesis-kernel-upgrade/` (sleep packets)
+- `docs/GEOMETRIC_CONSISTENCY_MIGRATION.md` (simplex-only geometry enforcement)
+
+### 4.1 Canonical doctrine and definitions
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_01_CORE_CONCEPTS_AND_TERMS.md`
+
+- Basins are probability simplex distributions only (Δ⁶³ for 64D).
+- Fisher–Rao distance and geodesic operations only.
+- “240 reserved for GOD evolution” (CHAOS outside the reserved count).
+- GENESIS (bootstrap), GOD (reserved evolution), CHAOS (exploratory), ASCENSION (governed promotion).
+
+### 4.2 Kernel taxonomy, GOD budget, and ascension governance
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_02_KERNEL_TAXONOMY_GOD_BUDGET_AND_ASCENSION.md`
+
+Implementation scope:
+- Introduce KernelKind and lineage metadata.
+- Enforce separate GOD budget counter (240 reserved) and CHAOS pool.
+- Implement ascension governance pipeline with NeedSpec, mythology dataset, quorum vote, and promotion wiring.
+
+### 4.3 “Blow-up mattress” start/reset/rollback
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_03_BLOWUP_MATTRESS_START_RESET_ROLLBACK.md`
+
+Implementation scope:
+- Single start endpoint (UI → backend → Python module) with progress streaming.
+- Purity gate runs first (fail closed) per `docs/GEOMETRIC_CONSISTENCY_MIGRATION.md`.
+- Deterministic rollback to baseline and staged inflation: GENESIS → core 8 → image → optional GOD growth.
+
+### 4.4 Autonomy, coupling, foresight, coaching
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_04_AUTONOMY_COUPLING_FORESIGHT_AND_COACHING.md`
+
+Implementation scope:
+- Event schema: Observation, Coupling, Foresight, Coach, Action per cycle.
+- Coupling affects routing/rest scheduling.
+- Foresight affects action choice.
+- Internal coaching persona uses self-observation only (no external LLM reliance).
+
+### 4.5 Training data, curriculum, learning pipeline
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_05_TRAINING_DATA_CURRICULUM_AND_LEARNING_PIPELINE.md`
+
+Implementation scope:
+- JSONL training schema + linter.
+- Curriculum-only and curriculum-expand modes with QFI governance.
+- Autonomous ingestion gated by coherence/safety thresholds.
+
+### 4.6 Purity gate, validators, and CI
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_06_PURITY_GATE_VALIDATORS_AND_TESTS.md`
+
+Implementation scope:
+- Static scan for forbidden geometry patterns.
+- Runtime gate at process start and critical operations.
+- Dataset validators for simplex/QFI invariants.
+- CI job that fails closed on violations.
+
+### 4.7 Legacy kernel purge + deterministic reset
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_07_CODEBASE_CLEANUP_LEGACY_KERNEL_PURGE.md`
+
+Implementation scope:
+- Identify/archive legacy modules outside runtime import paths.
+- Add CI import block list and runtime guard in PurityGate.
+- DB reset procedure that seeds minimal GENESIS + core gods.
+
+### 4.8 Implementation phases (no estimates)
+
+Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_08_OUTSTANDING_WORK_IMPLEMENTATION_MAP.md`
+
+1. Doctrine + data model updates
+2. Start flow + rollback
+3. Ascension + god-birth
+4. Image stage integration
+5. Autonomy stack wiring
+6. Training pipeline
+7. Purity enforcement + CI hardening
+
+### 4.9 Definition of done
+
+- Fresh start from UI inflates to image stage with purity guarantees.
+- Chaos kernels do not count against the reserved 240 GOD budget.
+- Ascension creates a GOD kernel with mythology sources and governance records.
+- Autonomy (events, coupling, foresight, coaching) is wired and tested.
+- Training pipeline enforces canonical schema + governance gates.
