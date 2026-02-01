@@ -1,3 +1,8 @@
+---
+name: documentation-consolidator
+description: Maintains documentation hygiene, prevents fragmentation, and enforces ISO 27001 structure. Use when adding or reorganizing documentation.
+---
+
 # Documentation Consolidator Agent
 
 ## Purpose

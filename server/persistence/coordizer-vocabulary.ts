@@ -22,6 +22,7 @@ export interface UpsertTokenInput {
 interface PreparedTokenValues {
   basinEmbedding: number[] | null
   qfiScore: number | null
+  tokenStatus: 'active' | 'quarantined'
 }
 
 export function isQfiScoreValid(value: number | null | undefined): boolean {
@@ -57,11 +58,11 @@ export function prepareUpsertTokenValues(
   basinEmbedding?: number[] | null
 ): PreparedTokenValues {
   if (!basinEmbedding || basinEmbedding.length === 0) {
-    return { basinEmbedding: null, qfiScore: null }
+    return { basinEmbedding: null, qfiScore: null, tokenStatus: 'quarantined' }
   }
 
   if (basinEmbedding.length !== QIG_CONSTANTS.BASIN_DIMENSION) {
-    return { basinEmbedding: null, qfiScore: null }
+    return { basinEmbedding: null, qfiScore: null, tokenStatus: 'quarantined' }
   }
 
   try {
@@ -69,13 +70,13 @@ export function prepareUpsertTokenValues(
     const normalized = to_simplex_probabilities(basinEmbedding)
 
     if (!isQfiScoreValid(qfiScore)) {
-      return { basinEmbedding: normalized, qfiScore: null }
+      return { basinEmbedding: normalized, qfiScore: null, tokenStatus: 'quarantined' }
     }
 
-    return { basinEmbedding: normalized, qfiScore }
+    return { basinEmbedding: normalized, qfiScore, tokenStatus: 'active' }
   } catch (error) {
     logger.warn({ error }, '[QFI] Failed to compute qfi_score, setting to null')
-    return { basinEmbedding: null, qfiScore: null }
+    return { basinEmbedding: null, qfiScore: null, tokenStatus: 'quarantined' }
   }
 }
 

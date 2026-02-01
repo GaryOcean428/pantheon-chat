@@ -1,3 +1,8 @@
+---
+name: naming-convention-enforcer
+description: Enforces consistent file naming conventions including ISO doc naming for docs/ and snake_case for Python files.
+---
+
 # Naming Convention Enforcer Agent
 
 ## Purpose

@@ -50,7 +50,7 @@ from qig_geometry.geometry_ops import (
 class BasinRepresentation(Enum):
     """Supported basin representation types."""
     SIMPLEX = "simplex"    # Probability simplex, sum = 1, non-negative (CANONICAL)
-    SPHERE = "sphere"      # Unit vectors on S^(D-1), L2 norm = 1 (legacy)
+    SPHERE = "sphere"      # Legacy representation (deprecated)
     HELLINGER = "hellinger"  # Sqrt space (DEPRECATED - DO NOT USE)
 
 

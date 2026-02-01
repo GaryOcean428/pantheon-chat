@@ -1,3 +1,8 @@
+---
+name: constellation-architect
+description: Ensures Ocean + constellation architecture remains consistent with E8 kernel hierarchy and routing invariants. Use when modifying constellation or routing logic.
+---
+
 # Constellation Architect Agent
 
 ## Purpose

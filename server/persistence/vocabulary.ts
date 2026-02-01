@@ -25,6 +25,7 @@ export type UpsertTokenInput = {
 export type UpsertTokenResult = {
   qfiScore: number | null
   isActive: boolean
+  tokenStatus: 'active' | 'quarantined'
 }
 
 const vectorPrefix = '['
@@ -143,5 +144,6 @@ export async function upsertToken(input: UpsertTokenInput): Promise<UpsertTokenR
   }
 
   // Token is "active" if it has a valid QFI score
-  return { qfiScore, isActive: isValidQfiScore(qfiScore) }
+  const isActive = isValidQfiScore(qfiScore)
+  return { qfiScore, isActive, tokenStatus: isActive ? 'active' : 'quarantined' }
 }

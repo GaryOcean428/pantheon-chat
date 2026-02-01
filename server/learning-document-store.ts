@@ -14,8 +14,40 @@
  * - Fisher-Rao distances for semantic relationships
  */
 
-import { Client } from '@replit/object-storage';
 import crypto from 'crypto';
+import { createRequire } from 'module';
+
+import type { Client as ReplitObjectStorageClient } from '@replit/object-storage';
+
+type ObjectStorageClient = Pick<
+  ReplitObjectStorageClient,
+  'downloadAsText' | 'uploadFromText' | 'list' | 'delete'
+>;
+
+type DownloadAsTextResult = { ok: boolean; value: string; error?: string };
+type UploadFromTextResult = { ok: boolean; error?: string };
+type DeleteResult = { ok: boolean; error?: string };
+
+const FALLBACK_CLIENT: ObjectStorageClient = {
+  downloadAsText: async () => ({ ok: false, value: '', error: 'object_storage_unavailable' } as DownloadAsTextResult),
+  uploadFromText: async () => ({ ok: false, error: 'object_storage_unavailable' } as UploadFromTextResult),
+  list: async () => ({ ok: false, value: [], error: 'object_storage_unavailable' } as any),
+  delete: async () => ({ ok: false, error: 'object_storage_unavailable' } as DeleteResult),
+};
+
+async function createObjectStorageClient(): Promise<ObjectStorageClient> {
+  try {
+    const require = createRequire(import.meta.url);
+    const mod = require('@replit/object-storage') as any;
+    const ClientCtor = mod?.Client as (new () => ObjectStorageClient) | undefined;
+    if (!ClientCtor) {
+      return FALLBACK_CLIENT;
+    }
+    return new ClientCtor();
+  } catch {
+    return FALLBACK_CLIENT;
+  }
+}
 
 interface LearningDocument {
   id: string;
@@ -46,15 +78,24 @@ interface DocumentManifest {
 }
 
 class LearningDocumentStore {
-  private client: Client;
+  private client: ObjectStorageClient = FALLBACK_CLIENT;
+  private clientInit: Promise<void>;
   private initialized = false;
   
   constructor() {
-    this.client = new Client();
+    this.clientInit = (async () => {
+      this.client = await createObjectStorageClient();
+    })();
+  }
+
+  private async ensureClientReady(): Promise<void> {
+    await this.clientInit;
   }
   
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return;
+
+    await this.ensureClientReady();
     
     const { ok } = await this.client.downloadAsText('index/manifest.json');
     if (!ok) {
@@ -130,6 +171,7 @@ class LearningDocumentStore {
   
   async getDocument(kernel_id: string, document_id: string): Promise<LearningDocument | null> {
     try {
+      await this.ensureClientReady();
       const path = `learning/${kernel_id}/${document_id}.json`;
       const { ok, value, error } = await this.client.downloadAsText(path);
       
@@ -147,6 +189,7 @@ class LearningDocumentStore {
   
   async listDocuments(kernel_id?: string, limit = 100): Promise<string[]> {
     try {
+      await this.ensureClientReady();
       const { ok, value, error } = await this.client.list();
       
       if (!ok) {
@@ -171,6 +214,7 @@ class LearningDocumentStore {
   
   async getRecentDocuments(kernel_id: string, limit = 10): Promise<LearningDocument[]> {
     try {
+      await this.ensureClientReady();
       const paths = await this.listDocuments(kernel_id, limit * 2);
       
       const sortedPaths = paths

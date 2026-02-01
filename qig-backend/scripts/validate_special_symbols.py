@@ -12,7 +12,7 @@ Usage:
 
 Requirements:
 - Special symbols must exist in coordizer_vocabulary table
-- Basin embeddings must be 64D
+- Basin coordinates must be 64D
 - Must satisfy simplex constraints (non-negative, sum=1)
 - Must match geometric definitions from FisherCoordizer
 """
@@ -119,7 +119,7 @@ class SpecialSymbolValidator:
         return True
     
     def validate_basin_dimension(self, symbols: Dict[str, Dict]) -> bool:
-        """Verify basin embeddings are 64D."""
+        """Verify basin coordinates are 64D."""
         valid = True
         
         for symbol, data in symbols.items():
@@ -137,12 +137,12 @@ class SpecialSymbolValidator:
                 valid = False
         
         if valid:
-            logger.info(f"✓ All special symbols have {self.BASIN_DIM}D basin embeddings")
+            logger.info(f"✓ All special symbols have {self.BASIN_DIM}D basin coordinates")
         
         return valid
     
     def validate_simplex_constraints(self, symbols: Dict[str, Dict]) -> bool:
-        """Verify basin embeddings satisfy simplex constraints."""
+        """Verify basin coordinates satisfy simplex constraints."""
         valid = True
         
         for symbol, data in symbols.items():

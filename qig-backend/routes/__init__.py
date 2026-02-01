@@ -46,6 +46,12 @@ except ImportError:
     register_basin_routes = None
 
 try:
+    from .basin_memory_routes import basin_memory_bp, register_basin_memory_routes
+except ImportError:
+    basin_memory_bp = None
+    register_basin_memory_routes = None
+
+try:
     from .vocabulary_decision_routes import vocabulary_bp, register_vocabulary_routes
 except ImportError:
     vocabulary_bp = None
@@ -81,7 +87,7 @@ def register_all_routes(app):
         try:
             app.register_blueprint(training_monitor_bp)
             count += 1
-            print(f"[INFO] Registered training_monitor_bp")
+            print("[INFO] Registered training_monitor_bp")
         except Exception as e:
             print(f"[WARN] Failed to register training_monitor: {e}")
 
@@ -89,7 +95,7 @@ def register_all_routes(app):
         try:
             app.register_blueprint(cron_bp, url_prefix='/api/cron')
             count += 1
-            print(f"[INFO] Registered cron_bp at /api/cron")
+            print("[INFO] Registered cron_bp at /api/cron")
         except Exception as e:
             print(f"[WARN] Failed to register cron_routes: {e}")
 
@@ -106,6 +112,13 @@ def register_all_routes(app):
             count += 1
         except Exception as e:
             print(f"[WARN] Failed to register basin_routes: {e}")
+
+    if register_basin_memory_routes:
+        try:
+            register_basin_memory_routes(app)
+            count += 1
+        except Exception as e:
+            print(f"[WARN] Failed to register basin_memory_routes: {e}")
 
     if register_vocabulary_routes:
         try:
@@ -125,6 +138,7 @@ __all__ = [
     'cron_bp',
     'confidence_bp', 'register_confidence_routes',
     'basin_bp', 'register_basin_routes',
+    'basin_memory_bp', 'register_basin_memory_routes',
     'vocabulary_bp', 'register_vocabulary_routes',
     'register_all_routes'
 ]

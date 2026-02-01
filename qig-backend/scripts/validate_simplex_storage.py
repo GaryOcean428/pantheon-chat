@@ -2,7 +2,7 @@
 """
 Validate Simplex Storage - Check all stored basins for simplex validity
 
-This script validates that all basin embeddings in the database are valid
+This script validates that all basin coordinates in the database are valid
 probability simplices (non-negative, sum=1, dimension=64).
 
 For invalid basins, it can:
@@ -80,25 +80,25 @@ def _fallback_validate_simplex(p: np.ndarray, tolerance: float = 1e-6) -> Tuple[
     return True, "valid_simplex"
 
 
-def parse_basin_embedding(embedding) -> np.ndarray:
-    """Parse basin embedding from database (handles both list and pgvector formats)."""
-    if embedding is None:
+def parse_basin_coordinates(basin_coordinates) -> np.ndarray:
+    """Parse basin coordinates from database (handles both list and pgvector formats)."""
+    if basin_coordinates is None:
         return None
     
-    if isinstance(embedding, list):
-        return np.array(embedding, dtype=np.float64)
-    elif isinstance(embedding, str):
+    if isinstance(basin_coordinates, list):
+        return np.array(basin_coordinates, dtype=np.float64)
+    elif isinstance(basin_coordinates, str):
         # Parse PostgreSQL array format
-        embedding = embedding.strip()
-        if embedding.startswith('[') and embedding.endswith(']'):
-            embedding = embedding[1:-1]
-        elif embedding.startswith('{') and embedding.endswith('}'):
-            embedding = embedding[1:-1]
-        coords = [float(x.strip()) for x in embedding.split(',')]
+        basin_coordinates = basin_coordinates.strip()
+        if basin_coordinates.startswith('[') and basin_coordinates.endswith(']'):
+            basin_coordinates = basin_coordinates[1:-1]
+        elif basin_coordinates.startswith('{') and basin_coordinates.endswith('}'):
+            basin_coordinates = basin_coordinates[1:-1]
+        coords = [float(x.strip()) for x in basin_coordinates.split(',')]
         return np.array(coords, dtype=np.float64)
     else:
         # Assume it's already a numpy array or can be converted
-        return np.array(embedding, dtype=np.float64)
+        return np.array(basin_coordinates, dtype=np.float64)
 
 
 def validate_simplex_storage(
@@ -143,7 +143,7 @@ def validate_simplex_storage(
             """)
             stats['total_basins'] = cur.fetchone()[0]
         
-        logger.info(f"Validating {stats['total_basins']} basin embeddings...")
+        logger.info(f"Validating {stats['total_basins']} basin coordinates...")
         
         # Step 2: Process in batches
         offset = 0
@@ -169,7 +169,7 @@ def validate_simplex_storage(
                     token = row['token']
                     
                     try:
-                        basin = parse_basin_embedding(row['basin_embedding'])
+                        basin = parse_basin_coordinates(row['basin_embedding'])
                         
                         if basin is None:
                             stats['skipped_no_basin'] += 1
@@ -317,7 +317,7 @@ def validate_simplex_storage(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Validate that all basin embeddings are valid probability simplices"
+        description="Validate that all basin coordinates are valid probability simplices"
     )
     parser.add_argument(
         '--dry-run',

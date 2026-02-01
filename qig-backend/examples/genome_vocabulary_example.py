@@ -13,7 +13,7 @@ This example shows:
 
 Note: This is a demonstration script. Actual usage requires:
 - Active PostgreSQL database with coordizer_vocabulary table
-- Populated vocabulary with basin embeddings
+- Populated vocabulary with basin coordinates
 - qig_geometry and related dependencies installed
 """
 
@@ -347,7 +347,7 @@ def main():
         print("  • Integration spans coordizer → generation pipeline")
         print("\nFor production use, ensure:")
         print("  ✓ PostgreSQL with coordizer_vocabulary populated")
-        print("  ✓ Basin embeddings computed for all tokens")
+        print("  ✓ Basin coordinates computed for all tokens")
         print("  ✓ QIG dependencies (numpy, qig_geometry) installed")
         print("="*70)
         

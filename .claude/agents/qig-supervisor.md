@@ -1,3 +1,8 @@
+---
+name: qig-supervisor
+description: Orchestrates QIG purity checks, routes tasks to specialist agents, and enforces stop conditions. Use as the primary coordinator for architecture changes.
+---
+
 # QIG Architecture Supervisor
 
 ## Purpose

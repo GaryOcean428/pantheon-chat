@@ -26,7 +26,36 @@ import {
 } from './adapters';
 import { db } from '../db';
 import { oceanPersistence } from '../ocean/ocean-persistence';
-import type { Candidate, TargetAddress } from '@shared/schema';
+import type { Candidate, TargetAddress, UpsertUser, User } from '@shared/schema';
+
+class InMemoryUserStorage implements IUserStorage {
+  private users: User[] = [];
+
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.find((u) => u.id === id);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existingIndex = this.users.findIndex((u) => u.id === userData.id);
+    const existing = existingIndex >= 0 ? this.users[existingIndex] : undefined;
+    const now = new Date();
+
+    const merged = {
+      ...(existing ?? {}),
+      ...(userData as unknown as User),
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    } as User;
+
+    if (existingIndex >= 0) {
+      this.users[existingIndex] = merged;
+    } else {
+      this.users.push(merged);
+    }
+
+    return merged;
+  }
+}
 
 class InMemoryCandidateStorage implements ICandidateStorage {
   private candidates: Candidate[] = [];
@@ -88,13 +117,9 @@ class StorageFacade {
       throw new Error('[StorageFacade] Only postgres backend is supported. Set backend to "postgres".');
     }
 
-    if (!db) {
-      throw new Error('[StorageFacade] DATABASE_URL not set - postgres backend is required for persistence');
-    }
-
     this._candidates = new InMemoryCandidateStorage();
     this._targetAddresses = new InMemoryTargetAddressStorage();
-    this._users = new UserPostgresAdapter();
+    this._users = db ? new UserPostgresAdapter() : new InMemoryUserStorage();
     
     this._searchJobs = {
       getSearchJobs: async () => [],

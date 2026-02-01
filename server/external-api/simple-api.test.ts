@@ -7,8 +7,60 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express, { Express } from 'express';
-import request from 'supertest';
 import { simpleApiRouter } from './simple-api';
+
+type TestResponse = {
+  status: number;
+  body: any;
+  headers: Record<string, string>;
+};
+
+async function doRequest(app: Express, method: string, path: string): Promise<TestResponse> {
+  const server = app.listen(0);
+  await new Promise<void>((resolve) => server.once('listening', () => resolve()));
+
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}${path}`, { method });
+    const text = await res.text();
+    let body: any = {};
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      body = text;
+    }
+
+    return {
+      status: res.status,
+      body,
+      headers: Object.fromEntries(res.headers.entries()),
+    };
+  } finally {
+    server.close();
+  }
+}
+
+function request(app: Express) {
+  const make = (method: string, path: string) => {
+    const p: any = doRequest(app, method, path);
+    p.expect = (status: number) =>
+      p.then((r: TestResponse) => {
+        expect(r.status).toBe(status);
+        return r;
+      });
+    return p;
+  };
+
+  return {
+    get: (path: string) => make('GET', path),
+    post: (path: string) => make('POST', path),
+    put: (path: string) => make('PUT', path),
+    patch: (path: string) => make('PATCH', path),
+    delete: (path: string) => make('DELETE', path),
+  };
+}
 
 describe.skip('Simple External API', () => {
   let app: Express;
