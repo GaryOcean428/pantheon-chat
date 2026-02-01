@@ -10,6 +10,7 @@ Date: 2026-02-01
 """
 
 import ast
+import sys
 from pathlib import Path
 
 
@@ -19,7 +20,7 @@ def validate_logger_defined_before_use():
     """
     ocean_qig_file = Path(__file__).parent.parent / "ocean_qig_core.py"
     
-    with open(ocean_qig_file, 'r') as f:
+    with open(ocean_qig_file, 'r', encoding='utf-8') as f:
         source = f.read()
     
     tree = ast.parse(source)
@@ -69,7 +70,7 @@ def validate_logger_before_imports():
     """
     ocean_qig_file = Path(__file__).parent.parent / "ocean_qig_core.py"
     
-    with open(ocean_qig_file, 'r') as f:
+    with open(ocean_qig_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     
     logger_init_line = None
@@ -131,4 +132,4 @@ def main():
 
 
 if __name__ == '__main__':
-    exit(main())
+    sys.exit(main())
