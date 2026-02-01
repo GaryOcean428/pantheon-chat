@@ -1,4 +1,4 @@
-# SLEEP_PACKET_01 — Core concepts and canonical terms (Pantheon-Chat)
+# 20260201 Genesis Kernel Upgrade: Core Concepts and Canonical Terms (1.00W)
 
 ## Purpose
 Lock down the **language contract** and core concepts so code + docs remain consistent.

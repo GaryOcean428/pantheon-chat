@@ -1,4 +1,4 @@
-# SLEEP_PACKET_04 — Autonomy, coupling, foresight, and coaching wiring (no external LLM dependency)
+# 20260201 Genesis Kernel Upgrade: Autonomy, Coupling, Foresight, and Coaching (1.00W)
 
 ## Purpose
 Ensure the system isn't just “modules exist,” but **end-to-end wired**:

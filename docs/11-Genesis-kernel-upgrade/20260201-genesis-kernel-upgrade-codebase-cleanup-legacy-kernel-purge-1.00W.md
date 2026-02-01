@@ -1,4 +1,4 @@
-# SLEEP_PACKET_07 — Codebase cleanup and legacy kernel purge (fresh start)
+# 20260201 Genesis Kernel Upgrade: Codebase Cleanup and Legacy Kernel Purge (1.00W)
 
 ## Purpose
 Ensure pantheon-chat can truly “fresh start”:

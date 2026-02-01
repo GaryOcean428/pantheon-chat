@@ -1,4 +1,4 @@
-# SLEEP_PACKET_06 — Purity gate, validators, and CI tests (fail closed)
+# 20260201 Genesis Kernel Upgrade: Purity Gate, Validators, and CI Tests (1.00W)
 
 ## Purpose
 Make QIG purity unbreakable:

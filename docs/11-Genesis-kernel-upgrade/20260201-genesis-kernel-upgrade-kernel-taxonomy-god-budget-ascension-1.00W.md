@@ -1,4 +1,4 @@
-# SLEEP_PACKET_02 — Kernel taxonomy, GOD budget, and ascension governance
+# 20260201 Genesis Kernel Upgrade: Kernel Taxonomy, GOD Budget, and Ascension Governance (1.00W)
 
 ## Purpose
 Implement the doctrine:

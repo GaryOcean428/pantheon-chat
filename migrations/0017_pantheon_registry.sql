@@ -167,9 +167,9 @@ CREATE TABLE IF NOT EXISTS chaos_kernel_limits (
     total_active_kernels INTEGER NOT NULL DEFAULT 0,
     
     -- Limits from registry
-    max_chaos_kernels INTEGER NOT NULL DEFAULT 240, -- E8 roots
+    max_chaos_kernels INTEGER NOT NULL DEFAULT 240, -- CHAOS pool (separate from GOD reserve)
     per_domain_limit INTEGER NOT NULL DEFAULT 30,
-    total_active_limit INTEGER NOT NULL DEFAULT 200, -- Reserve 40 for gods
+    total_active_limit INTEGER NOT NULL DEFAULT 240,
     
     -- Metadata
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -180,12 +180,12 @@ CREATE TABLE IF NOT EXISTS chaos_kernel_limits (
 
 -- Initialize limits row
 INSERT INTO chaos_kernel_limits (id, max_chaos_kernels, per_domain_limit, total_active_limit)
-VALUES (1, 240, 30, 200)
+VALUES (1, 240, 30, 240)
 ON CONFLICT (id) DO NOTHING;
 
 COMMENT ON TABLE kernel_spawner_state IS 'Tracks active instances of gods for spawn constraint enforcement';
 COMMENT ON TABLE chaos_kernel_counters IS 'Sequential ID counters for chaos kernel naming (chaos_{domain}_{id})';
-COMMENT ON TABLE chaos_kernel_limits IS 'Global chaos kernel spawning limits aligned to E8 root system (240 total)';
+COMMENT ON TABLE chaos_kernel_limits IS 'Global chaos kernel spawning limits; CHAOS pool is separate from GOD reserved budget';
 
 -- =============================================================================
 -- PANTHEON REGISTRY METADATA TABLE

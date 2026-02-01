@@ -1,4 +1,4 @@
-# SLEEP_PACKET_05 — Training data, curriculum, and learning pipeline (growth after intelligence threshold)
+# 20260201 Genesis Kernel Upgrade: Training Data, Curriculum, and Learning Pipeline (1.00W)
 
 ## Purpose
 Implement the learning pipeline that:

@@ -103,9 +103,10 @@ class Kernel:
     domains: List[str] = field(default_factory=list)
     role_description: str = ""
     
-    # Provenance
+    # Lineage metadata
     parent_kernels: List[str] = field(default_factory=list)
     child_kernels: List[str] = field(default_factory=list)
+    ascended_from: Optional[str] = None
     spawn_reason: str = ""
     spawn_timestamp: datetime = field(default_factory=datetime.now)
     
@@ -121,6 +122,7 @@ class Kernel:
             'kernel_kind': self.kernel_kind.value,
             'god_name': self.god_name,
             'epithet': self.epithet,
+            'ascended_from': self.ascended_from,
             'phi': self.phi,
             'kappa': self.kappa,
             'gamma': self.gamma,
@@ -1078,6 +1080,7 @@ class KernelLifecycleManager:
             kernel_id=god_kernel_id,
             name=god_name,
             kernel_type="god",
+            kernel_kind=KernelKind.GOD,
             god_name=god_name,
             basin_coords=chaos_kernel.basin_coords.copy(),
             lifecycle_stage="active",
@@ -1088,6 +1091,7 @@ class KernelLifecycleManager:
             domains=chaos_kernel.domains,
             role_description=f"Promoted from chaos kernel {chaos_kernel.name}",
             parent_kernels=[chaos_kernel.kernel_id],
+            ascended_from=chaos_kernel.kernel_id,
             spawn_reason=f"Promotion from chaos: {chaos_kernel.spawn_reason}",
             spawn_timestamp=datetime.now(),
             success_count=chaos_kernel.success_count,

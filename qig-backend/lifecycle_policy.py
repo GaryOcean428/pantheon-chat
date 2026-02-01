@@ -23,6 +23,8 @@ Monitoring:
 """
 
 import logging
+from pathlib import Path
+import yaml
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime, timedelta
@@ -609,6 +611,10 @@ class LifecyclePolicyEngine:
         
         Based on domain and capabilities.
         """
+        dataset_match = self._suggest_god_name_from_dataset(chaos_kernel)
+        if dataset_match:
+            return dataset_match
+
         # Map domains to potential god names
         domain_god_map = {
             'synthesis': 'Apollo',
@@ -642,6 +648,38 @@ class LifecyclePolicyEngine:
         
         # Default to Prometheus (bringer of innovation)
         return 'Prometheus'
+
+    def _suggest_god_name_from_dataset(self, chaos_kernel: Kernel) -> Optional[str]:
+        """Suggest a god name from mythology_dataset.yaml based on domain."""
+        if not chaos_kernel.domains:
+            return None
+
+        dataset = self._load_mythology_dataset()
+        if not dataset:
+            return None
+
+        domain = chaos_kernel.domains[0].lower()
+        for entry in dataset.get("entries", []):
+            entry_domain = str(entry.get("domain", "")).lower()
+            if entry_domain == domain:
+                myth_name = entry.get("myth_name")
+                if myth_name:
+                    return myth_name
+
+        return None
+
+    def _load_mythology_dataset(self) -> Dict[str, Any]:
+        """Load the mythology dataset for ascension naming."""
+        dataset_path = Path(__file__).resolve().parent.parent / "pantheon" / "mythology_dataset.yaml"
+        if not dataset_path.exists():
+            return {}
+
+        try:
+            with dataset_path.open("r", encoding="utf-8") as handle:
+                return yaml.safe_load(handle) or {}
+        except Exception as exc:
+            logger.warning(f"[PolicyEngine] Failed to load mythology dataset: {exc}")
+            return {}
     
     # =========================================================================
     # POLICY MANAGEMENT

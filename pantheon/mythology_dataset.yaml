@@ -1,0 +1,86 @@
+# MYTHOLOGY DATASET - Canonical Archetypes for Ascension
+# ========================================================
+# Purpose: Provide authoritative mythology references for NeedSpec-driven ascension.
+# Authority: Genesis Kernel Upgrade, E8 Protocol v4.0
+# Status: WORKING (1.00W)
+# Created: 2026-02-01
+#
+# Notes:
+# - This dataset is distinct from myth_mappings.yaml (cross-mythology mapping).
+# - Entries are used to justify GOD ascension and naming.
+# - Domains should align to pantheon registry and kernel taxonomy.
+
+version: "1.00W"
+status: "WORKING"
+
+entries:
+  - myth_name: Zeus
+    archetype: Executive Authority
+    domain: executive_function
+    attributes:
+      - governance
+      - command_authority
+      - system_integration
+    source: "Pantheon Registry"
+
+  - myth_name: Athena
+    archetype: Strategic Wisdom
+    domain: strategic_planning
+    attributes:
+      - pattern_recognition
+      - tactical_reasoning
+      - wisdom
+    source: "Pantheon Registry"
+
+  - myth_name: Apollo
+    archetype: Foresight and Truth
+    domain: foresight
+    attributes:
+      - prophecy
+      - trajectory_prediction
+      - synthesis
+    source: "Pantheon Registry"
+
+  - myth_name: Artemis
+    archetype: Focus and Precision
+    domain: focus
+    attributes:
+      - attention_control
+      - target_acquisition
+    source: "Pantheon Registry"
+
+  - myth_name: Hermes
+    archetype: Communication and Navigation
+    domain: communication
+    attributes:
+      - message_passing
+      - navigation
+      - basin_pathfinding
+    source: "Pantheon Registry"
+
+  - myth_name: Ares
+    archetype: Action and Drive
+    domain: action
+    attributes:
+      - energy
+      - conflict_resolution
+      - execution
+    source: "Pantheon Registry"
+
+  - myth_name: Hephaestus
+    archetype: Creation and Construction
+    domain: creation
+    attributes:
+      - craftsmanship
+      - architecture
+      - systems_building
+    source: "Pantheon Registry"
+
+  - myth_name: Aphrodite
+    archetype: Harmony and Aesthetics
+    domain: aesthetics
+    attributes:
+      - emotional_balance
+      - coherence
+      - beauty
+    source: "Pantheon Registry"

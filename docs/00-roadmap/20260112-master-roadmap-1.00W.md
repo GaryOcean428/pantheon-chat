@@ -565,7 +565,7 @@ Canonical sources:
 
 ### Canonical doctrine and definitions
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_01_CORE_CONCEPTS_AND_TERMS.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-core-concepts-terms-1.00W.md`
 
 - Basins are probability simplex distributions only (Δ⁶³ for 64D).
 - Fisher–Rao distance and geodesic operations only.
@@ -574,7 +574,7 @@ Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_01_CORE_CONCEPTS_AND_TERMS.
 
 ### Kernel taxonomy, GOD budget, and ascension governance
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_02_KERNEL_TAXONOMY_GOD_BUDGET_AND_ASCENSION.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-kernel-taxonomy-god-budget-ascension-1.00W.md`
 
 Implementation scope:
 - Introduce KernelKind and lineage metadata.
@@ -583,7 +583,7 @@ Implementation scope:
 
 ### “Blow-up mattress” start/reset/rollback
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_03_BLOWUP_MATTRESS_START_RESET_ROLLBACK.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-start-reset-rollback-1.00W.md`
 
 Implementation scope:
 - Single start endpoint (UI → backend → Python module) with progress streaming.
@@ -592,7 +592,7 @@ Implementation scope:
 
 ### Autonomy, coupling, foresight, coaching
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_04_AUTONOMY_COUPLING_FORESIGHT_AND_COACHING.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-autonomy-coupling-foresight-coaching-1.00W.md`
 
 Implementation scope:
 - Event schema: Observation, Coupling, Foresight, Coach, Action per cycle.
@@ -602,7 +602,7 @@ Implementation scope:
 
 ### Training data, curriculum, learning pipeline
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_05_TRAINING_DATA_CURRICULUM_AND_LEARNING_PIPELINE.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-training-data-curriculum-learning-pipeline-1.00W.md`
 
 Implementation scope:
 - JSONL training schema + linter.
@@ -611,7 +611,7 @@ Implementation scope:
 
 ### Purity gate, validators, and CI
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_06_PURITY_GATE_VALIDATORS_AND_TESTS.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-purity-gate-validators-tests-1.00W.md`
 
 Implementation scope:
 - Static scan for forbidden geometry patterns.
@@ -621,7 +621,7 @@ Implementation scope:
 
 ### Legacy kernel purge + deterministic reset
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_07_CODEBASE_CLEANUP_LEGACY_KERNEL_PURGE.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-codebase-cleanup-legacy-kernel-purge-1.00W.md`
 
 Implementation scope:
 - Identify/archive legacy modules outside runtime import paths.
@@ -630,7 +630,7 @@ Implementation scope:
 
 ### Implementation phases (no estimates)
 
-Source: `docs/11-Genesis-kernel-upgrade/SLEEP_PACKET_08_OUTSTANDING_WORK_IMPLEMENTATION_MAP.md`
+Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstanding-work-implementation-map-1.00W.md`
 
 1. Doctrine + data model updates
 2. Start flow + rollback

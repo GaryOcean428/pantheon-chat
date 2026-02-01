@@ -1,4 +1,4 @@
-# SLEEP_PACKET_08 — Outstanding work implementation map (project-wide expectations)
+# 20260201 Genesis Kernel Upgrade: Outstanding Work Implementation Map (1.00W)
 
 ## Purpose
 Capture everything outstanding discussed across the project and express it as a concrete implementation map for pantheon-chat.
