@@ -22,7 +22,7 @@ def test_logger_defined_before_use():
     """
     ocean_qig_file = Path(__file__).parent.parent / "ocean_qig_core.py"
     
-    with open(ocean_qig_file, 'r') as f:
+    with open(ocean_qig_file, 'r', encoding='utf-8') as f:
         source = f.read()
     
     tree = ast.parse(source)
@@ -63,7 +63,7 @@ def test_logger_in_import_block():
     """
     ocean_qig_file = Path(__file__).parent.parent / "ocean_qig_core.py"
     
-    with open(ocean_qig_file, 'r') as f:
+    with open(ocean_qig_file, 'r', encoding='utf-8') as f:
         lines = f.readlines()
     
     logger_init_line = None
