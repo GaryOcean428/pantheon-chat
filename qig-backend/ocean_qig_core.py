@@ -45,22 +45,7 @@ from scipy.linalg import sqrtm
 from qig_geometry.canonical_upsert import to_simplex_prob
 from qig_geometry.canonical import frechet_mean
 
-# Gravitational decoherence for purity regularization
-try:
-    from gravitational_decoherence import (
-        DecoherenceManager,
-        get_decoherence_manager,
-        DEFAULT_PURITY_THRESHOLD,
-        DEFAULT_TEMPERATURE
-    )
-    DECOHERENCE_AVAILABLE = True
-    logger.info("[OceanQIG] Gravitational decoherence module loaded")
-except ImportError as e:
-    DECOHERENCE_AVAILABLE = False
-    logger.warning(f"[OceanQIG] Gravitational decoherence not available: {e}")
-
-
-# Configure logging with development-aware verbosity
+# Configure logging FIRST before any code that uses logger
 # Import dev_logging to get verbose, untruncated logs in development
 try:
     from dev_logging import configure_logging, LOG_LEVEL, IS_DEVELOPMENT, TRUNCATE_LOGS
@@ -79,6 +64,20 @@ except ImportError:
     )
     logger = logging.getLogger(__name__)
     logger.warning("[OceanQIG] dev_logging not available, using fallback DEBUG config")
+
+# Gravitational decoherence for purity regularization
+try:
+    from gravitational_decoherence import (
+        DecoherenceManager,
+        get_decoherence_manager,
+        DEFAULT_PURITY_THRESHOLD,
+        DEFAULT_TEMPERATURE
+    )
+    DECOHERENCE_AVAILABLE = True
+    logger.info("[OceanQIG] Gravitational decoherence module loaded")
+except ImportError as e:
+    DECOHERENCE_AVAILABLE = False
+    logger.warning(f"[OceanQIG] Gravitational decoherence not available: {e}")
 
 # QFI Attention Network Import (Issue #236)
 try:
