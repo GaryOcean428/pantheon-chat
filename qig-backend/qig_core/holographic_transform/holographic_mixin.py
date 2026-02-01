@@ -21,6 +21,10 @@ from .compressor import compress, estimate_compression_ratio
 from .decompressor import decompress
 from qigkernels.physics_constants import KAPPA_STAR
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 
 BETA_RUNNING_COUPLING = 0.44
 PHI_THRESHOLD_D1_D2 = 0.1
@@ -310,9 +314,10 @@ class HolographicTransformMixin:
         if total_weight > 0:
             consolidated = consolidated / total_weight
         
-        norm = np.linalg.norm(consolidated)
-        if norm > 0:
-            consolidated = consolidated / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        consolidated = to_simplex_prob(consolidated)
         
         event = {
             'type': 'sleep_consolidation',

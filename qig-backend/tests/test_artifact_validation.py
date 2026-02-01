@@ -8,6 +8,7 @@ Validates geometric constraints and round-trip save/load operations.
 
 import sys
 import os
+from qig_geometry import to_simplex_prob
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -96,11 +97,11 @@ def test_valid_artifact_validation():
     # Normalize coordinates to unit sphere
     for i in range(len(artifact["basin_coords"])):
         coord = np.array(artifact["basin_coords"][i])
-        artifact["basin_coords"][i] = (coord / np.linalg.norm(coord)).tolist()
+        artifact["basin_coords"][i] = (to_simplex_prob(coord)).tolist()
     
     for symbol_key in artifact["special_symbols"]:
         coord = np.array(artifact["special_symbols"][symbol_key]["basin_coord"])
-        artifact["special_symbols"][symbol_key]["basin_coord"] = (coord / np.linalg.norm(coord)).tolist()
+        artifact["special_symbols"][symbol_key]["basin_coord"] = (to_simplex_prob(coord)).tolist()
     
     result = validate_artifact(artifact)
     

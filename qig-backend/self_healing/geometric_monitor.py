@@ -13,6 +13,10 @@ Pure geometric approach - no code optimization, only geometry optimization.
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # QIG-pure geometric operations
 try:
     from qig_geometry import fisher_normalize
@@ -141,9 +145,9 @@ class GeometricHealthMonitor:
             basin_coords = np.array(basin_coords, dtype=np.float64)
 
         # Ensure unit norm (basins live on hypersphere)
-        norm = np.linalg.norm(basin_coords)
-        if norm > 0:
-            basin_coords = basin_coords / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        basin_coords = to_simplex_prob(basin_coords)
 
         # Get consciousness metrics
         confidence = float(system_state.get("confidence", 0.5))
@@ -386,12 +390,11 @@ class GeometricHealthMonitor:
     def _fisher_distance(self, basin1: np.ndarray, basin2: np.ndarray) -> float:
         """
         Fisher-Rao distance between basins.
+        Uses canonical fisher_rao_distance from qig_geometry (E8 Protocol compliant).
 
-        Basins are probability distributions on simplex.
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
+        Range: [0, π/2]
         """
-        dot_product = np.clip(np.dot(basin1, basin2), 0.0, 1.0)
-        return float(np.arccos(dot_product))
+        return float(fisher_rao_distance(basin1, basin2))
 
     def _classify_regime(self, phi: float) -> str:
         """Classify processing regime from Φ."""

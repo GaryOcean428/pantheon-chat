@@ -55,7 +55,7 @@ SINGLETON_TABLES = [
 
 CORE_TABLE_MINIMUMS = {
     "coordizer_vocabulary": 10000,
-    "learned_words": 5000,
+    # Migration 017 (2026-01-19): learned_words deprecated - use coordizer_vocabulary instead
 }
 
 NULL_THRESHOLD = 0.50
@@ -86,10 +86,7 @@ COLUMN_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "frequency": 1,
         "is_bpe_merge": False,
     },
-    "learned_words": {
-        "frequency": 1,
-        "is_integrated": False,
-    },
+    # Migration 017 (2026-01-19): learned_words deprecated - removed from validation
     "vocabulary_observations": {
         "type": "phrase",
         "is_real_word": False,
@@ -123,7 +120,7 @@ TABLES_TO_CHECK = [
     "near_miss_adaptive_state",
     "auto_cycle_state",
     "coordizer_vocabulary",
-    "learned_words",
+    # Migration 017 (2026-01-19): learned_words deprecated - removed from validation
     "vocabulary_observations",
     "consciousness_checkpoints",
     "geodesic_paths",

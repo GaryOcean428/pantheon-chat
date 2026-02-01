@@ -19,6 +19,10 @@ from datetime import datetime
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -298,7 +302,7 @@ class RealityCrossChecker:
 
         # Initialize with arithmetic mean (good starting point)
         basins_normalized = [self._normalize_basin(b) for b in basins]
-        mean = np.mean(basins_normalized, axis=0)
+        mean = frechet_mean(basins_normalized)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         mean = self._normalize_basin(mean)
 
         # Iterative refinement (gradient descent on Riemannian manifold)

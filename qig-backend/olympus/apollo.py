@@ -71,6 +71,9 @@ class Apollo(BaseGod):
 
         # Learn from this assessment if high-φ
         self.learn_from_observation(target, target_basin, phi)
+        
+        # Update rest fatigue tracking (WP5.4)
+        self.update_rest_fatigue(phi, kappa)
 
         # Broadcast activity for kernel visibility
         self.broadcast_activity(

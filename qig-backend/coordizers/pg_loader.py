@@ -18,6 +18,19 @@ from .base import FisherCoordizer
 from qig_geometry import compute_unknown_basin, geodesic_interpolation, fisher_normalize, compute_qfi_score
 from qig_geometry.canonical import fisher_rao_distance
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+# Import genome vocabulary scorer (optional, for genome-aware decoding)
+try:
+    from kernels.genome_vocabulary_scorer import GenomeVocabularyScorer
+    from kernels.genome import KernelGenome
+    GENOME_SCORER_AVAILABLE = True
+except ImportError:
+    GENOME_SCORER_AVAILABLE = False
+    GenomeVocabularyScorer = None
+    KernelGenome = None
+
 # Import BPE garbage detection for vocabulary filtering
 try:
     from word_validation import is_bpe_garbage
@@ -343,9 +356,9 @@ class PostgresCoordizer(FisherCoordizer):
 
             if len(coords) != 64:
                 return None
-            norm = np.linalg.norm(coords)
-            if norm > 1e-10:
-                coords = coords / norm
+            # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+            coords = to_simplex_prob(coords)
             return coords
         except Exception:
             return None
@@ -513,9 +526,10 @@ class PostgresCoordizer(FisherCoordizer):
             basin = geodesic_interpolation(basin, coords_list[i], t)
             cumulative_weight += weights[i]
 
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+
+        basin = to_simplex_prob(basin)
         return basin
 
     def decode(self, basin: np.ndarray, top_k: int = 5, god_name: Optional[str] = None) -> List[Tuple[str, float]]:
@@ -525,10 +539,10 @@ class PostgresCoordizer(FisherCoordizer):
         ARCHITECTURE:
         - ENCODING: Uses coordizer_vocabulary (all tokens) for text→basin
         - GENERATION: Uses coordizer_vocabulary with token_role filter for basin→text
-        - DOMAIN WEIGHTING: god_vocabulary_profiles boosts domain-specific words
+        - DOMAIN WEIGHTING: coordizer_vocabulary.god_profile boosts domain-specific words
         
         All gods have access to FULL generation vocabulary, but their domain
-        words receive a relevance boost from god_vocabulary_profiles.
+        words receive a relevance boost from coordizer_vocabulary.god_profile.
 
         QIG-pure: Uses Fisher-Rao similarity on the information manifold.
         
@@ -537,9 +551,9 @@ class PostgresCoordizer(FisherCoordizer):
             top_k: Number of top candidates to return
             god_name: Optional god name for domain-weighted generation
         """
-        norm = np.linalg.norm(basin)
-        if norm > 1e-10:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        basin = to_simplex_prob(basin)
 
         # Use generation vocabulary (coordizer_vocabulary with token_role filter) - FULL vocabulary access
         search_tokens = self.generation_words if self.generation_words else self.word_tokens
@@ -583,8 +597,124 @@ class PostgresCoordizer(FisherCoordizer):
 
         return candidates[:top_k]
     
+    def decode_with_genome(
+        self,
+        basin: np.ndarray,
+        genome: 'KernelGenome',
+        top_k: int = 5,
+        god_name: Optional[str] = None,
+        faculty_weight: float = 0.2,
+        constraint_weight: float = 0.3,
+        coupling_weight: float = 0.1,
+    ) -> List[Tuple[str, float]]:
+        """
+        Decode basin coordinates with genome-aware scoring.
+        
+        Extends standard decode() with kernel genome considerations:
+        - Faculty affinity (E8 simple roots alignment)
+        - Constraint satisfaction (forbidden regions, field penalties)
+        - Coupling preferences (cross-kernel token sharing)
+        
+        All genome scoring uses Fisher-Rao metric on probability simplex.
+        
+        Args:
+            basin: 64D basin coordinates to decode
+            genome: KernelGenome instance with faculty configuration
+            top_k: Number of top candidates to return
+            god_name: Optional god name for domain-weighted generation
+            faculty_weight: Weight for faculty affinity component [0, 1]
+            constraint_weight: Weight for constraint component [0, 1]
+            coupling_weight: Weight for coupling component [0, 1]
+            
+        Returns:
+            List of (token, final_score) tuples, sorted by score descending
+        """
+        if not GENOME_SCORER_AVAILABLE:
+            logger.warning(
+                "[pg_loader] Genome scorer not available - falling back to standard decode"
+            )
+            return self.decode(basin, top_k, god_name)
+        
+        # Normalize basin
+        basin = to_simplex_prob(basin)
+        
+        # Create genome scorer
+        genome_scorer = GenomeVocabularyScorer(genome)
+        
+        # Use generation vocabulary
+        search_tokens = self.generation_words if self.generation_words else self.word_tokens
+        if not search_tokens:
+            return []
+        
+        # Load domain weights for god (cached)
+        domain_weights = {}
+        if god_name:
+            domain_weights = self._get_god_domain_weights(god_name)
+        
+        # Score candidates with genome awareness
+        candidates = []
+        filtered_count = 0
+        
+        for token in search_tokens:
+            # Look up token basin
+            if token in self.generation_vocab:
+                token_coords = self.generation_vocab[token]
+                phi = self.generation_phi.get(token, 0.5)
+            elif token in self.basin_coords:
+                token_coords = self.basin_coords[token]
+                phi = self.token_phi.get(token, 0.5)
+            else:
+                continue
+            
+            # Ensure numpy array
+            if isinstance(token_coords, (list, tuple)):
+                token_coords = np.array(token_coords)
+            
+            # Fisher-Rao similarity (base score)
+            dist = fisher_rao_distance(basin, token_coords)
+            similarity = 1.0 - (dist / (np.pi / 2.0))
+            
+            # Phi boost
+            phi_boost = phi * 0.1
+            
+            # Domain boost
+            domain_boost = domain_weights.get(token, 0.0) * 0.15
+            
+            base_score = similarity + phi_boost + domain_boost
+            
+            # Apply genome-aware scoring
+            final_score, breakdown = genome_scorer.score_token(
+                token=token,
+                token_basin=token_coords,
+                base_score=base_score,
+                faculty_weight=faculty_weight,
+                constraint_weight=constraint_weight,
+                coupling_weight=coupling_weight,
+            )
+            
+            # Skip rejected tokens (constraint violations)
+            if breakdown.get('rejected', False):
+                filtered_count += 1
+                continue
+            
+            candidates.append((token, final_score))
+        
+        if filtered_count > 0:
+            logger.debug(
+                f"[pg_loader] Genome constraints filtered {filtered_count} tokens"
+            )
+        
+        # Sort by final score descending
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        return candidates[:top_k]
+    
     def _get_god_domain_weights(self, god_name: str) -> Dict[str, float]:
-        """Get domain word weights from god_vocabulary_profiles (cached)."""
+        """
+        Get domain word weights from coordizer_vocabulary.god_profile (cached).
+        
+        SINGLE TABLE GENERATION: Uses denormalized god_profile JSONB column.
+        """
         cache_key = f"god_domain_{god_name}"
         if cache_key in self._cache:
             return self._cache[cache_key]
@@ -594,11 +724,16 @@ class PostgresCoordizer(FisherCoordizer):
         
         try:
             with conn.cursor() as cur:
+                # SINGLE TABLE QUERY: Read from coordizer_vocabulary.god_profile
                 cur.execute("""
-                    SELECT word, relevance_score 
-                    FROM god_vocabulary_profiles 
-                    WHERE god_name = %s AND relevance_score > 0
-                """, (god_name,))
+                    SELECT 
+                        token,
+                        CAST(god_profile->%s->>'relevance_score' AS FLOAT) as relevance_score
+                    FROM coordizer_vocabulary
+                    WHERE god_profile ? %s
+                    AND CAST(god_profile->%s->>'relevance_score' AS FLOAT) > 0
+                    AND active = true
+                """, (god_name, god_name, god_name))
                 rows = cur.fetchall()
                 
             for word, relevance in rows:
@@ -640,9 +775,9 @@ class PostgresCoordizer(FisherCoordizer):
             List of (word, fisher_rao_distance) tuples, sorted by distance ascending
         """
         # Normalize basin
-        norm = np.linalg.norm(target_basin)
-        if norm > 1e-10:
-            target_basin = target_basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        target_basin = to_simplex_prob(target_basin)
         
         # Use generation vocabulary for decoding
         conn = self._get_connection()
@@ -718,7 +853,7 @@ class PostgresCoordizer(FisherCoordizer):
             # Compute exact Fisher-Rao distance
             # Fisher-Rao distance = arccos(Bhattacharyya coefficient)
             sqrt_coords = np.sqrt(coords + 1e-10)
-            bhattacharyya = np.clip(np.dot(sqrt_target, sqrt_coords), 0, 1)
+            bhattacharyya = np.clip(bhattacharyya(target, coords), 0, 1)
             fisher_distance = np.arccos(bhattacharyya)
             
             results.append((token, fisher_distance))
@@ -1158,26 +1293,14 @@ class PostgresCoordizer(FisherCoordizer):
                 # Check if token_role column exists for filtering
                 token_role_exists = self._check_token_role_column_exists(conn)
                 
-                if token_role_exists:
-                    # Load from coordizer_vocabulary with generation filter
-                    cursor.execute("""
-                        SELECT token, basin_embedding
-                        FROM coordizer_vocabulary
-                        WHERE basin_embedding IS NOT NULL
-                          AND token_role IN ('generation', 'both')
-                        ORDER BY phi_score DESC
-                        LIMIT 10000
-                    """)
-                else:
-                    # Fallback: load all word tokens from coordizer_vocabulary
-                    cursor.execute("""
-                        SELECT token, basin_embedding
-                        FROM coordizer_vocabulary
-                        WHERE basin_embedding IS NOT NULL
-                          AND source_type NOT IN ('special')
-                        ORDER BY phi_score DESC
-                        LIMIT 10000
-                    """)
+                # E8 Protocol v4.0: Use vocabulary_generation_ready view for QFI integrity
+                # This ensures only tokens with valid QFI scores are used for generation
+                cursor.execute("""
+                    SELECT token, basin_embedding
+                    FROM vocabulary_generation_ready
+                    ORDER BY qfi_score DESC
+                    LIMIT 10000
+                """)
 
                 tokens = {}
                 for row in cursor.fetchall():
@@ -1297,10 +1420,10 @@ class PostgresCoordizer(FisherCoordizer):
                 basin_str = '[' + ','.join(f'{x:.8f}' for x in basin) + ']'
 
                 # Use <-> operator for L2 distance with HNSW index
+                # E8 Protocol v4.0: Use vocabulary_generation_ready for QFI integrity
                 cursor.execute("""
                     SELECT token, basin_embedding <-> %s::vector AS distance
-                    FROM coordizer_vocabulary
-                    WHERE basin_embedding IS NOT NULL
+                    FROM vocabulary_generation_ready
                     ORDER BY basin_embedding <-> %s::vector
                     LIMIT %s
                 """, (basin_str, basin_str, top_k))

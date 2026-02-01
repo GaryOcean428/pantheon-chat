@@ -25,12 +25,15 @@ except ImportError as e:
     print(f"[geometric_primitives] fisher_metric import failed: {e}")
     FISHER_METRIC_AVAILABLE = False
 
-# Import canonical Fisher-Rao implementation
+# Import canonical Fisher-Rao implementation and purity operations
 from .canonical_fisher import (
     fisher_rao_distance,
     geodesic_interpolate,
     find_nearest_basins,
     validate_basin,
+    to_simplex, # E8 Protocol v4.0 Purity Fix
+    bhattacharyya_coefficient, # E8 Protocol v4.0 Purity Fix
+    frechet_mean, # E8 Protocol v4.0 Purity Fix
 )
 
 # Import geometry ladder
@@ -109,6 +112,9 @@ __all__ = [
     'geodesic_interpolate',
     'find_nearest_basins',
     'validate_basin',
+    'to_simplex', # E8 Protocol v4.0 Purity Fix
+    'bhattacharyya_coefficient', # E8 Protocol v4.0 Purity Fix
+    'frechet_mean', # E8 Protocol v4.0 Purity Fix
 ]
 
 # Add optional exports if available

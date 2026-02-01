@@ -77,7 +77,7 @@ distance = np.arccos(bc)  # Range: [0, π/2]
 - `qig-backend/self_healing/geometric_monitor.py`
 - `qig-backend/contextualized_filter.py`
 - `qig-backend/coordizers/pg_loader.py`
-- `qig-backend/geometric_deep_research.py`
+- `qig-backend/geometric_deep_research.py` (REMOVED - dead code cleanup 2026-01-23)
 - `qig-backend/ocean_qig_core.py`
 - `qig-backend/geometric_search.py`
 - `qig-backend/pos_grammar.py`

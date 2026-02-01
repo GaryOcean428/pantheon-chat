@@ -4,12 +4,9 @@ Tests for Basin Representation Module
 Validates canonical basin representation enforcement.
 """
 
-import sys
-from pathlib import Path
 import numpy as np
 import pytest
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from qig_geometry import to_simplex_prob
 
 from qig_geometry.representation import (
     BasinRepresentation,
@@ -44,7 +41,7 @@ class TestBasinRepresentation:
     def test_to_sphere_from_sphere(self):
         """Sphere to sphere should be identity (after normalization)."""
         original = np.array([0.6, 0.8, 0.0])
-        original = original / np.linalg.norm(original)
+        original = to_simplex_prob(original)
         
         result = to_sphere(original, from_repr=BasinRepresentation.SPHERE)
         
@@ -54,7 +51,7 @@ class TestBasinRepresentation:
     def test_to_simplex_from_sphere(self):
         """Convert sphere to simplex representation."""
         sphere = np.array([0.5, -0.3, 0.8])
-        sphere = sphere / np.linalg.norm(sphere)
+        sphere = to_simplex_prob(sphere)
         
         simplex = to_simplex(sphere, from_repr=BasinRepresentation.SPHERE)
         
@@ -80,7 +77,7 @@ class TestBasinRepresentation:
     def test_auto_detect_sphere(self):
         """Auto-detect sphere representation."""
         sphere = np.array([0.6, 0.8, 0.0])
-        sphere = sphere / np.linalg.norm(sphere)
+        sphere = to_simplex_prob(sphere)
         
         detected = _detect_representation(sphere)
         assert detected == BasinRepresentation.SPHERE
@@ -96,7 +93,7 @@ class TestBasinRepresentation:
     def test_validate_sphere_pass(self):
         """Valid sphere basin passes validation."""
         basin = np.array([0.6, 0.8, 0.0])
-        basin = basin / np.linalg.norm(basin)
+        basin = to_simplex_prob(basin)
         
         valid, msg = validate_basin(basin, BasinRepresentation.SPHERE)
         assert valid, msg
@@ -152,7 +149,7 @@ class TestBasinRepresentation:
         
         # From sphere
         raw2 = np.array([0.6, 0.8, 0.0])
-        raw2 = raw2 / np.linalg.norm(raw2)
+        raw2 = to_simplex_prob(raw2)
         canon2 = enforce_canonical(raw2)
         assert np.isclose(np.sum(canon2), 1.0)
         assert np.all(canon2 >= 0)
@@ -181,7 +178,7 @@ class TestBasinRepresentation:
     def test_roundtrip_sphere_simplex(self):
         """Roundtrip conversion sphere -> simplex -> sphere."""
         original = np.random.randn(64)
-        original = original / np.linalg.norm(original)
+        original = to_simplex_prob(original)
         
         # Sphere -> Simplex
         simplex = to_simplex(original, from_repr=BasinRepresentation.SPHERE)
@@ -243,7 +240,7 @@ class TestStrictMode:
         from qig_geometry.representation import validate_sqrt_simplex
         
         sqrt_basin = np.array([0.5, 0.5, 0.5, 0.5])
-        sqrt_basin = sqrt_basin / np.linalg.norm(sqrt_basin)
+        sqrt_basin = to_simplex_prob(sqrt_basin)
         is_valid, msg = validate_sqrt_simplex(sqrt_basin)
         assert is_valid, msg
     

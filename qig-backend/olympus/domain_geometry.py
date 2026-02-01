@@ -8,21 +8,7 @@ under Fisher-Rao distance. Pure geometric routing - no configuration.
 from typing import Dict
 import numpy as np
 
-try:
-    from ..qig_core.geometric_primitives.fisher_metric import fisher_rao_distance
-except Exception:
-    def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-        """
-        Fallback Fisher-Rao distance on probability simplex.
-        UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-        """
-        p = np.abs(p) + 1e-10
-        p = p / p.sum()
-        q = np.abs(q) + 1e-10
-        q = q / q.sum()
-        bc = np.sum(np.sqrt(p * q))
-        bc = np.clip(bc, 0.0, 1.0)
-        return float(np.arccos(bc))
+from qig_geometry.canonical import fisher_rao_distance
 
 try:
     from geometric_kernels import _generate_e8_roots

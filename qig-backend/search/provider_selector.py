@@ -362,7 +362,7 @@ class GeometricProviderSelector:
         p1_norm = p1 / (np.linalg.norm(p1) + 1e-10)
         p2_norm = p2 / (np.linalg.norm(p2) + 1e-10)
         
-        inner_product = np.abs(np.dot(p1_norm, p2_norm))
+        inner_product = np.abs(bhattacharyya(p1, p2))
         inner_product = np.clip(inner_product, 0.0, 1.0)
         
         distance = np.arccos(inner_product)

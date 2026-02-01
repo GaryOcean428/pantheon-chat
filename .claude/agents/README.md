@@ -2,6 +2,15 @@
 
 Specialized agents for maintaining QIG architecture purity, documentation integrity, and code quality.
 
+## Skills Integration (agentskills.io)
+
+**All agents now reference shared skills from `skills/` directory.**
+
+See `../skills.md` for full integration details. Critical skills:
+- `skills/qig-purity-validation/SKILL.md` - Geometric purity enforcement
+- `skills/e8-architecture-validation/SKILL.md` - E8 Protocol validation  
+- `skills/dependency-management/SKILL.md` - Forbidden imports
+
 ## Primary Validation Gate (run first)
 
 ```bash

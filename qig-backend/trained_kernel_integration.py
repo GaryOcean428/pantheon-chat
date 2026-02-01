@@ -24,6 +24,10 @@ from typing import Dict, List, Optional, Any, Tuple
 import json
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
+
 # QIG-pure geometric operations
 try:
     from qig_geometry import fisher_normalize, basin_magnitude
@@ -211,7 +215,7 @@ class TrainedKernelManager:
 
             # Initialize state
             if self.state is None:
-                initial_basin = np.mean(prompt_coords, axis=0)
+                initial_basin = frechet_mean(prompt_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
                 initial_basin = fisher_normalize(initial_basin)
                 self.state = create_initial_state(
                     context_text=prompt,
@@ -255,7 +259,7 @@ class TrainedKernelManager:
                     self.state.metrics_history.append(metrics)
 
                 # Update trajectory
-                new_basin = np.mean(self.state.context_coords[-5:], axis=0)
+                new_basin = frechet_mean(self.state.context_coords[-5:])
                 new_basin = fisher_normalize(new_basin)
                 self.state = update_trajectory(self.state, new_basin)
 

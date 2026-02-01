@@ -21,10 +21,6 @@ import pytest
 import time
 from typing import List, Dict, Optional
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from qig_geometry.two_step_retrieval import (
     to_sqrt_simplex,
     from_sqrt_simplex,
@@ -95,7 +91,7 @@ def test_sqrt_simplex_properties():
     assert np.all(sqrt_basin >= 0)
     
     # sqrt-space should be on unit hemisphere (norm ≈ 1)
-    norm = np.linalg.norm(sqrt_basin)
+    norm = np.sqrt(np.sum(sqrt_basin**2))
     assert np.isclose(norm, 1.0, atol=1e-6)
 
 

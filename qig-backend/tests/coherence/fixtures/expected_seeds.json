@@ -1,0 +1,34 @@
+{
+  "version": "1.0",
+  "description": "Fixed random seeds for reproducible coherence testing",
+  "seeds": {
+    "numpy_global_seed": 42,
+    "per_prompt_seeds": {
+      "factual_01": 1001,
+      "causal_01": 1002,
+      "creative_01": 1003,
+      "multistep_01": 1004,
+      "domain_01": 1005,
+      "simple_01": 1006,
+      "factual_02": 1007,
+      "causal_02": 1008,
+      "creative_02": 1009,
+      "conversation_01": 1010,
+      "technical_01": 1011,
+      "reasoning_01": 1012
+    },
+    "initialization_seeds": {
+      "basin_noise": 2001,
+      "exploration_map": 2002,
+      "kernel_routing": 2003,
+      "trajectory_manager": 2004
+    }
+  },
+  "reproducibility_notes": [
+    "Set numpy.random.seed() to global seed before all tests",
+    "Use per-prompt seeds for individual test runs",
+    "Use initialization seeds for component setup",
+    "Same seeds should produce identical results across runs",
+    "Different platforms may show slight floating-point variations"
+  ]
+}

@@ -30,6 +30,10 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 try:
     from qig_geometry import fisher_normalize
 except ImportError:
@@ -868,8 +872,8 @@ def enhance_basin_with_sensory(
     enhanced = basin + overlay
 
     # Normalize
-    norm = np.linalg.norm(enhanced)
-    if norm > 0:
-        enhanced = enhanced / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    enhanced = to_simplex_prob(enhanced)
 
     return enhanced

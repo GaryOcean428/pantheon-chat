@@ -20,6 +20,7 @@ from typing import List, Tuple
 # Import coordizer classes
 import sys
 import os
+from qig_geometry import to_simplex_prob
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from coordizers import BaseCoordizer, FisherCoordizer, PostgresCoordizer, get_coordizer
@@ -79,7 +80,7 @@ class TestFisherCoordinzerInterface:
         
         # Create a test basin
         test_basin = np.random.rand(64)
-        test_basin = test_basin / np.linalg.norm(test_basin)
+        test_basin = to_simplex_prob(test_basin)
         
         # Call decode_geometric
         results = coordizer.decode_geometric(test_basin, top_k=5)
@@ -122,7 +123,7 @@ class TestFisherCoordinzerInterface:
         
         # Attempting POS filtering should raise NotImplementedError
         test_basin = np.random.rand(64)
-        test_basin = test_basin / np.linalg.norm(test_basin)
+        test_basin = to_simplex_prob(test_basin)
         
         with pytest.raises(NotImplementedError):
             coordizer.decode_geometric(test_basin, top_k=5, allowed_pos="NOUN")
@@ -203,7 +204,7 @@ class TestPostgresCoordinzerInterface:
             
             # Create test basin
             test_basin = np.random.rand(64)
-            test_basin = test_basin / np.linalg.norm(test_basin)
+            test_basin = to_simplex_prob(test_basin)
             
             # Try decoding with POS filter
             results = coordizer.decode_geometric(
@@ -239,7 +240,7 @@ class TestCoordinzerConsistency:
         assert len(basin) == 64
         
         # Should be normalized (or close to it)
-        norm = np.linalg.norm(basin)
+        norm = np.sqrt(np.sum(basin**2))
         assert abs(norm - 1.0) < 0.01 or norm < 0.01  # Either normalized or zero
     
     def test_decode_geometric_distance_sorted(self):
@@ -252,7 +253,7 @@ class TestCoordinzerConsistency:
         
         # Create test basin
         test_basin = np.random.rand(64)
-        test_basin = test_basin / np.linalg.norm(test_basin)
+        test_basin = to_simplex_prob(test_basin)
         
         # Get results
         results = coordizer.decode_geometric(test_basin, top_k=5)
@@ -272,7 +273,7 @@ class TestCoordinzerConsistency:
         
         # Create test basin
         test_basin = np.random.rand(64)
-        test_basin = test_basin / np.linalg.norm(test_basin)
+        test_basin = to_simplex_prob(test_basin)
         
         # Call twice with same input
         results1 = coordizer.decode_geometric(test_basin, top_k=3)

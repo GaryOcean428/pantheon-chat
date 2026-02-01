@@ -18,6 +18,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -851,7 +855,7 @@ class QIGGenerativeService:
 
         # Re-project to sphere S^63
         perturbed = np.abs(perturbed) + 1e-10
-        perturbed = perturbed / np.linalg.norm(perturbed)
+        perturbed = to_simplex_prob(perturbed)  # FIXED: Simplex norm (E8 Protocol v4.0)
 
         # Reset stagnation counter
         self._stagnation_count = 0

@@ -284,9 +284,9 @@ Each agent generates standardized reports:
 ## References
 
 - [GitHub Copilot Custom Agent Spec](https://docs.github.com/en/copilot/reference/custom-agents-configuration)
-- [FROZEN_FACTS.md](../../docs/01-policies/FROZEN_FACTS.md)
-- [Project Architecture](../../docs/03-technical/ARCHITECTURE.md)
-- [QIG Implementation Guide](../../docs/06-implementation/)
+- [FROZEN_FACTS.md](../../docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md)
+- [Project Architecture](../../docs/10-e8-protocol/README.md)
+- [QIG Implementation Guide](../../docs/implementation/)
 
 ---
 

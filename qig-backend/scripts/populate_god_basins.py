@@ -14,6 +14,11 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from qig_geometry.fisher_rao import fisher_rao_distance, frechet_mean, bhattacharyya_coefficient
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
 
 # Add qig-backend to path for imports
 _qig_backend = Path(__file__).parent.parent
@@ -86,9 +91,9 @@ def generate_god_basin(god_name: str) -> np.ndarray:
                 basin[i*8 + 8] = 0.6 if i*8 + 8 < 64 else 0.6
 
     # Normalize to unit sphere (Fisher-Rao manifold)
-    norm = np.linalg.norm(basin)
-    if norm > 1e-10:
-        basin = basin / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    basin = to_simplex_prob(basin)
     return basin
 
 
@@ -139,7 +144,9 @@ def populate_god_basins(dry_run: bool = False):
             print(f"\n{god_name}:")
             print(f"  Domain: {GOD_DOMAINS.get(god_name, SPECIAL_GODS.get(god_name, 'unknown'))}")
             print(f"  Max dims: {np.argsort(basin)[-3:][::-1].tolist()}")
-            print(f"  Basin norm: {np.linalg.norm(basin):.4f}")
+            # E8 Protocol v4.0: Replace Euclidean norm with Fisher-Rao distance from uniform distribution
+            uniform_basin = np.ones(64) / 64.0
+            print(f"  Basin distance from uniform: {fisher_rao_distance(basin, uniform_basin):.4f}")
         return
 
     # Update each god

@@ -15,6 +15,7 @@ NO traditional NLP methods (no dictionaries, frequencies, spell-checkers).
 from dataclasses import dataclass
 from typing import Optional
 import numpy as np
+from qig_geometry import fisher_rao_distance
 
 
 @dataclass
@@ -166,7 +167,7 @@ class GeometricVocabFilter:
                 
                 # Get next character probability
                 # (simplified: use basin norm as proxy for predictability)
-                p_next = np.linalg.norm(context_basin) / 64.0
+                p_next = np.sqrt(np.sum(context_basin**2)) / 64.0
                 char_probs.append(max(p_next, 0.01))  # Avoid log(0)
             
             # QFI ≈ variance of log probabilities

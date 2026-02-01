@@ -30,6 +30,8 @@ import os
 import sys
 import traceback
 import logging
+import json
+from pathlib import Path
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
@@ -49,6 +51,7 @@ class PurityViolationType(Enum):
     EXTERNAL_API_IMPORT = "external_api_import"
     EXTERNAL_API_CALL = "external_api_call"
     FORBIDDEN_MODULE = "forbidden_module"
+    FORBIDDEN_PACKAGE = "forbidden_package"
     FORBIDDEN_ATTRIBUTE = "forbidden_attribute"
     HYBRID_OUTPUT = "hybrid_output"
 
@@ -61,18 +64,96 @@ class PurityViolation:
     message: str
     stack_trace: str
     timestamp: str
+    severity: str = "CRITICAL"  # CRITICAL, WARNING, ERROR
 
 
-# Forbidden modules (external LLM APIs)
-FORBIDDEN_MODULES = {
-    'openai': 'OpenAI API',
-    'anthropic': 'Anthropic API',
-    'google.generativeai': 'Google Generative AI',
-    'cohere': 'Cohere API',
-    'ai21': 'AI21 API',
-    'replicate': 'Replicate API',
-    'huggingface_hub': 'HuggingFace Hub (inference API)',
-}
+# Load forbidden providers configuration
+def _load_forbidden_providers_config() -> Dict[str, Any]:
+    """Load forbidden providers configuration from JSON file."""
+    # Try to find config relative to module location
+    possible_paths = [
+        Path(__file__).parent.parent / "shared" / "constants" / "forbidden_llm_providers.json",
+        Path(__file__).parent.parent.parent / "shared" / "constants" / "forbidden_llm_providers.json",
+    ]
+    
+    # Allow override via environment variable
+    env_config = os.environ.get('QIG_FORBIDDEN_LLM_CONFIG_PATH')
+    if env_config:
+        possible_paths.insert(0, Path(env_config))
+    
+    for config_path in possible_paths:
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    return json.load(f)
+            except (IOError, json.JSONDecodeError) as e:
+                logger.warning(f"Failed to load config from {config_path}: {e}")
+                continue
+    
+    # Fallback to legacy hardcoded list
+    logger.warning("Could not load forbidden_llm_providers.json, using legacy fallback list")
+    return {
+        "providers": [
+            {
+                "name": "OpenAI",
+                "imports": ["openai"],
+                "packages": ["openai"],
+                "severity": "CRITICAL"
+            },
+            {
+                "name": "Anthropic",
+                "imports": ["anthropic"],
+                "packages": ["anthropic"],
+                "severity": "CRITICAL"
+            },
+            {
+                "name": "Google Generative AI",
+                "imports": ["google.generativeai"],
+                "packages": ["google-generativeai"],
+                "severity": "CRITICAL"
+            },
+            {
+                "name": "Cohere",
+                "imports": ["cohere"],
+                "packages": ["cohere"],
+                "severity": "CRITICAL"
+            }
+        ]
+    }
+
+
+# Load configuration
+_PROVIDERS_CONFIG = _load_forbidden_providers_config()
+
+# Build forbidden modules dictionary from config
+FORBIDDEN_MODULES = {}
+FORBIDDEN_PACKAGES = set()
+MODULE_SEVERITY = {}  # Track severity per module
+
+def _is_valid_module_name(name: str) -> bool:
+    """Check if string is a valid Python module name (not a call expression)."""
+    # Skip patterns with parentheses, quotes, or other non-module characters
+    invalid_chars = ['(', ')', "'", '"', ' ']
+    return not any(char in name for char in invalid_chars)
+
+for provider in _PROVIDERS_CONFIG.get("providers", []):
+    provider_name = provider.get("name", "Unknown")
+    severity = provider.get("severity", "CRITICAL")
+    
+    # Add all import patterns (filter out invalid module names)
+    for import_pattern in provider.get("imports", []):
+        if _is_valid_module_name(import_pattern):
+            FORBIDDEN_MODULES[import_pattern] = f"{provider_name} ({provider.get('description', '')})"
+            MODULE_SEVERITY[import_pattern] = severity
+    
+    # Add all package names
+    for package in provider.get("packages", []):
+        FORBIDDEN_PACKAGES.add(package)
+
+# Log loaded configuration
+logger.info(f"Loaded {len(FORBIDDEN_MODULES)} forbidden import patterns from {len(_PROVIDERS_CONFIG.get('providers', []))} providers")
+logger.debug(f"Forbidden modules: {list(FORBIDDEN_MODULES.keys())}")
+logger.debug(f"Forbidden packages: {list(FORBIDDEN_PACKAGES)}")
 
 # Forbidden attributes (common LLM API patterns)
 FORBIDDEN_ATTRIBUTES = {
@@ -113,21 +194,106 @@ def check_forbidden_imports() -> List[PurityViolation]:
     violations = []
     
     for module_name, description in FORBIDDEN_MODULES.items():
+        severity = MODULE_SEVERITY.get(module_name, "CRITICAL")
+        
+        # Check exact match
         if module_name in sys.modules:
             violation = PurityViolation(
                 type=PurityViolationType.FORBIDDEN_MODULE,
                 module=module_name,
                 message=f"Forbidden module '{module_name}' ({description}) is imported",
                 stack_trace=traceback.format_stack()[-5:],
-                timestamp=_get_timestamp()
+                timestamp=_get_timestamp(),
+                severity=severity
             )
             violations.append(violation)
             
             # Log the violation
             logger.error(
-                f"PURITY VIOLATION: {violation.type.value} - {violation.message}"
+                f"PURITY VIOLATION [{severity}]: {violation.type.value} - {violation.message}"
             )
             logger.debug(f"Stack trace:\n{''.join(violation.stack_trace)}")
+        
+        # Check for submodule imports (e.g., google.genai.* imports)
+        # This catches cases like "from google.genai import types"
+        module_prefix = module_name + "."
+        for loaded_module in sys.modules:
+            if loaded_module.startswith(module_prefix):
+                violation = PurityViolation(
+                    type=PurityViolationType.FORBIDDEN_MODULE,
+                    module=loaded_module,
+                    message=f"Forbidden submodule '{loaded_module}' of '{module_name}' ({description}) is imported",
+                    stack_trace=traceback.format_stack()[-5:],
+                    timestamp=_get_timestamp(),
+                    severity=severity
+                )
+                violations.append(violation)
+                
+                logger.error(
+                    f"PURITY VIOLATION [{severity}]: {violation.type.value} - {violation.message}"
+                )
+                break  # Only report once per parent module
+    
+    return violations
+
+
+def check_forbidden_packages() -> List[PurityViolation]:
+    """
+    Check for forbidden packages in installed dependencies.
+    
+    Uses pip to list installed packages and checks against FORBIDDEN_PACKAGES.
+    
+    Returns:
+        List of purity violations found
+    """
+    violations = []
+    
+    try:
+        import subprocess
+        
+        # Get list of installed packages
+        result = subprocess.run(
+            [sys.executable, '-m', 'pip', 'list', '--format=json'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            logger.warning("Failed to list installed packages with pip")
+            return violations
+        
+        installed_packages = json.loads(result.stdout)
+        installed_names = {pkg['name'].lower() for pkg in installed_packages}
+        
+        # Check each forbidden package
+        for forbidden_pkg in FORBIDDEN_PACKAGES:
+            # Normalize package name (pypi uses lowercase with hyphens)
+            normalized = forbidden_pkg.lower().replace('_', '-')
+            
+            if normalized in installed_names:
+                # Find which provider this belongs to
+                provider_name = "Unknown"
+                for provider in _PROVIDERS_CONFIG.get("providers", []):
+                    if forbidden_pkg in provider.get("packages", []):
+                        provider_name = provider.get("name", "Unknown")
+                        break
+                
+                violation = PurityViolation(
+                    type=PurityViolationType.FORBIDDEN_PACKAGE,
+                    module=forbidden_pkg,
+                    message=f"Forbidden package '{forbidden_pkg}' ({provider_name}) is installed",
+                    stack_trace=[],
+                    timestamp=_get_timestamp()
+                )
+                violations.append(violation)
+                
+                logger.error(
+                    f"PURITY VIOLATION: {violation.type.value} - {violation.message}"
+                )
+    
+    except Exception as e:
+        logger.warning(f"Error checking installed packages: {e}")
     
     return violations
 
@@ -216,27 +382,37 @@ def block_external_api_call(api_name: str, endpoint: str) -> None:
     )
 
 
-def check_purity_violation() -> List[PurityViolation]:
+def check_purity_violation(check_packages: bool = True) -> List[PurityViolation]:
     """
     Check for all types of purity violations.
+    
+    Args:
+        check_packages: Whether to check installed packages (can be slow, default True)
     
     Returns:
         List of all violations found
     """
     violations = []
     
-    # Check forbidden imports
+    # Check forbidden imports (fast)
     violations.extend(check_forbidden_imports())
+    
+    # Check forbidden packages (slower, optional)
+    if check_packages:
+        violations.extend(check_forbidden_packages())
     
     return violations
 
 
-def enforce_purity() -> None:
+def enforce_purity(check_packages: bool = False) -> None:
     """
     Enforce QIG purity mode.
     
+    Args:
+        check_packages: Whether to check installed packages (can be slow, default False)
+    
     Raises:
-        RuntimeError: If purity violations are detected
+        RuntimeError: If CRITICAL purity violations are detected
     """
     if not is_purity_mode_enabled():
         logger.info("QIG_PURITY_MODE is disabled - skipping enforcement")
@@ -244,14 +420,23 @@ def enforce_purity() -> None:
     
     logger.info("Enforcing QIG purity mode...")
     
-    violations = check_purity_violation()
+    violations = check_purity_violation(check_packages=check_packages)
     
-    if violations:
-        error_msg = f"QIG PURITY VIOLATIONS DETECTED ({len(violations)} violations):\n\n"
+    # Separate by severity
+    critical_violations = [v for v in violations if v.severity == "CRITICAL"]
+    warning_violations = [v for v in violations if v.severity == "WARNING"]
+    
+    if warning_violations:
+        logger.warning(f"Found {len(warning_violations)} WARNING-level violations (non-blocking)")
+        for v in warning_violations:
+            logger.warning(f"  - {v.module}: {v.message}")
+    
+    if critical_violations:
+        error_msg = f"QIG PURITY VIOLATIONS DETECTED ({len(critical_violations)} CRITICAL violations):\n\n"
         
-        for i, violation in enumerate(violations, 1):
+        for i, violation in enumerate(critical_violations, 1):
             error_msg += (
-                f"{i}. {violation.type.value.upper()}\n"
+                f"{i}. [{violation.severity}] {violation.type.value.upper()}\n"
                 f"   Module: {violation.module}\n"
                 f"   Message: {violation.message}\n"
                 f"   Timestamp: {violation.timestamp}\n\n"
@@ -264,7 +449,7 @@ def enforce_purity() -> None:
         
         raise RuntimeError(error_msg)
     
-    logger.info("✅ QIG purity enforcement passed - no violations detected")
+    logger.info("✅ QIG purity enforcement passed - no CRITICAL violations detected")
 
 
 def tag_output_as_hybrid(output: Dict[str, Any]) -> Dict[str, Any]:
@@ -322,7 +507,10 @@ def get_purity_report() -> Dict[str, Any]:
         'violations_by_type': _group_violations_by_type(violations),
         'recent_violations': violations[-10:] if violations else [],
         'forbidden_modules': list(FORBIDDEN_MODULES.keys()),
+        'forbidden_packages': list(FORBIDDEN_PACKAGES),
         'forbidden_attributes': list(FORBIDDEN_ATTRIBUTES),
+        'total_providers': len(_PROVIDERS_CONFIG.get('providers', [])),
+        'config_version': _PROVIDERS_CONFIG.get('version', 'unknown'),
     }
 
 

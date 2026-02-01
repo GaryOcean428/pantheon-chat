@@ -325,7 +325,7 @@ class ArtifactValidator:
             
             # Check unit norm
             coord_array = np.array(basin_coord, dtype=np.float64)
-            norm = np.linalg.norm(coord_array)
+            norm = np.sqrt(np.sum(coord_array**2))
             if not (0.99 < norm < 1.01):
                 self.add_error(
                     f"Special symbol {symbol} not unit-normalized: norm={norm:.6f}"

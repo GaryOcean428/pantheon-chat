@@ -21,6 +21,10 @@ Integration:
 Usage:
     from coordizers import get_coordizer
     from coordizers.vocab_builder import GeometricVocabBuilder
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical import frechet_mean
+
     
     coordizer = get_coordizer()
     builder = GeometricVocabBuilder()
@@ -298,7 +302,7 @@ class GeometricVocabBuilder:
             
             if pos_coords:
                 # Compute Fréchet mean on sphere
-                avg = np.mean(pos_coords, axis=0)
+                avg = frechet_mean(pos_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
                 avg = fisher_normalize(avg)
                 position_avgs.append(avg)
         

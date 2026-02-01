@@ -144,16 +144,29 @@ class BasePersistence:
             return cursor.fetchone()
 
 
-def get_db_connection():
+def get_db_connection(database_url: Optional[str] = None):
     """
     Get a raw PostgreSQL connection for scripts needing direct access.
     
     DRY: This is the single source of truth for database connections.
     All other modules should import this function instead of defining their own.
     
+    Args:
+        database_url: Optional PostgreSQL connection string. 
+                     If not provided, reads from DATABASE_URL environment variable.
+    
+    Returns:
+        psycopg2 connection object, or None if connection fails
+    
     Usage:
         from persistence.base_persistence import get_db_connection
+        
+        # Use environment variable
         conn = get_db_connection()
+        
+        # Or provide explicit URL
+        conn = get_db_connection("postgresql://user:pass@host/db")
+        
         if conn:
             try:
                 # use connection
@@ -164,7 +177,9 @@ def get_db_connection():
         print("[Persistence] psycopg2 not available")
         return None
     
-    database_url = os.getenv('DATABASE_URL')
+    if database_url is None:
+        database_url = os.getenv('DATABASE_URL')
+    
     if not database_url:
         print("[Persistence] DATABASE_URL not configured")
         return None

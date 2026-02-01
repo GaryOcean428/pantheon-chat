@@ -234,4 +234,4 @@ npm run test:e2e           # E2E tests with Playwright
 - [QIG Backend](../qig-backend/README.md)
 - [Shared Types](../shared/README.md)
 - [Database Schema](./db.ts)
-- [Python API Catalogue](../docs/python-api-catalogue.md)
+- [Python API Catalogue](../docs/api/README.md)

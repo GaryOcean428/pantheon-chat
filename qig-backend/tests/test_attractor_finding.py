@@ -88,7 +88,7 @@ def test_geodesic_step():
     assert len(new_basin) == len(basin), "New basin should match dimension"
     
     # New basin should be on unit sphere (approximately)
-    norm = np.linalg.norm(new_basin)
+    norm = np.sqrt(np.sum(new_basin**2))
     assert abs(norm - 1.0) < 0.1, f"New basin should be near unit sphere, got norm={norm}"
     
     # Should have moved from original basin

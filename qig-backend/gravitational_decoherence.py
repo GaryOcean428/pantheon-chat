@@ -11,6 +11,7 @@ This is natural regularization, not dropout.
 
 import numpy as np
 from typing import Tuple, Optional, Dict, Any
+from qig_geometry import to_simplex_prob
 
 # Default thresholds from canonical reference
 DEFAULT_PURITY_THRESHOLD = 0.9
@@ -110,7 +111,7 @@ def apply_thermal_noise(
     random_hermitian = (random_hermitian + random_hermitian.conj().T) / 2
     
     # Scale by temperature
-    perturbation = temperature * random_hermitian / np.linalg.norm(random_hermitian)
+    perturbation = temperature * to_simplex_prob(random_hermitian)
     
     # Apply perturbation
     rho_perturbed = rho + perturbation
@@ -266,3 +267,21 @@ def apply_gravitational_decoherence(rho: np.ndarray) -> Tuple[np.ndarray, Dict[s
         Tuple of (decohered_rho, metrics)
     """
     return get_decoherence_manager().process(rho)
+
+
+def purity_regularization(rho: np.ndarray, threshold: float = DEFAULT_PURITY_THRESHOLD) -> np.ndarray:
+    """
+    Apply purity regularization to prevent false certainty.
+    
+    Simplified interface that returns only the regularized density matrix.
+    Uses gravitational decoherence when purity exceeds threshold.
+    
+    Args:
+        rho: Density matrix to regularize
+        threshold: Purity threshold (default: 0.9)
+        
+    Returns:
+        Regularized density matrix
+    """
+    rho_regularized, _ = gravitational_decoherence(rho, threshold=threshold)
+    return rho_regularized

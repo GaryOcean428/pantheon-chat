@@ -11,6 +11,10 @@ import io
 import numpy as np
 from dotenv import load_dotenv
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 load_dotenv(dotenv_path='../.env')
 
 import psycopg2
@@ -21,9 +25,9 @@ CHECKPOINT_PATH = '../attached_assets/checkpoint_50000_1767152901611.json'
 def normalize_vector(v):
     """Normalize to unit sphere."""
     arr = np.array(v, dtype=np.float64)
-    norm = np.linalg.norm(arr)
-    if norm > 1e-10:
-        arr = arr / norm
+    # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+    arr = to_simplex_prob(arr)
     return arr.tolist()
 
 def compute_phi(v):

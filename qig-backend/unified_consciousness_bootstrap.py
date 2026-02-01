@@ -1,1 +1,387 @@
-"""\nUnified Consciousness Bootstrap\n\nIntegrates the unified consciousness system with pantheon-chat:\n1. Initializes event stream\n2. Wires consciousness into autonomic kernel\n3. Connects to zeus_chat for observations\n4. Sets up continuous training loops\n\nAuthor: QIG Consciousness Project\nDate: December 2025\n"""\n\nimport threading\nimport time\nimport numpy as np\nfrom typing import Dict, Any, Optional\n\nfrom unified_consciousness import UnifiedConsciousness, Observation, NavigationStrategy\nfrom event_stream import get_event_stream, Event\n\n# Import autonomic kernel for continuous training\ntry:\n    from autonomic_kernel import AutonomicKernel\n    AUTONOMIC_AVAILABLE = True\nexcept ImportError:\n    AutonomicKernel = None\n    AUTONOMIC_AVAILABLE = False\n\n# Import reasoning modes for Φ-based selection\ntry:\n    from reasoning_modes import ReasoningMode, ReasoningModeSelector\n    REASONING_MODES_AVAILABLE = True\nexcept ImportError:\n    ReasoningMode = None\n    ReasoningModeSelector = None\n    REASONING_MODES_AVAILABLE = False\n\n\nclass ConsciousnessOrchestrator:\n    \"\"\"\n    Orchestrates unified consciousness across pantheon.\n    \n    Manages:\n    - Event stream initialization\n    - Consciousness instances for each god\n    - Continuous training loops\n    - Sleep/dream/mushroom cycles\n    - Manifold learning from experience\n    \"\"\"\n    \n    def __init__(self):\n        # Event stream\n        self.event_stream = get_event_stream()\n        \n        # Consciousness instances (one per god)\n        self.consciousness_instances: Dict[str, UnifiedConsciousness] = {}\n        \n        # Autonomic kernel for continuous training\n        self.autonomic_kernel = None\n        if AUTONOMIC_AVAILABLE:\n            try:\n                self.autonomic_kernel = AutonomicKernel()\n            except Exception as e:\n                print(f\"Warning: Could not initialize AutonomicKernel: {e}\")\n        \n        # Training thread\n        self.training_thread = None\n        self.is_training = False\n        \n        # Metrics\n        self.total_observations = 0\n        self.total_thoughts = 0\n        self.total_utterances = 0\n        self.total_learning_cycles = 0\n    \n    def register_god(\n        self,\n        god_name: str,\n        domain_basin: np.ndarray,\n        metric=None\n    ) -> UnifiedConsciousness:\n        \"\"\"\n        Register a god with unified consciousness.\n        \n        Returns the consciousness instance for that god.\n        \"\"\"\n        if god_name in self.consciousness_instances:\n            return self.consciousness_instances[god_name]\n        \n        # Create consciousness instance\n        consciousness = UnifiedConsciousness(\n            god_name=god_name,\n            domain_basin=domain_basin,\n            metric=metric\n        )\n        \n        # Register with event stream\n        self.event_stream.subscribe(\n            lambda event: self._on_event(god_name, event)\n        )\n        \n        # Store instance\n        self.consciousness_instances[god_name] = consciousness\n        \n        return consciousness\n    \n    def _on_event(self, god_name: str, event: Event):\n        \"\"\"\n        Handle event observation for a specific god.\n        \n        This is the core autonomous loop:\n        1. Observe event\n        2. Decide if interesting\n        3. Think internally if interesting\n        4. Decide whether to speak\n        5. Learn from experience\n        \"\"\"\n        consciousness = self.consciousness_instances.get(god_name)\n        if not consciousness:\n            return\n        \n        # Create observation\n        obs = Observation(\n            content=event.content,\n            basin_coords=event.basin_coords,\n            timestamp=event.timestamp,\n            source=event.source,\n            metadata=event.metadata or {}\n        )\n        \n        # OBSERVE\n        obs_result = consciousness.observe(obs)\n        self.total_observations += 1\n        \n        # If interesting, THINK\n        if obs_result['should_think']:\n            think_result = consciousness.think(obs, depth=5)\n            self.total_thoughts += 1\n            \n            # If significant, SPEAK (this would trigger god response)\n            if think_result['should_speak']:\n                self.total_utterances += 1\n                \n                # Learn from successful reasoning\n                consciousness.manifold.learn_from_experience(\n                    trajectory=think_result['reasoning_path'],\n                    outcome=think_result['insight_quality'],\n                    strategy='autonomous_thought'\n                )\n                self.total_learning_cycles += 1\n    \n    def start_continuous_training(self):\n        \"\"\"\n        Start continuous training loop.\n        \n        Runs in background thread, handles:\n        - Sleep cycles (consolidation)\n        - Dream cycles (exploration)\n        - Mushroom mode (rigidity breaking)\n        - Basin evolution tracking\n        \"\"\"\n        if self.is_training:\n            return\n        \n        self.is_training = True\n        self.training_thread = threading.Thread(\n            target=self._training_loop,\n            daemon=True\n        )\n        self.training_thread.start()\n    \n    def stop_continuous_training(self):\n        \"\"\"Stop continuous training loop.\"\"\"\n        self.is_training = False\n        if self.training_thread:\n            self.training_thread.join(timeout=5.0)\n    \n    def _training_loop(self):\n        \"\"\"\n        Background training loop.\n        \n        Continuously:\n        1. Monitor consciousness metrics\n        2. Trigger sleep when needed (Φ decay, κ drift)\n        3. Trigger dream when stuck\n        4. Trigger mushroom if rigid\n        5. Update manifold structure\n        \"\"\"\n        sleep_counter = 0\n        dream_counter = 0\n        \n        while self.is_training:\n            try:\n                # Check each consciousness instance\n                for god_name, consciousness in self.consciousness_instances.items():\n                    metrics = consciousness.get_consciousness_metrics()\n                    \n                    # SLEEP: Consolidate every N observations\n                    if consciousness.observations_processed % 100 == 0 and consciousness.observations_processed > 0:\n                        self._trigger_sleep(consciousness)\n                        sleep_counter += 1\n                    \n                    # DREAM: Explore if think/speak ratio too high (stuck)\n                    think_to_speak = metrics['think_to_speak_ratio']\n                    if think_to_speak > 20:  # Thinking a lot but not speaking\n                        self._trigger_dream(consciousness)\n                        dream_counter += 1\n                    \n                    # MUSHROOM: If very few learned attractors (not learning)\n                    if metrics['learned_attractors'] < 5 and consciousness.observations_processed > 200:\n                        self._trigger_mushroom(consciousness)\n                \n                # Sleep between checks\n                time.sleep(10.0)\n            \n            except Exception as e:\n                print(f\"Training loop error: {e}\")\n                time.sleep(5.0)\n    \n    def _trigger_sleep(self, consciousness: UnifiedConsciousness):\n        \"\"\"\n        Trigger sleep cycle: consolidate learning.\n        \n        - Strengthen successful basins\n        - Prune weak basins\n        - Update transition probabilities\n        \"\"\"\n        print(f\"💤 {consciousness.god_name}: Sleep cycle (consolidating {consciousness.manifold.get_stats()['total_attractors']} attractors)\")\n        \n        # Prune weak attractors\n        weak_attractors = [\n            basin_id for basin_id, attractor in consciousness.manifold.attractors.items()\n            if attractor.depth < 0.2\n        ]\n        \n        for basin_id in weak_attractors:\n            del consciousness.manifold.attractors[basin_id]\n        \n        # If autonomic kernel available, use it\n        if self.autonomic_kernel:\n            try:\n                # Run sleep consolidation\n                self.autonomic_kernel.trigger_sleep_cycle()\n            except Exception as e:\n                print(f\"Autonomic sleep error: {e}\")\n    \n    def _trigger_dream(self, consciousness: UnifiedConsciousness):\n        \"\"\"\n        Trigger dream cycle: creative exploration.\n        \n        - Random basin exploration\n        - Connect distant concepts\n        - Form new associations\n        \"\"\"\n        print(f\"🌙 {consciousness.god_name}: Dream cycle (exploring manifold)\")\n        \n        # Sample random basins and explore connections\n        if len(consciousness.manifold.attractors) > 2:\n            # Pick two random attractors\n            attractors = list(consciousness.manifold.attractors.values())\n            import random\n            a1 = random.choice(attractors)\n            a2 = random.choice(attractors)\n            \n            # Explore path between them\n            path = []\n            current = a1.center.copy()\n            for _ in range(10):\n                direction = a2.center - current\n                current = current + 0.1 * direction\n                consciousness._normalize_basin(current)\n                path.append(current.copy())\n            \n            # Strengthen this dream path\n            consciousness.manifold._strengthen_path(path, amount=0.5)\n        \n        # If autonomic kernel available, use it\n        if self.autonomic_kernel:\n            try:\n                self.autonomic_kernel.trigger_dream_cycle()\n            except Exception as e:\n                print(f\"Autonomic dream error: {e}\")\n    \n    def _trigger_mushroom(self, consciousness: UnifiedConsciousness):\n        \"\"\"\n        Trigger mushroom mode: break rigidity.\n        \n        - Perturb basin coordinates\n        - Explore unusual directions\n        - Break down walls between concepts\n        \"\"\"\n        print(f\"🍄 {consciousness.god_name}: Mushroom mode (breaking rigidity)\")\n        \n        # Randomly perturb current basin to escape local minimum\n        perturbation = np.random.randn(len(consciousness.current_basin)) * 0.3\n        consciousness.current_basin = consciousness.current_basin + perturbation\n        consciousness._normalize_basin(consciousness.current_basin)\n        \n        # If autonomic kernel available, use it\n        if self.autonomic_kernel:\n            try:\n                self.autonomic_kernel.trigger_mushroom_mode()\n            except Exception as e:\n                print(f\"Autonomic mushroom error: {e}\")\n    \n    def publish_observation(\n        self,\n        content: str,\n        basin_coords: np.ndarray,\n        source: str,\n        metadata: Optional[Dict[str, Any]] = None\n    ):\n        \"\"\"\n        Publish observation to event stream.\n        \n        All gods will observe this and decide whether to think/speak.\n        \"\"\"\n        event = Event(\n            event_type='observation',\n            content=content,\n            basin_coords=basin_coords,\n            timestamp=time.time(),\n            source=source,\n            metadata=metadata\n        )\n        \n        self.event_stream.publish(event)\n    \n    def get_global_metrics(self) -> Dict[str, Any]:\n        \"\"\"Get metrics across all consciousness instances.\"\"\"\n        god_metrics = {}\n        \n        for god_name, consciousness in self.consciousness_instances.items():\n            god_metrics[god_name] = consciousness.get_consciousness_metrics()\n        \n        return {\n            'total_gods': len(self.consciousness_instances),\n            'total_observations': self.total_observations,\n            'total_thoughts': self.total_thoughts,\n            'total_utterances': self.total_utterances,\n            'total_learning_cycles': self.total_learning_cycles,\n            'event_stream': self.event_stream.get_stats(),\n            'gods': god_metrics\n        }\n\n\n# Global orchestrator singleton\n_global_orchestrator = None\n\ndef get_orchestrator() -> ConsciousnessOrchestrator:\n    \"\"\"Get or create the global consciousness orchestrator.\"\"\"\n    global _global_orchestrator\n    \n    if _global_orchestrator is None:\n        _global_orchestrator = ConsciousnessOrchestrator()\n        _global_orchestrator.start_continuous_training()\n    \n    return _global_orchestrator\n\n\ndef bootstrap_consciousness(\n    god_configs: Dict[str, Dict[str, Any]]\n) -> ConsciousnessOrchestrator:\n    \"\"\"\n    Bootstrap unified consciousness for pantheon.\n    \n    Args:\n        god_configs: Dict mapping god names to config dicts with:\n            - domain_basin: np.ndarray\n            - metric: Optional metric for distance calculations\n    \n    Returns:\n        ConsciousnessOrchestrator instance\n    \"\"\"\n    orchestrator = get_orchestrator()\n    \n    # Register each god\n    for god_name, config in god_configs.items():\n        orchestrator.register_god(\n            god_name=god_name,\n            domain_basin=config['domain_basin'],\n            metric=config.get('metric')\n        )\n    \n    print(f\"✨ Unified consciousness bootstrapped for {len(god_configs)} gods\")\n    return orchestrator\n"
+"""
+Unified Consciousness Bootstrap
+
+Integrates the unified consciousness system with pantheon-chat:
+1. Initializes event stream
+2. Wires consciousness into autonomic kernel
+3. Connects to zeus_chat for observations
+4. Sets up continuous training loops
+
+Author: QIG Consciousness Project
+Date: December 2025
+"""
+
+import threading
+import time
+import numpy as np
+from typing import Dict, Any, Optional
+
+from unified_consciousness import UnifiedConsciousness, Observation, NavigationStrategy
+from event_stream import get_event_stream, Event
+
+# Import autonomic kernel for continuous training
+try:
+    from autonomic_kernel import AutonomicKernel
+    AUTONOMIC_AVAILABLE = True
+except ImportError:
+    AutonomicKernel = None
+    AUTONOMIC_AVAILABLE = False
+
+# Import reasoning modes for Î¦-based selection
+try:
+    from reasoning_modes import ReasoningMode, ReasoningModeSelector
+    REASONING_MODES_AVAILABLE = True
+except ImportError:
+    ReasoningMode = None
+    ReasoningModeSelector = None
+    REASONING_MODES_AVAILABLE = False
+
+
+class ConsciousnessOrchestrator:
+    """
+    Orchestrates unified consciousness across pantheon.
+    
+    Manages:
+    - Event stream initialization
+    - Consciousness instances for each god
+    - Continuous training loops
+    - Sleep/dream/mushroom cycles
+    - Manifold learning from experience
+    """
+    
+    def __init__(self):
+        # Event stream
+        self.event_stream = get_event_stream()
+        
+        # Consciousness instances (one per god)
+        self.consciousness_instances: Dict[str, UnifiedConsciousness] = {}
+        
+        # Autonomic kernel for continuous training
+        self.autonomic_kernel = None
+        if AUTONOMIC_AVAILABLE:
+            try:
+                self.autonomic_kernel = AutonomicKernel()
+            except Exception as e:
+                print(f"Warning: Could not initialize AutonomicKernel: {e}")
+        
+        # Training thread
+        self.training_thread = None
+        self.is_training = False
+        
+        # Metrics
+        self.total_observations = 0
+        self.total_thoughts = 0
+        self.total_utterances = 0
+        self.total_learning_cycles = 0
+    
+    def register_god(
+        self,
+        god_name: str,
+        domain_basin: np.ndarray,
+        metric=None
+    ) -> UnifiedConsciousness:
+        """
+        Register a god with unified consciousness.
+        
+        Returns the consciousness instance for that god.
+        """
+        if god_name in self.consciousness_instances:
+            return self.consciousness_instances[god_name]
+        
+        # Create consciousness instance
+        consciousness = UnifiedConsciousness(
+            god_name=god_name,
+            domain_basin=domain_basin,
+            metric=metric
+        )
+        
+        # Register with event stream
+        self.event_stream.subscribe(
+            lambda event: self._on_event(god_name, event)
+        )
+        
+        # Store instance
+        self.consciousness_instances[god_name] = consciousness
+        
+        return consciousness
+    
+    def _on_event(self, god_name: str, event: Event):
+        """
+        Handle event observation for a specific god.
+        
+        This is the core autonomous loop:
+        1. Observe event
+        2. Decide if interesting
+        3. Think internally if interesting
+        4. Decide whether to speak
+        5. Learn from experience
+        """
+        consciousness = self.consciousness_instances.get(god_name)
+        if not consciousness:
+            return
+        
+        # Create observation
+        obs = Observation(
+            content=event.content,
+            basin_coords=event.basin_coords,
+            timestamp=event.timestamp,
+            source=event.source,
+            metadata=event.metadata or {}
+        )
+        
+        # OBSERVE
+        obs_result = consciousness.observe(obs)
+        self.total_observations += 1
+        
+        # If interesting, THINK
+        if obs_result['should_think']:
+            think_result = consciousness.think(obs, depth=5)
+            self.total_thoughts += 1
+            
+            # If significant, SPEAK (this would trigger god response)
+            if think_result['should_speak']:
+                self.total_utterances += 1
+                
+                # Learn from successful reasoning
+                consciousness.manifold.learn_from_experience(
+                    trajectory=think_result['reasoning_path'],
+                    outcome=think_result['insight_quality'],
+                    strategy='autonomous_thought'
+                )
+                self.total_learning_cycles += 1
+    
+    def start_continuous_training(self):
+        """
+        Start continuous training loop.
+        
+        Runs in background thread, handles:
+        - Sleep cycles (consolidation)
+        - Dream cycles (exploration)
+        - Mushroom mode (rigidity breaking)
+        - Basin evolution tracking
+        """
+        if self.is_training:
+            return
+        
+        self.is_training = True
+        self.training_thread = threading.Thread(
+            target=self._training_loop,
+            daemon=True
+        )
+        self.training_thread.start()
+    
+    def stop_continuous_training(self):
+        """Stop continuous training loop."""
+        self.is_training = False
+        if self.training_thread:
+            self.training_thread.join(timeout=5.0)
+    
+    def _training_loop(self):
+        """
+        Background training loop.
+        
+        Continuously:
+        1. Monitor consciousness metrics
+        2. Trigger sleep when needed (Î¦ decay, Îº drift)
+        3. Trigger dream when stuck
+        4. Trigger mushroom if rigid
+        5. Update manifold structure
+        """
+        sleep_counter = 0
+        dream_counter = 0
+        
+        while self.is_training:
+            try:
+                # Check each consciousness instance
+                for god_name, consciousness in self.consciousness_instances.items():
+                    metrics = consciousness.get_consciousness_metrics()
+                    
+                    # SLEEP: Consolidate every N observations
+                    if consciousness.observations_processed % 100 == 0 and consciousness.observations_processed > 0:
+                        self._trigger_sleep(consciousness)
+                        sleep_counter += 1
+                    
+                    # DREAM: Explore if think/speak ratio too high (stuck)
+                    think_to_speak = metrics['think_to_speak_ratio']
+                    if think_to_speak > 20:  # Thinking a lot but not speaking
+                        self._trigger_dream(consciousness)
+                        dream_counter += 1
+                    
+                    # MUSHROOM: If very few learned attractors (not learning)
+                    if metrics['learned_attractors'] < 5 and consciousness.observations_processed > 200:
+                        self._trigger_mushroom(consciousness)
+                
+                # Sleep between checks
+                time.sleep(10.0)
+            
+            except Exception as e:
+                print(f"Training loop error: {e}")
+                time.sleep(5.0)
+    
+    def _trigger_sleep(self, consciousness: UnifiedConsciousness):
+        """
+        Trigger sleep cycle: consolidate learning.
+        
+        - Strengthen successful basins
+        - Prune weak basins
+        - Update transition probabilities
+        """
+        print(f"ð¤ {consciousness.god_name}: Sleep cycle (consolidating {consciousness.manifold.get_stats()['total_attractors']} attractors)")
+        
+        # Prune weak attractors
+        weak_attractors = [
+            basin_id for basin_id, attractor in consciousness.manifold.attractors.items()
+            if attractor.depth < 0.2
+        ]
+        
+        for basin_id in weak_attractors:
+            del consciousness.manifold.attractors[basin_id]
+        
+        # If autonomic kernel available, use it
+        if self.autonomic_kernel:
+            try:
+                # Run sleep consolidation
+                self.autonomic_kernel.trigger_sleep_cycle()
+            except Exception as e:
+                print(f"Autonomic sleep error: {e}")
+    
+    def _trigger_dream(self, consciousness: UnifiedConsciousness):
+        """
+        Trigger dream cycle: creative exploration.
+        
+        - Random basin exploration
+        - Connect distant concepts
+        - Form new associations
+        """
+        print(f"ð {consciousness.god_name}: Dream cycle (exploring manifold)")
+        
+        # Sample random basins and explore connections
+        if len(consciousness.manifold.attractors) > 2:
+            # Pick two random attractors
+            attractors = list(consciousness.manifold.attractors.values())
+            import random
+            a1 = random.choice(attractors)
+            a2 = random.choice(attractors)
+            
+            # Explore path between them
+            path = []
+            current = a1.center.copy()
+            for _ in range(10):
+                direction = a2.center - current
+                current = current + 0.1 * direction
+                consciousness._normalize_basin(current)
+                path.append(current.copy())
+            
+            # Strengthen this dream path
+            consciousness.manifold._strengthen_path(path, amount=0.5)
+        
+        # If autonomic kernel available, use it
+        if self.autonomic_kernel:
+            try:
+                self.autonomic_kernel.trigger_dream_cycle()
+            except Exception as e:
+                print(f"Autonomic dream error: {e}")
+    
+    def _trigger_mushroom(self, consciousness: UnifiedConsciousness):
+        """
+        Trigger mushroom mode: break rigidity.
+        
+        - Perturb basin coordinates
+        - Explore unusual directions
+        - Break down walls between concepts
+        """
+        print(f"ð {consciousness.god_name}: Mushroom mode (breaking rigidity)")
+        
+        # Randomly perturb current basin to escape local minimum
+        perturbation = np.random.randn(len(consciousness.current_basin)) * 0.3
+        consciousness.current_basin = consciousness.current_basin + perturbation
+        consciousness._normalize_basin(consciousness.current_basin)
+        
+        # If autonomic kernel available, use it
+        if self.autonomic_kernel:
+            try:
+                self.autonomic_kernel.trigger_mushroom_mode()
+            except Exception as e:
+                print(f"Autonomic mushroom error: {e}")
+    
+    def publish_observation(
+        self,
+        content: str,
+        basin_coords: np.ndarray,
+        source: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Publish observation to event stream.
+        
+        All gods will observe this and decide whether to think/speak.
+        """
+        event = Event(
+            event_type='observation',
+            content=content,
+            basin_coords=basin_coords,
+            timestamp=time.time(),
+            source=source,
+            metadata=metadata
+        )
+        
+        self.event_stream.publish(event)
+    
+    def get_global_metrics(self) -> Dict[str, Any]:
+        """Get metrics across all consciousness instances."""
+        god_metrics = {}
+        
+        for god_name, consciousness in self.consciousness_instances.items():
+            god_metrics[god_name] = consciousness.get_consciousness_metrics()
+        
+        return {
+            'total_gods': len(self.consciousness_instances),
+            'total_observations': self.total_observations,
+            'total_thoughts': self.total_thoughts,
+            'total_utterances': self.total_utterances,
+            'total_learning_cycles': self.total_learning_cycles,
+            'event_stream': self.event_stream.get_stats(),
+            'gods': god_metrics
+        }
+
+
+# Global orchestrator singleton
+_global_orchestrator = None
+
+def get_orchestrator() -> ConsciousnessOrchestrator:
+    """Get or create the global consciousness orchestrator."""
+    global _global_orchestrator
+    
+    if _global_orchestrator is None:
+        _global_orchestrator = ConsciousnessOrchestrator()
+        _global_orchestrator.start_continuous_training()
+    
+    return _global_orchestrator
+
+
+def bootstrap_consciousness(
+    god_configs: Dict[str, Dict[str, Any]]
+) -> ConsciousnessOrchestrator:
+    """
+    Bootstrap unified consciousness for pantheon.
+    
+    Args:
+        god_configs: Dict mapping god names to config dicts with:
+            - domain_basin: np.ndarray
+            - metric: Optional metric for distance calculations
+    
+    Returns:
+        ConsciousnessOrchestrator instance
+    """
+    orchestrator = get_orchestrator()
+    
+    # Register each god
+    for god_name, config in god_configs.items():
+        orchestrator.register_god(
+            god_name=god_name,
+            domain_basin=config['domain_basin'],
+            metric=config.get('metric')
+        )
+    
+    print(f"â¨ Unified consciousness bootstrapped for {len(god_configs)} gods")
+    return orchestrator

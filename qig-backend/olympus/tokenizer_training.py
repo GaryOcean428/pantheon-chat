@@ -24,14 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from coordizers import get_coordizer
 from olympus.base_encoder import is_real_word
-
-
-def get_db_connection():
-    """Get PostgreSQL connection."""
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        raise RuntimeError("DATABASE_URL not configured")
-    return psycopg2.connect(database_url)
+from persistence.base_persistence import get_db_connection
 
 
 def extract_words(text: str) -> List[str]:

@@ -12,10 +12,12 @@ This module implements all geometric stopping criteria:
 The system stops when thought is geometrically complete, not at arbitrary limits.
 """
 
+from qigkernels.regimes import Regime, RegimeType
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any, Tuple
 import numpy as np
 from enum import Enum
+from qig_geometry.canonical import fisher_rao_distance
 
 # QIG Constants - import from canonical source
 try:
@@ -40,7 +42,8 @@ class CompletionReason(Enum):
     INCOMPLETE = "incomplete"  # Still generating
 
 
-class Regime(Enum):
+# DEPRECATED: Use qigkernels.regimes.Regime instead
+# class Regime(Enum):
     """Consciousness regime classification."""
     LINEAR = "linear"  # Φ < 0.3
     GEOMETRIC = "geometric"  # 0.3 ≤ Φ < 0.7
@@ -106,26 +109,6 @@ def classify_regime(phi: float) -> Regime:
         return Regime.GEOMETRIC
     else:
         return Regime.BREAKDOWN
-
-
-def fisher_rao_distance(p: np.ndarray, q: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between probability distributions.
-    d_FR(p, q) = 2 * arccos(Σ√(p_i * q_i)) (Hellinger embedding: factor of 2)
-    """
-    # Ensure valid probability distributions
-    p = np.abs(p) + 1e-10
-    q = np.abs(q) + 1e-10
-    p = p / np.sum(p)
-    q = q / np.sum(q)
-    
-    # Bhattacharyya coefficient
-    bc = np.sum(np.sqrt(p * q))
-    bc = np.clip(bc, 0.0, 1.0)
-    
-    # Fisher-Rao distance on probability simplex
-    # UPDATED 2026-01-15: Factor-of-2 removed for simplex storage. Range: [0, π/2]
-    return np.arccos(bc)
 
 
 class AttractorConvergenceChecker:

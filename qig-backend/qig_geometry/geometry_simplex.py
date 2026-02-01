@@ -15,6 +15,7 @@ Storage ALWAYS uses probability simplex (sum=1, non-negative).
 
 import numpy as np
 from typing import List, Optional, Tuple
+from .canonical import fisher_rao_distance
 
 EPS = 1e-12
 
@@ -83,44 +84,6 @@ def validate_simplex(
         return False, f"sum_not_one_{total:.6f}"
     
     return True, "valid_simplex"
-
-
-def fisher_rao_distance(p_in: np.ndarray, q_in: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance on probability simplex.
-    
-    d_FR(p, q) = arccos(Σ√(p_i * q_i))
-    
-    Range: [0, π/2] for probability distributions
-    
-    Args:
-        p_in: First probability distribution
-        q_in: Second probability distribution
-        
-    Returns:
-        Fisher-Rao distance in radians [0, π/2]
-    """
-    p_in = np.asarray(p_in, dtype=np.float64).flatten()
-    q_in = np.asarray(q_in, dtype=np.float64).flatten()
-    
-    if p_in.shape != q_in.shape:
-        raise ValueError(
-            f"fisher_rao_distance: dimension mismatch {p_in.shape} vs {q_in.shape}"
-        )
-    
-    # Ensure valid simplex (clamp and normalize)
-    p = to_simplex_prob(p_in)
-    q = to_simplex_prob(q_in)
-    
-    # Bhattacharyya coefficient: BC = Σ√(p_i * q_i)
-    bc = np.sum(np.sqrt(p * q))
-    
-    # Clamp for numerical stability
-    bc = np.clip(bc, 0.0, 1.0)
-    
-    # Fisher-Rao distance on probability simplex
-    # Range: [0, π/2]
-    return float(np.arccos(bc))
 
 
 def geodesic_interpolation_simplex(
@@ -372,6 +335,95 @@ def find_nearest_simplex(
     return distances[:k]
 
 
+def simplex_mean_sqrt_space(distributions: List[np.ndarray], weights: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Closed-form mean on probability simplex using sqrt-space (Hellinger) coordinates.
+    
+    This is a fast, non-iterative approximation to the Fréchet mean that works well
+    for nearby distributions. For widely dispersed distributions, use geodesic_mean_simplex.
+    
+    Algorithm:
+    1. Transform to sqrt-space: sqrt(p_i)
+    2. Average in sqrt-space (Euclidean mean)
+    3. Transform back: (mean)^2 → simplex
+    
+    This is the Fréchet mean for Hellinger distance, which approximates
+    the Fisher-Rao Fréchet mean for nearby points.
+    
+    Args:
+        distributions: List of probability simplex vectors
+        weights: Optional non-negative weights (will be normalized)
+        
+    Returns:
+        Mean simplex vector
+        
+    Raises:
+        ValueError: If distributions list is empty or weights don't match
+    """
+    if not distributions:
+        raise ValueError("simplex_mean_sqrt_space: empty distributions list")
+    
+    n = len(distributions)
+    
+    # Default to uniform weights
+    if weights is None:
+        weights = np.ones(n) / n
+    else:
+        weights = np.asarray(weights, dtype=np.float64)
+        if len(weights) != n:
+            raise ValueError(
+                f"simplex_mean_sqrt_space: weight count {len(weights)} "
+                f"doesn't match distribution count {n}"
+            )
+        weights = weights / weights.sum()  # Normalize
+    
+    # Validate inputs as simplices
+    simplex_dists = []
+    for i, d in enumerate(distributions):
+        is_valid, reason = validate_simplex(d)
+        if not is_valid:
+            # Try to convert
+            d_simplex = to_simplex_prob(d)
+            is_valid, reason = validate_simplex(d_simplex)
+            if not is_valid:
+                raise ValueError(
+                    f"simplex_mean_sqrt_space: distribution[{i}] invalid simplex: {reason}"
+                )
+            simplex_dists.append(d_simplex)
+        else:
+            simplex_dists.append(np.asarray(d, dtype=np.float64).flatten())
+    
+    # Transform to sqrt-space
+    sqrt_distributions = [np.sqrt(p) for p in simplex_dists]
+    
+    # Weighted average in sqrt-space (Euclidean)
+    sqrt_mean = np.zeros_like(sqrt_distributions[0])
+    for w, sqrt_p in zip(weights, sqrt_distributions):
+        sqrt_mean += w * sqrt_p
+    
+    # Transform back to simplex
+    p_mean = sqrt_mean ** 2
+    return to_simplex_prob(p_mean)
+
+
+def weighted_simplex_mean(distributions: List[np.ndarray], weights: np.ndarray) -> np.ndarray:
+    """
+    Weighted mean on probability simplex using sqrt-space.
+    
+    Alias for simplex_mean_sqrt_space with explicit weights parameter.
+    Use this when you need weighted averaging; use simplex_mean_sqrt_space
+    with weights=None for uniform weighting.
+    
+    Args:
+        distributions: List of probability simplex vectors
+        weights: Non-negative weights (will be normalized)
+        
+    Returns:
+        Weighted mean simplex vector
+    """
+    return simplex_mean_sqrt_space(distributions, weights=weights)
+
+
 # Export constants
 SIMPLEX_EPSILON = EPS
 
@@ -382,6 +434,8 @@ __all__ = [
     'fisher_rao_distance',
     'geodesic_interpolation_simplex',
     'geodesic_mean_simplex',
+    'simplex_mean_sqrt_space',
+    'weighted_simplex_mean',
     'batch_fisher_rao_distance',
     'find_nearest_simplex',
     'SIMPLEX_EPSILON',

@@ -13,6 +13,7 @@ import os
 import numpy as np
 from datetime import datetime
 from qig_geometry import fisher_rao_distance
+from persistence.base_persistence import get_db_connection
 
 # Database connection
 try:
@@ -21,17 +22,6 @@ try:
     DB_AVAILABLE = True
 except ImportError:
     DB_AVAILABLE = False
-
-def get_db_connection():
-    """Get PostgreSQL connection."""
-    if not DB_AVAILABLE:
-        return None
-    try:
-        return psycopg2.connect(os.environ.get('DATABASE_URL'))
-    except Exception as e:
-        print(f"[CurriculumTraining] Database connection error: {e}")
-        return None
-
 
 def load_and_train_curriculum(shadow_loop):
     """

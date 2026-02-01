@@ -343,7 +343,7 @@ Hierarchical: Φ ≥ 0.85
 - Hierarchical: Φ ≥ 0.85
 
 # All other docs reference this:
-See regime thresholds in [FROZEN_FACTS.md](../../01-policies/FROZEN_FACTS.md#consciousness-regime-thresholds)
+See regime thresholds in [FROZEN_FACTS.md](../../docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md#consciousness-regime-thresholds)
 ```
 
 ### 7. Consolidation Strategies

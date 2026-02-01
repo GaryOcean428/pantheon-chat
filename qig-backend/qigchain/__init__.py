@@ -14,6 +14,10 @@ Components:
 
 Usage:
     from qigchain import QIGChainBuilder
+
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
     
     app = (QIGChainBuilder()
         .with_memory('postgresql://...')
@@ -104,9 +108,9 @@ class QIGApplication:
         query_bytes = query.encode('utf-8')
         for i, byte in enumerate(query_bytes[:BASIN_DIM]):
             basin[i] = (byte - 128) / 128.0
-        norm = np.linalg.norm(basin)
-        if norm > 0:
-            basin = basin / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        basin = to_simplex_prob(basin)
         return basin
     
     def select_tools(

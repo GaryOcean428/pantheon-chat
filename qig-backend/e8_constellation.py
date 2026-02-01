@@ -151,7 +151,7 @@ class E8Constellation:
             neighbors = []
             for j, root_j in enumerate(self.roots):
                 if i != j:
-                    dot = np.dot(root_i.coords, root_j.coords)
+                    dot = bhattacharyya(root_i.coords, root_j.coords)
                     if abs(dot - 1.0) < 0.01:  # Adjacent roots
                         neighbors.append(j)
             root_i.neighbors = neighbors

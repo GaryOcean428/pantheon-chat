@@ -24,6 +24,10 @@ from urllib.parse import urlparse
 
 import numpy as np
 
+# E8 Protocol v4.0 Compliance Imports
+from qig_geometry.canonical_upsert import to_simplex_prob
+
+
 BASIN_DIMENSION = 64
 
 HAS_SCRAPY = False
@@ -184,9 +188,10 @@ class BasinTransformer:
         coords = np.array([b / 255.0 for b in hash_bytes[:BASIN_DIMENSION]])
         coords = coords * 2 - 1
         
-        norm = np.linalg.norm(coords)
-        if norm > 0:
-            coords = coords / norm
+        # FIXED: Use simplex normalization (E8 Protocol v4.0)
+
+        
+        coords = to_simplex_prob(coords)
         
         return coords
     
