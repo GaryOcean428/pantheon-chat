@@ -9,8 +9,62 @@ Date: 2026-02-01
 """
 
 import ast
+import importlib
+import sys
 import pytest
 from pathlib import Path
+
+
+def test_import_ocean_qig_core_normal():
+    """
+    Runtime import test: ocean_qig_core should import successfully
+    in the normal environment.
+    """
+    # Ensure a clean import each time
+    sys.modules.pop("ocean_qig_core", None)
+    module = importlib.import_module("ocean_qig_core")
+    assert module is not None
+
+
+def _reload_ocean_qig_core():
+    """Helper to force re-import of ocean_qig_core for each scenario."""
+    sys.modules.pop("ocean_qig_core", None)
+    return importlib.import_module("ocean_qig_core")
+
+
+def test_import_without_gravitational_decoherence(monkeypatch):
+    """
+    Runtime import test: ocean_qig_core should handle missing
+    gravitational_decoherence dependency without raising a logger-related
+    error at import time.
+    """
+    original_import = __import__
+
+    def guarded_import(name, *args, **kwargs):
+        if name == "gravitational_decoherence":
+            raise ModuleNotFoundError("Simulated missing gravitational_decoherence")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", guarded_import)
+    module = _reload_ocean_qig_core()
+    assert module is not None
+
+
+def test_import_without_dev_logging(monkeypatch):
+    """
+    Runtime import test: ocean_qig_core should handle missing dev_logging
+    dependency without import-time logger failures.
+    """
+    original_import = __import__
+
+    def guarded_import(name, *args, **kwargs):
+        if name == "dev_logging":
+            raise ModuleNotFoundError("Simulated missing dev_logging")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", guarded_import)
+    module = _reload_ocean_qig_core()
+    assert module is not None
 
 
 def test_logger_defined_before_use():
