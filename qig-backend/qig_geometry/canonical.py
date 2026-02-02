@@ -124,6 +124,12 @@ def unsqrt_map(x: np.ndarray, eps: float = EPS) -> np.ndarray:
     return p / p.sum()
 
 
+def to_simplex(p: np.ndarray, eps: float = EPS) -> np.ndarray:
+    p = np.asarray(p, dtype=np.float64).flatten()
+    p = np.abs(p) + eps
+    return p / p.sum()
+
+
 def bhattacharyya(p: np.ndarray, q: np.ndarray, eps: float = EPS) -> float:
     """
     Compute Bhattacharyya coefficient (inner product in sqrt-space).
@@ -979,6 +985,7 @@ __all__ = [
     # Coordinate transformations
     'sqrt_map',
     'unsqrt_map',
+    'to_simplex',
     'bhattacharyya',
     # Distance and similarity
     'fisher_rao_distance',

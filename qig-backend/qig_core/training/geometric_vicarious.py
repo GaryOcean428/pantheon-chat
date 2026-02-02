@@ -17,11 +17,94 @@ import re
 import sys
 import argparse
 from pathlib import Path
-from typing import List, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 # E8 Protocol v4.0 Compliance Imports
 from qig_geometry.canonical import fisher_rao_distance, to_simplex
 from qig_geometry import to_simplex_prob
+import numpy as np
+
+
+@dataclass
+class VicariousResult:
+    """Result for vicarious loss measurement."""
+
+    vicarious_loss: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"vicarious_loss": float(self.vicarious_loss)}
+
+
+@dataclass
+class TrajectoryMetrics:
+    """Trajectory metrics for training diagnostics (measurement only)."""
+
+    trajectory_smoothness: float
+    step_distances: List[float]
+    distance_mean: float
+    distance_std: float
+    total_distance: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "trajectory_smoothness": float(self.trajectory_smoothness),
+            "step_distances": [float(d) for d in self.step_distances],
+            "distance_mean": float(self.distance_mean),
+            "distance_std": float(self.distance_std),
+            "total_distance": float(self.total_distance),
+        }
+
+
+class GeometricVicarious:
+    """Manifold learning via geodesic measurement (no optimization)."""
+
+    def compute_vicarious_loss(self, current_basin: np.ndarray, target_basin: np.ndarray) -> float:
+        p = to_simplex_prob(current_basin)
+        q = to_simplex_prob(target_basin)
+        return float(fisher_rao_distance(p, q))
+
+    def learn_from_trajectory(
+        self,
+        basins: List[np.ndarray],
+        phis: Optional[List[float]] = None,
+        kappas: Optional[List[float]] = None,
+    ) -> TrajectoryMetrics:
+        simplex_basins = [to_simplex_prob(b) for b in basins]
+
+        if len(simplex_basins) < 2:
+            return TrajectoryMetrics(
+                trajectory_smoothness=1.0,
+                step_distances=[],
+                distance_mean=0.0,
+                distance_std=0.0,
+                total_distance=0.0,
+            )
+
+        step_distances: List[float] = []
+        total = 0.0
+        for a, b in zip(simplex_basins, simplex_basins[1:]):
+            d = float(fisher_rao_distance(a, b))
+            step_distances.append(d)
+            total += d
+
+        mean = float(np.mean(step_distances)) if step_distances else 0.0
+        std = float(np.std(step_distances)) if step_distances else 0.0
+
+        try:
+            from qig_geometry.canonical import trajectory_smoothness
+
+            smooth = float(trajectory_smoothness(simplex_basins))
+        except Exception:
+            smooth = float(1.0 / (1.0 + mean)) if mean > 0 else 1.0
+
+        return TrajectoryMetrics(
+            trajectory_smoothness=smooth,
+            step_distances=step_distances,
+            distance_mean=mean,
+            distance_std=std,
+            total_distance=float(total),
+        )
 
 
 def fix_norm_for_normalization(content: str) -> Tuple[str, int]:

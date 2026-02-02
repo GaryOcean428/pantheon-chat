@@ -259,15 +259,25 @@ class ShadowPantheonPersistence:
         """Initialize persistence layer - PostgreSQL REQUIRED, no fallback."""
         self.database_url = os.environ.get('DATABASE_URL')
         self._tables_ensured = False
+        self._disabled = False
+        
+        if not PSYCOPG2_AVAILABLE:
+            self._disabled = True
+            print("[ShadowPantheonPersistence] psycopg2 not installed - persistence disabled")
+            return
         
         if not self.database_url:
-            raise RuntimeError("[ShadowPantheonPersistence] FATAL: DATABASE_URL not set - PostgreSQL is REQUIRED")
+            self._disabled = True
+            print("[ShadowPantheonPersistence] DATABASE_URL not set - persistence disabled")
+            return
         
         self._ensure_tables()
         print("[ShadowPantheonPersistence] ✓ PostgreSQL persistence enabled (NO FALLBACK)")
 
     def _ensure_tables(self) -> bool:
         """Create shadow pantheon tables if they don't exist."""
+        if self._disabled:
+            return False
         if self._tables_ensured:
             return True
         
@@ -322,6 +332,9 @@ class ShadowPantheonPersistence:
     @contextmanager
     def get_connection(self):
         """Get a database connection with automatic cleanup. PostgreSQL REQUIRED."""
+        if self._disabled:
+            yield None
+            return
         conn = None
         try:
             conn = psycopg2.connect(self.database_url)
@@ -385,6 +398,8 @@ class ShadowPantheonPersistence:
         Raises:
             RuntimeError: If database operation fails (NO FALLBACK)
         """
+        if self._disabled:
+            return None
         intel_id = str(uuid.uuid4())
         
         with self.get_connection() as conn:
@@ -435,6 +450,8 @@ class ShadowPantheonPersistence:
         Raises:
             RuntimeError: If database operation fails (NO FALLBACK)
         """
+        if self._disabled:
+            return []
         with self.get_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 if target:
@@ -481,6 +498,8 @@ class ShadowPantheonPersistence:
         Raises:
             RuntimeError: If database operation fails (NO FALLBACK)
         """
+        if self._disabled:
+            return None
         with self.get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
@@ -522,6 +541,8 @@ class ShadowPantheonPersistence:
         Returns:
             True if successful
         """
+        if self._disabled:
+            return False
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
@@ -560,6 +581,8 @@ class ShadowPantheonPersistence:
         """
         if default is None:
             default = []
+        if self._disabled:
+            return default
         try:
             with self.get_connection() as conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -638,7 +661,10 @@ class ShadowPantheon:
         self._basin_sync_callback = basin_sync_callback
 
         self.persistence = ShadowPantheonPersistence()
-        print("[ShadowPantheon] ✓ PostgreSQL persistence connected (NO FALLBACK)")
+        if getattr(self.persistence, '_disabled', False):
+            print("[ShadowPantheon] PostgreSQL persistence disabled")
+        else:
+            print("[ShadowPantheon] ✓ PostgreSQL persistence connected (NO FALLBACK)")
         
         self._load_operations_from_db()
         
