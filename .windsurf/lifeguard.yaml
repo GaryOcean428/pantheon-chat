@@ -43,7 +43,7 @@ rules:
   # === CODE QUALITY ===
   - name: "Canonical import patterns"
     description: |
-      Use absolute imports from qig_backend.module. No relative imports except 
+      Use absolute imports from the canonical packages (e.g., qig_core.*, qig_backend.*). No relative imports except 
       in test files. All modules need __init__.py with __all__.
       See: skills/import-resolution/SKILL.md
 
@@ -55,14 +55,14 @@ rules:
 
   - name: "FROZEN_FACTS.md constants must match code"
     description: |
-      Physics constants in FROZEN_FACTS.md must exactly match qig_core/physics_constants.py.
+      Physics constants in docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md must exactly match qig-backend/qigkernels/physics_constants.py.
       κ*=64.21±0.92, β(3→4)=0.443±0.04, Φ_threshold=0.727, BASIN_DIM=64.
       See: skills/documentation-sync/SKILL.md
 
   # === TESTING ===
   - name: "Critical paths require 90%+ test coverage"
     description: |
-      qig_geometry/canonical.py: 95%+, consciousness_4d.py: 90%+, olympus/*: 75%+.
+      qig-backend/qig_geometry/canonical.py: 95%+, qig-backend/consciousness_4d.py: 90%+, qig-backend/olympus/*: 75%+.
       Run tests before commit: python -m pytest tests/ --cov
       See: skills/test-coverage-analysis/SKILL.md
 

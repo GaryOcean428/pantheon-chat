@@ -61,9 +61,17 @@ Use a clear scheme:
 
 Document reasoning for priorities.
 
-### 4. Update roadmap.md
+### 4. Update the Canonical Roadmap
 
-Structure the roadmap file:
+Update the master roadmap file:
+
+- `docs/00-roadmap/20260112-master-roadmap-1.00W.md`
+
+Optionally update the entrypoint:
+
+- `docs/00-roadmap/20260202-project-roadmap-entrypoint-1.00W.md`
+
+Structure for roadmap entries:
 
 ```markdown
 # Project Roadmap
@@ -91,7 +99,7 @@ Link tasks to plan files and branches where relevant.
 ### 5. Cross-Reference
 
 Ensure consistency with:
-- `plans/` directory for detailed plans
+- `docs/00-roadmap/` for implementation plans and planning artifacts
 - Issue tracker (if applicable)
 - `docs/00-index.md` for documentation tasks
 
@@ -137,15 +145,13 @@ Every issue discovered anywhere must appear in the roadmap:
 
 ## Roadmap File Location
 
-Primary: `roadmap.md` in repository root
+Primary: `docs/00-roadmap/20260112-master-roadmap-1.00W.md`
 
-If project uses ISO documentation:
-- Summary in `roadmap.md`
-- Detailed tracking in `docs/00-roadmap/`
+Entry point (optional): `docs/00-roadmap/20260202-project-roadmap-entrypoint-1.00W.md`
 
 ## Required Outputs
 
-1. **Updated roadmap.md** file in the repo
+1. **Updated master roadmap** file in `docs/00-roadmap/`
 2. **Short text summary** of current priorities and next actions
 3. **Confirmation** that all discovered issues are represented
 

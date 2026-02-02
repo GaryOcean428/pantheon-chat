@@ -103,11 +103,21 @@ Produce a final version with:
 - Explicit acceptance criteria per task
 - Notation of which risks remain and why they are acceptable or deferred
 
-Save the plan to: `plans/PLAN-YYYYMMDD-{topic}.md`
+Save the plan to an ISO-compliant filename under `docs/00-roadmap/`:
+
+- `docs/00-roadmap/YYYYMMDD-{topic}-implementation-plan-1.00W.md`
 
 ### 9. Roadmap Update
 
-Update or create `roadmap.md`:
+Update the canonical master roadmap:
+
+- `docs/00-roadmap/20260112-master-roadmap-1.00W.md`
+
+If an entrypoint is needed for quick navigation, update:
+
+- `docs/00-roadmap/20260202-project-roadmap-entrypoint-1.00W.md`
+
+In the master roadmap:
 - Add completed planning tasks
 - Add all discovered issues (even if out of scope) as backlog items
 - Ensure every issue discovered is either:

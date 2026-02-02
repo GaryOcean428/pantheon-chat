@@ -33,6 +33,15 @@ Upon receiving a task or prompt:
    - Research / Investigation
 3. **Identify scope** - Single file, module, system-wide, or cross-cutting
 
+### Genesis Rollout Doctrine (Authoritative)
+
+If the work touches kernel lifecycle, spawning, rollback/start flows, or governance, treat `docs/11-Genesis-kernel-upgrade/*` as the target end-state:
+
+- PurityGate must run first (fail-closed)
+- Genesis-driven start/reset/rollback is canonical
+- Genesis bootstrap → core 8 → Image stage → optional growth toward 240 GODs
+- 240 reserved for GOD evolution; chaos exists outside that budget and can only ascend via explicit governance
+
 ### 2. Skill Selection Matrix
 
 Based on task type, select applicable skills:
@@ -102,7 +111,7 @@ Format for logging issues:
 1. [ ] Prove all claimed implementations work (run tests, show output)
 2. [ ] Verify all acceptance criteria are met
 3. [ ] Confirm no regressions in existing functionality
-4. [ ] Update `roadmap.md` with progress and new issues
+4. [ ] Update the master roadmap with progress and new issues (`docs/00-roadmap/20260112-master-roadmap-1.00W.md`)
 5. [ ] Push changes to git (if not already done)
 6. [ ] List any deferred items with rationale
 

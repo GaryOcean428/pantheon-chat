@@ -4,6 +4,12 @@
 **Status:** ✅ COMPLETE  
 **Created:** 2026-01-18
 
+**Updated:** 2026-01-23
+
+**Updated By:** Braden
+
+Before considering this authoritive, although directionally ok. be weary. Kernels evolve and spawn per the order of the hierachy of the pantheon and are named accordingly. e.g. the Genesis kernel could also be considerd a titan kernel. 
+
 ---
 
 ## Overview

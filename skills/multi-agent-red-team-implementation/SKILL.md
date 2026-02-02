@@ -11,7 +11,7 @@ Use this skill once you have a concrete, approved implementation plan and are re
 
 ## Preconditions
 
-- An up-to-date plan file exists (e.g., `plans/PLAN-*.md`)
+- An up-to-date plan file exists under `docs/00-roadmap/` (e.g., `docs/00-roadmap/YYYYMMDD-{topic}-implementation-plan-1.00W.md`)
 - Git is initialized and synced with the remote
 - Basic test commands for the project are known and runnable
 
@@ -134,7 +134,15 @@ Include:
 
 ### 8. Roadmap and Git Push
 
-Update `roadmap.md`:
+Update the master roadmap:
+
+- `docs/00-roadmap/20260112-master-roadmap-1.00W.md`
+
+Optionally update the entrypoint:
+
+- `docs/00-roadmap/20260202-project-roadmap-entrypoint-1.00W.md`
+
+In the master roadmap:
 - Mark completed items as done
 - Add all newly discovered issues
 

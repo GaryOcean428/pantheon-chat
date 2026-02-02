@@ -117,7 +117,7 @@ Before claiming ANY task is complete:
 - [ ] Test output showing changes work
 - [ ] Commit hashes for changes made
 - [ ] Acceptance criteria mapped to verification evidence
-- [ ] `roadmap.md` updated with progress and new issues
+- [ ] Master roadmap updated with progress and new issues (`docs/00-roadmap/20260112-master-roadmap-1.00W.md`)
 - [ ] Changes pushed to git
 
 ## Reference
