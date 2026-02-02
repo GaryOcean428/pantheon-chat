@@ -31,6 +31,22 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 print("[autonomic_kernel] Core imports done", flush=True)
 
+try:
+    from flask import Flask, jsonify, request
+
+    app = Flask(__name__)
+except ImportError:  # pragma: no cover
+    class _NoopApp:
+        def route(self, *_args: Any, **_kwargs: Any):
+            def _decorator(fn):
+                return fn
+
+            return _decorator
+
+    app = _NoopApp()
+    jsonify = None
+    request = None
+
 from qigkernels.physics_constants import (
     KAPPA_STAR,
     PHI_THRESHOLD,

@@ -41,6 +41,7 @@ from .shadow_research import (
     HAS_SCRAPY,
     VocabularyCoordinator,
     ResearchCategory,
+    ResearchQueue,
     ResearchPriority,
     ResearchRequest,
     ShadowKnowledge,

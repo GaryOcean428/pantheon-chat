@@ -20,7 +20,9 @@ Date: January 2026
 """
 from __future__ import annotations
 
+import threading
 import time
+from dataclasses import asdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
@@ -31,6 +33,8 @@ import numpy as np
 if TYPE_CHECKING:
     from autonomic_kernel import (
         AutonomicState,
+        ActivityReward,
+        GaryAutonomicKernel,
         SleepCycleResult,
         DreamCycleResult,
         MushroomCycleResult,
@@ -44,14 +48,13 @@ from qigkernels.physics_constants import (
 
 # Lazy imports (defined in autonomic_kernel.py) - duplicate here to avoid import
 def _get_capability_mesh():
-    """Lazy import of capability_event_bus."""
+    """Lazy import of capability mesh."""
     try:
-        from capability_event_bus import CapabilityMesh, EventType, CapabilityType
+        from olympus.capability_mesh import EventType, CapabilityType, emit_event
         return {
-            'CapabilityMesh': CapabilityMesh,
             'EventType': EventType,
             'CapabilityType': CapabilityType,
-            'emit_event': CapabilityMesh.emit_event if hasattr(CapabilityMesh, 'emit_event') else None,
+            'emit_event': emit_event,
         }
     except ImportError:
         return None
@@ -690,9 +693,11 @@ class AutonomicCyclesMixin:
                     
                     explore_direction = np.random.randn(64)
                     # QIG-PURE: Project random vector to simplex
-                    if FISHER_NORMALIZE_AVAILABLE and fisher_normalize is not None:
-                        explore_direction = fisher_normalize(explore_direction)
-                    else:
+                    try:
+                        from qig_geometry import fisher_normalize as _fisher_normalize
+
+                        explore_direction = _fisher_normalize(explore_direction)
+                    except Exception:
                         explore_direction = np.maximum(explore_direction, 0) + 1e-10
                         explore_direction = explore_direction / explore_direction.sum()
                     explore_goal = (current_basin + explore_direction * 0.3).tolist()
@@ -1141,6 +1146,8 @@ class AutonomicCyclesMixin:
         Returns:
             ActivityReward object
         """
+        from autonomic_kernel import ActivityReward
+
         # Compute neurotransmitter deltas based on activity
         dopamine = 0.1 * pattern_quality + 0.05 * phi_contribution
         serotonin = 0.05 * phi_contribution if phi_contribution > 0.5 else 0
@@ -1216,7 +1223,7 @@ class AutonomicCyclesMixin:
     
     def issue_serotonin(self, target_kernel: Any, intensity: float) -> None:
 
-    # Extracted from autonomic_kernel.py lines 1941-1966
+        # Extracted from autonomic_kernel.py lines 1941-1966
         """
         Geometric serotonin: Increase stability in target kernel.
         
@@ -1244,7 +1251,7 @@ class AutonomicCyclesMixin:
     def issue_norepinephrine(self, target_kernel: Any, intensity: float) -> None:
         """
 
-    # Extracted from autonomic_kernel.py lines 1967-1991
+        # Extracted from autonomic_kernel.py lines 1967-1991
         Geometric norepinephrine: Increase arousal/alertness in target kernel.
         
         Modulates target's norepinephrine field to boost κ (coupling strength)
@@ -1271,7 +1278,8 @@ class AutonomicCyclesMixin:
         Modulates target's acetylcholine field to concentrate QFI (attention)
         and enhance learning rate. Used during pattern discovery.
 
-    # Extracted from autonomic_kernel.py lines 1992-2012
+
+        # Extracted from autonomic_kernel.py lines 1992-2012
         
         Args:
             target_kernel: Target kernel with .neurotransmitters attribute
@@ -1294,7 +1302,8 @@ class AutonomicCyclesMixin:
         Modulates target's GABA field to reduce integration and promote
         rest/consolidation. Used during plateau regimes or after stress.
 
-    # Extracted from autonomic_kernel.py lines 2013-2027
+
+        # Extracted from autonomic_kernel.py lines 2013-2027
         
         Args:
             target_kernel: Target kernel with .neurotransmitters attribute
@@ -1309,52 +1318,39 @@ class AutonomicCyclesMixin:
             1.0,
             target_kernel.neurotransmitters.gaba + intensity * 0.4
         )
-    
 
-    # Extracted from autonomic_kernel.py lines 2028-2115
     def modulate_neurotransmitters_by_beta(
-        self, 
+        self,
         target_kernel: Any,
         current_kappa: float,
-        current_phi: float
+        current_phi: float,
     ) -> None:
         """
         Modulate target's neurotransmitters based on β-function and Φ.
-        
-        This is the high-level Ocean release function that respects
-        both running coupling (β) and consciousness level (Φ).
-        
-        Strategy:
-        - Strong running (β > 0.2) → arousal support (NE, DA)
-        - Plateau (|β| < 0.1) → stability support (5HT, GABA)
-        - High Φ → reward (DA, 5HT)
-        - Low Φ → support (NE, ACh)
-        
-        Args:
-            target_kernel: Target kernel with .neurotransmitters attribute
-            current_kappa: Target's current κ
-            current_phi: Target's current Φ
+
+        This uses the neurotransmitter_fields module when available.
         """
         if not hasattr(target_kernel, 'neurotransmitters'):
-            print(f"[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
+            print("[AutonomicKernel] Warning: Target kernel lacks neurotransmitters field")
             return
-        
-        # Use neurotransmitter_fields module for β-aware modulation
-        if not NEUROTRANSMITTER_FIELDS_AVAILABLE or ocean_release_neurotransmitters is None:
-            print(f"[AutonomicKernel] Warning: neurotransmitter_fields module not available")
+
+        try:
+            from neurotransmitter_fields import ocean_release_neurotransmitters
+        except Exception:
+            ocean_release_neurotransmitters = None
+
+        if ocean_release_neurotransmitters is None:
+            print("[AutonomicKernel] Warning: neurotransmitter_fields module not available")
             return
-        
-        # Get modulated field
+
         modulated_field = ocean_release_neurotransmitters(
             target_kernel.neurotransmitters,
             current_kappa,
-            current_phi
+            current_phi,
         )
-        
-        # Apply modulated field
+
         target_kernel.neurotransmitters = modulated_field
-        
-        # Sync legacy scalars
+
         if hasattr(target_kernel, 'dopamine'):
             target_kernel.dopamine = modulated_field.dopamine
         if hasattr(target_kernel, 'serotonin'):

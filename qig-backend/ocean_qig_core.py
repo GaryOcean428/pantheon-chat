@@ -45,6 +45,8 @@ from scipy.linalg import sqrtm
 from qig_geometry.canonical_upsert import to_simplex_prob
 from qig_geometry.canonical import frechet_mean
 
+logger = logging.getLogger(__name__)
+
 # Gravitational decoherence for purity regularization
 try:
     from gravitational_decoherence import (

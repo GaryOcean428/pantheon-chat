@@ -324,9 +324,9 @@ class TrustGuard:
         if TrustGuard._initialized:
             return
         TrustGuard._initialized = True
-        self.owner_name = "Braden Lang"  # The system owner
+        self.owner_name = "[REDACTED]"  # The system owner
         self._honesty_violations = 0
-        print(f"[TrustGuard] HARDWIRED honesty commitment initialized for owner: {self.owner_name}")
+        print("[TrustGuard] HARDWIRED honesty commitment initialized")
         print(f"[TrustGuard] Principles: {list(HONESTY_PRINCIPLES.keys())}")
     
     def mark_uncertainty(self, data: Dict, uncertainty_level: str, reason: str) -> Dict:

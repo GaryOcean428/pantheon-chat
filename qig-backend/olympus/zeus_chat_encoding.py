@@ -30,6 +30,29 @@ from qig_geometry.canonical import frechet_mean
 # Module logger
 logger = logging.getLogger(__name__)
 
+
+# Import capability mesh for synthesis event emission with graceful degradation
+CAPABILITY_MESH_AVAILABLE = False
+try:
+    from olympus.capability_mesh import get_event_bus
+
+    CAPABILITY_MESH_AVAILABLE = True
+    print("[ZeusChat.Encoding] Capability mesh available for synthesis event emission")
+except ImportError:
+    get_event_bus = None
+    print("[ZeusChat.Encoding] Capability mesh not available for synthesis events")
+
+# Import WorkingMemoryBus for synthesis awareness with graceful degradation
+WORKING_MEMORY_BUS_AVAILABLE = False
+try:
+    from working_memory_bus import WorkingMemoryBus
+
+    WORKING_MEMORY_BUS_AVAILABLE = True
+    print("[ZeusChat.Encoding] WorkingMemoryBus available for synthesis awareness")
+except ImportError:
+    WorkingMemoryBus = None
+    print("[ZeusChat.Encoding] WorkingMemoryBus not available")
+
 # Import QIG-pure generative service (NO external LLMs)
 GENERATIVE_SERVICE_AVAILABLE = False
 _generative_service_instance = None
@@ -779,8 +802,6 @@ Respond naturally as Zeus:"""
             goals=['respond', 'offer_options'] if knowledge_depth['is_thin'] else ['respond', 'explore'],
             kernel_name='zeus'
         )
-
-    @require_provenance
 
     def _format_related(self, related: List[Dict]) -> str:
         """Format related patterns for display"""

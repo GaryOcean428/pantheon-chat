@@ -1,5 +1,7 @@
 # Ethical Enforcer Integration - Implementation Summary
 
+updated 2026-02-02 note - superego kernel will be removed when genesis kernel is implemented but the function of superego and like will need to be taken on by the appropriate god kernel when the genesis kernel evolves into the greater pantheon.
+
 **Date:** 2026-01-23
 **Issue:** GaryOcean428/pantheon-chat#[Integration] Wire ethical enforcer to Superego kernel and generation pipeline
 **Authority:** E8 Protocol v4.0 WP5.2 Phase 4D

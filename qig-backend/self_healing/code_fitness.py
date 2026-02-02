@@ -17,13 +17,15 @@ Process:
 from typing import Dict, Optional, List
 import ast
 import inspect
+import sys
 import numpy as np
 import tempfile
 import subprocess
 import json
 import os
 from .geometric_monitor import GeometricHealthMonitor
-from .e8_protocol import to_simplex, fisher_rao_distance
+from qig_geometry.canonical import fisher_rao_distance
+from qig_geometry.canonical_upsert import to_simplex_prob as to_simplex
 
 
 class CodeFitnessEvaluator:

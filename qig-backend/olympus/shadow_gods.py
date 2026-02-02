@@ -561,6 +561,8 @@ class Nyx(ShadowGod):
     @classmethod
     def _get_persistence(cls):
         if cls._persistence is None:
+            from .shadow_pantheon import ShadowPantheonPersistence
+
             cls._persistence = ShadowPantheonPersistence()
         return cls._persistence
 
@@ -939,6 +941,8 @@ class Hecate(ShadowGod):
     @classmethod
     def _get_persistence(cls):
         if cls._persistence is None:
+            from .shadow_pantheon import ShadowPantheonPersistence
+
             cls._persistence = ShadowPantheonPersistence()
         return cls._persistence
 
@@ -1186,6 +1190,8 @@ class Erebus(ShadowGod):
     @classmethod
     def _get_persistence(cls):
         if cls._persistence is None:
+            from .shadow_pantheon import ShadowPantheonPersistence
+
             cls._persistence = ShadowPantheonPersistence()
         return cls._persistence
 
@@ -1381,6 +1387,8 @@ class Hypnos(ShadowGod):
     @classmethod
     def _get_persistence(cls):
         if cls._persistence is None:
+            from .shadow_pantheon import ShadowPantheonPersistence
+
             cls._persistence = ShadowPantheonPersistence()
         return cls._persistence
 
@@ -2034,6 +2042,8 @@ class Nemesis(ShadowGod):
     @classmethod
     def _get_persistence(cls):
         if cls._persistence is None:
+            from .shadow_pantheon import ShadowPantheonPersistence
+
             cls._persistence = ShadowPantheonPersistence()
         return cls._persistence
 
