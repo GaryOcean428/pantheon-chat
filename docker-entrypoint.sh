@@ -35,7 +35,7 @@ case "$SERVICE_NAME_LOWER" in
 
     # Start Celery worker (health server starts in background above)
     echo "[Entrypoint] Starting Celery worker..."
-    "$UV_CMD" run --project "$PROJECT_ROOT" python -m celery -A training.celery_app worker --loglevel=info --concurrency=2 -Q training,batch,consolidation,transfer,checkpoints &
+    "$UV_CMD" run --project "$PROJECT_ROOT" python -m celery -A training.celery_app worker --loglevel=info --concurrency=2 -Q training_fast,training_batch,training_slow &
     CELERY_PID=$!
 
     # Handle shutdown
