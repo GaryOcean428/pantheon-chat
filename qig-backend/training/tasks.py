@@ -124,7 +124,7 @@ def get_coordizer():
 def _make_task(func):
     """Apply Celery task decorator if available, otherwise return function as-is."""
     if CELERY_AVAILABLE and celery_app:
-        return celery_app.task(bind=True, name=f'training.tasks.{func.__name__}')(func)
+        return celery_app.task(name=f'training.tasks.{func.__name__}')(func)
     return func
 
 
@@ -267,8 +267,6 @@ def train_hourly_batch_all() -> Dict[str, Any]:
                 # Fallback to synchronous execution
                 result = train_hourly_batch_task(god_name, batch_data)
                 results[god_name] = {"batch_size": len(batch_data), **result}
-            result = train_hourly_batch_task(god_name, batch_data)
-            results[god_name] = {"batch_size": len(batch_data), **result}
         else:
             results[god_name] = {"status": "no_data"}
 
