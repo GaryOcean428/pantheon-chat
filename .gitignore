@@ -54,6 +54,7 @@ drizzle/
 tmp
 temp
 *.tmp
+.backup/
 
 # Python
 __pycache__/
