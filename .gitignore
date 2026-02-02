@@ -103,6 +103,7 @@ docs/_archive/conversation-logs/
 *_audit*.txt
 *_scan*.txt
 *_report.txt
+*purity*violations*.txt
 absolute_*.txt
 actual_*.txt
 current_*.txt
