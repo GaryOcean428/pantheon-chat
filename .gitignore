@@ -39,6 +39,9 @@ qig-backend/emergency_logs/
 *.swo
 *~
 
+# Cline
+.cline/
+
 # OS
 .DS_Store
 Thumbs.db
