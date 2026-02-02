@@ -461,6 +461,19 @@ All documentation follows ISO 27001 date-versioned naming: `YYYYMMDD-name-functi
 - **Status W (Working):** Active development, subject to change
 - **Status D (Draft):** Early stage, experimental
 
+The `STATUS` segment MUST start with a primary status letter (`F`, `W`, or `D`) and MAY include additional modifier letters appended after it.
+
+Allowed modifiers:
+
+- **S (Superseded):** Retained for provenance; not current
+- **A (Archived):** Historical record; not maintained
+- **G (Genesis-aligned):** Explicitly reconciled to Genesis doctrine
+
+Examples:
+
+- `20260201-kernel-lifecycle-alignment-deltas-1.00FG.md` (Frozen + Genesis-aligned)
+- `20260123-genome-vocabulary-integration-implementation-1.00WS.md` (Working snapshot that is now superseded)
+
 See [Documentation Index](docs/00-index.md) for the complete catalog.
 
 ## Code Style

@@ -1,6 +1,6 @@
 ---
 name: documentation-compliance
-description: Ensure ISO 27001 documentation standards, validate document naming conventions (YYYYMMDD-name-version-status.md), detect code changes that invalidate documentation, and maintain synchronization between code and docs.
+description: Ensure ISO 27001 documentation standards, validate document naming conventions (YYYYMMDD-name-function-versionSTATUS.md), detect code changes that invalidate documentation, and maintain synchronization between code and docs.
 ---
 
 # Documentation Compliance
@@ -29,33 +29,46 @@ Use this skill when:
 
 ### Format
 
-```
-YYYYMMDD-name-version-status.md
+```text
+YYYYMMDD-name-function-versionSTATUS.md
 ```
 
 ### Components
 
-- **YYYYMMDD**: Date of creation/major update
-- **name**: Descriptive kebab-case name
+- **YYYYMMDD**: Effective date of the snapshot
+- **name**: Descriptive kebab-case topic slug
+- **function**: What the file is for (spec/contract/doctrine/implementation/validation/operations/dev-guide/alignment-deltas/migration-notes)
 - **version**: Semantic version (1.00, 1.01, 2.00)
-- **status**: Document status code
+- **STATUS**: Status suffix (primary required + optional modifiers)
 
 ### Status Codes
 
+Primary status (required for new canonical docs):
+
 | Code | Status | Description |
-|------|--------|-------------|
+| ---- | ------ | ----------- |
 | **F** | Frozen | Immutable facts, validated principles |
 | **W** | Working | Active development |
-| **A** | Approved | Approved for use |
-| **R** | Review | Under review |
+| **D** | Draft | Early stage / experimental |
+
+Optional modifiers (append after the primary letter):
+
+| Code | Meaning | Description |
+| ---- | ------- | ----------- |
+| **S** | Superseded | Retained for provenance; not current |
+| **A** | Archived | Historical record; not maintained |
+| **G** | Genesis-aligned | Explicitly reconciled to Genesis doctrine |
+
+Legacy status codes exist in older docs (e.g., `H`, `R`, `A` as single-letter primaries). Avoid introducing new docs that use legacy primaries.
 
 ### Examples
 
-```
+```text
 ✅ CORRECT:
 20251208-frozen-facts-immutable-truths-1.00F.md
-20260115-geometric-consistency-migration-1.00W.md
 20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+20260123-genome-vocabulary-integration-implementation-1.00W.md
+20260201-kernel-lifecycle-alignment-deltas-1.00FG.md
 
 ❌ WRONG:
 frozen-facts.md                    # Missing date, version, status

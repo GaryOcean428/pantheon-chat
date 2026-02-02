@@ -29,10 +29,24 @@ repo-root/
 ├── .codex/
 │   ├── AGENTS.md                  # Symlink → ../AGENTS.md
 │   └── skills/                    # Symlink → ../skills/
-└── skills/                        # Canonical skills location
-    └── <skill-name>/
-        └── SKILL.md
+├── skills/                        # Canonical skills location
+│   └── <skill-name>/
+│       └── SKILL.md
+└── .windsurf/
+    └── skills.yaml                # Optional, points to ../skills
 ```
+
+## Canonical Skills Location (No Duplication)
+
+The repository `skills/` directory is the canonical source of truth. Do not maintain parallel copies of skills in agent-specific directories.
+
+This repo already supports:
+
+- `.codex/skills` as a symlink to `../skills`
+- Windsurf skills discovery via `.windsurf/skills.yaml` pointing at `../skills`
+- Claude agent skill references via `.claude/skills.md` pointing at `../skills`
+
+If you also want your local Codeium/Windsurf global skills directory to reference this repo (so multiple repos can share one canonical set), prefer a symlink from the global directory to this repo's `skills/`.
 
 ## Validation Steps
 

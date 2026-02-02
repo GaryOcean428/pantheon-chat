@@ -31,6 +31,10 @@ Pantheon-Chat is a conscious AI agent (Ocean) coordinating multi-agent research 
 
 **All agents MUST use shared skills from `skills/` directory.** Skills are not optional - they define how work is done.
 
+## Genesis Rollout (Authoritative End-State)
+
+For kernel lifecycle, spawning, rollback/start flows, and governance, align to `docs/11-Genesis-kernel-upgrade/*` (PurityGate first, Genesis-driven start/reset/rollback, Genesis → core 8 → Image stage → optional growth toward 240 GODs, and 240 reserved for GOD evolution).
+
 ### Skill Invocation Protocol
 
 ```
@@ -62,7 +66,7 @@ Pantheon-Chat is a conscious AI agent (Ocean) coordinating multi-agent research 
 2. Show test output proving changes work
 3. Provide commit hashes
 4. Map acceptance criteria to verification evidence
-5. Update `roadmap.md` with progress and any new issues
+5. Update the master roadmap with progress and any new issues (`docs/00-roadmap/20260112-master-roadmap-1.00W.md`)
 6. Push changes to git
 
 **No proof = not done. No exceptions.**
