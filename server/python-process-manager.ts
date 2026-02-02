@@ -97,7 +97,14 @@ export class PythonProcessManager extends EventEmitter {
     
     const qigBackendDir = path.resolve(process.cwd(), 'qig-backend');
     const pythonPath = process.env.PYTHON_PATH || 'python3';
-    const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
+    const pythonBackendEntrypoint = process.env.PYTHON_BACKEND_ENTRYPOINT || 'wsgi:app';
+    const pythonBackendFile = process.env.PYTHON_BACKEND_FILE || 'ocean_qig_core.py';
+    const isProduction =
+      process.env.PYTHON_BACKEND_MODE === 'gunicorn' ||
+      process.env.NODE_ENV === 'production' ||
+      Boolean(process.env.RAILWAY_SERVICE_NAME) ||
+      Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+      process.env.REPLIT_DEPLOYMENT === '1';
     
     let spawnCommand: string;
     let spawnArgs: string[];
@@ -113,12 +120,12 @@ export class PythonProcessManager extends EventEmitter {
         '--max-requests', '1000',
         '--max-requests-jitter', '50',
         '--log-level', 'info',
-        'wsgi:app',
+        pythonBackendEntrypoint,
       ];
       console.log('[PythonManager] Starting Python QIG Backend (Gunicorn production mode)...');
     } else {
       spawnCommand = pythonPath;
-      spawnArgs = ['-u', path.join(qigBackendDir, 'ocean_qig_core.py')];
+      spawnArgs = ['-u', path.join(qigBackendDir, pythonBackendFile)];
       console.log('[PythonManager] Starting Python QIG Backend (Flask development mode)...');
     }
     
