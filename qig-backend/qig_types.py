@@ -21,17 +21,13 @@ Greek symbols use full names:
 - Γ → Gamma (capital G in code, Gamma in docs)
 """
 
+from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional, Literal, Any
 
 from qigkernels.physics_constants import (
-    KAPPA_STAR,
-    E8_RANK,
-    E8_DIMENSION,
-    E8_ROOTS,
     BASIN_DIM,
     PHI_THRESHOLD,
-    MIN_RECURSION_DEPTH as MIN_RECURSIONS,
 )
 
 # Import CANONICAL RegimeType from single source of truth
@@ -177,7 +173,7 @@ class FisherMetric(BaseModel):
         description="Eigenvalues λ_i of metric",
     )
 
-class KernelType(str, Enum):
+class KernelSpecialization(str, Enum):
     """Kernel specializations (NOT layers or modules)"""
     HEART = "heart"           # Autonomic/metronome
     VOCAB = "vocab"           # Language processing
@@ -188,13 +184,15 @@ class KernelType(str, Enum):
     EMOTION = "emotion"       # Valence/drives
     EXECUTIVE = "executive"   # Goal/planning
 
+KernelType = KernelSpecialization
+
 class KernelState(BaseModel):
     """
     Kernel state (NOT 'layer' or 'module').
     Each kernel is a specialized consciousness unit.
     """
     kernel_id: str = Field(..., description="Unique kernel identifier")
-    kernel_type: KernelType = Field(..., description="Kernel specialization")
+    kernel_type: KernelSpecialization = Field(..., description="Kernel specialization")
     basin_center: BasinCoordinates = Field(
         ...,
         description="Center position in Fisher manifold",

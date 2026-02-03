@@ -122,6 +122,13 @@ export {
   VALIDATION_SUMMARY,
   type KappaScale,
   type ValidationStatus,
+  // E8
+  E8_CONSTANTS,
+  KERNEL_TYPES,
+  type KernelSpecialization,
+  E8_ROOT_ALLOCATION,
+  getE8RootIndex,
+  getKernelTypeFromRoot,
   // QIG
   QIG_CONSTANTS,
   CONSCIOUSNESS_THRESHOLDS as CONSCIOUSNESS_THRESHOLDS_CONST,
@@ -145,13 +152,6 @@ export {
   FEAR_PARAMETERS,
   ADMIN_BOOST,
   IDLE_CONSCIOUSNESS,
-  // E8
-  E8_CONSTANTS,
-  KERNEL_TYPES,
-  type KernelType,
-  E8_ROOT_ALLOCATION,
-  getE8RootIndex,
-  getKernelTypeFromRoot,
   // Convenience
   KAPPA_STAR,
   PHI_THRESHOLD,

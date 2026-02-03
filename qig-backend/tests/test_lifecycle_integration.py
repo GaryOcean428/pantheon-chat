@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 from kernel_lifecycle import (
     Kernel,
+    KernelKind,
     KernelLifecycleManager,
     get_lifecycle_manager,
 )
@@ -50,7 +51,7 @@ def test_spawn_god_kernel():
     
     assert kernel.kernel_id is not None
     assert kernel.name is not None
-    assert kernel.lifecycle_stage == "protected"
+    assert kernel.lifecycle_state == "protected"
     assert kernel.protection_cycles_remaining == 50
     assert len(kernel.basin_coords) == 64
     assert np.abs(np.sum(kernel.basin_coords) - 1.0) < 1e-6
@@ -63,7 +64,7 @@ def test_spawn_god_kernel():
     print(f"✅ Spawned kernel: {kernel.name}")
     print(f"   ID: {kernel.kernel_id}")
     print(f"   Type: {kernel.kernel_type}")
-    print(f"   Stage: {kernel.lifecycle_stage}")
+    print(f"   Stage: {kernel.lifecycle_state}")
     print(f"   Events logged: {len(manager.event_log)}")
 
 
@@ -77,9 +78,9 @@ def test_split_kernel():
     kernel = Kernel(
         kernel_id="test_kernel_split",
         name="TestKernel",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         domains=["synthesis", "foresight"],
     )
     manager.active_kernels[kernel.kernel_id] = kernel
@@ -90,7 +91,7 @@ def test_split_kernel():
     assert k1.kernel_id != k2.kernel_id
     assert k1.name != k2.name
     assert len(kernel.child_kernels) == 2
-    assert kernel.lifecycle_stage == "split"
+    assert kernel.lifecycle_state == "split"
     
     # Check basins are valid simplex
     assert np.abs(np.sum(k1.basin_coords) - 1.0) < 1e-6
@@ -119,9 +120,9 @@ def test_merge_kernels():
     k1 = Kernel(
         kernel_id="test_kernel_merge_1",
         name="TestKernel1",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=basin1,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         domains=["synthesis"],
         total_cycles=100,
         phi=0.6,
@@ -130,9 +131,9 @@ def test_merge_kernels():
     k2 = Kernel(
         kernel_id="test_kernel_merge_2",
         name="TestKernel2",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=basin2,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         domains=["foresight"],
         total_cycles=50,
         phi=0.7,
@@ -158,8 +159,8 @@ def test_merge_kernels():
     assert merged.total_cycles == 150
     
     # Check lifecycle stages
-    assert k1.lifecycle_stage == "merged"
-    assert k2.lifecycle_stage == "merged"
+    assert k1.lifecycle_state == "merged"
+    assert k2.lifecycle_state == "merged"
     
     # Check event recorded
     merge_events = [e for e in manager.event_log if e.event_type.value == "merge"]
@@ -181,9 +182,9 @@ def test_prune_kernel():
     kernel = Kernel(
         kernel_id="test_kernel_prune",
         name="TestKernel",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.05,  # Low phi
         total_cycles=100,
         success_count=5,
@@ -201,7 +202,7 @@ def test_prune_kernel():
     
     # Check kernel removed from active
     assert kernel.kernel_id not in manager.active_kernels
-    assert kernel.lifecycle_stage == "pruned"
+    assert kernel.lifecycle_state == "pruned"
     
     # Check shadow pantheon
     assert shadow.shadow_id in manager.shadow_pantheon
@@ -225,9 +226,9 @@ def test_resurrect_kernel():
     kernel = Kernel(
         kernel_id="test_kernel_resurrect",
         name="TestKernel",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.05,
         total_cycles=50,
     )
@@ -239,7 +240,7 @@ def test_resurrect_kernel():
     
     assert resurrected.kernel_id is not None
     assert resurrected.kernel_id != shadow.original_kernel_id
-    assert resurrected.lifecycle_stage == "active"
+    assert resurrected.lifecycle_state == "active"
     assert resurrected.protection_cycles_remaining == 25
     
     # Check basin is valid simplex
@@ -272,9 +273,9 @@ def test_promote_chaos_kernel():
     chaos = Kernel(
         kernel_id="test_chaos_promote",
         name="chaos_test_1",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.6,  # High phi
         total_cycles=100,  # Enough cycles
         success_count=80,
@@ -293,8 +294,8 @@ def test_promote_chaos_kernel():
     assert god.name == "Prometheus"
     
     # Check lifecycle stages
-    assert chaos.lifecycle_stage == "promoted"
-    assert god.lifecycle_stage == "active"
+    assert chaos.lifecycle_state == "promoted"
+    assert god.lifecycle_state == "active"
     
     # Check god is active
     assert god.kernel_id in manager.active_kernels

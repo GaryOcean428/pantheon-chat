@@ -14,6 +14,10 @@ All roadmap planning and implementation must align to the Genesis kernel upgrade
 
 - `docs/11-Genesis-kernel-upgrade/*`
 
+Active implementation plan:
+
+- `docs/00-roadmap/20260203-genesis-kernel-rollout-implementation-plan-1.00W.md`
+
 In particular, the canonical start/reset/rollback + staged inflation flow is:
 
 - PurityGate (fail closed)

@@ -12,6 +12,7 @@ Created: 2026-01-18
 import numpy as np
 from kernel_lifecycle import (
     Kernel,
+    KernelKind,
     KernelLifecycleManager,
     compute_frechet_mean_simplex,
     compute_fisher_distance,
@@ -114,7 +115,7 @@ def test_spawn():
     
     assert kernel.kernel_id is not None
     assert kernel.name is not None
-    assert kernel.lifecycle_stage == "protected"
+    assert kernel.lifecycle_state == "protected"
     assert kernel.protection_cycles_remaining == 50
     assert len(kernel.basin_coords) == 64
     assert np.abs(np.sum(kernel.basin_coords) - 1.0) < 1e-6
@@ -122,7 +123,7 @@ def test_spawn():
     print(f"✅ Spawned kernel: {kernel.name}")
     print(f"   ID: {kernel.kernel_id}")
     print(f"   Type: {kernel.kernel_type}")
-    print(f"   Stage: {kernel.lifecycle_stage}")
+    print(f"   Stage: {kernel.lifecycle_state}")
     print(f"   Φ: {kernel.phi:.3f}")
 
 
@@ -136,9 +137,9 @@ def test_split():
     kernel = Kernel(
         kernel_id="test_kernel",
         name="TestKernel",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",  # Must be active (not protected)
+        lifecycle_state="active",  # Must be active (not protected)
         domains=["synthesis", "foresight"],
     )
     manager.active_kernels[kernel.kernel_id] = kernel
@@ -148,7 +149,7 @@ def test_split():
     
     assert k1.kernel_id != k2.kernel_id
     assert k1.name != k2.name
-    assert kernel.lifecycle_stage == "split"
+    assert kernel.lifecycle_state == "split"
     assert len(kernel.child_kernels) == 2
     
     print(f"✅ Split kernel into:")
@@ -172,9 +173,9 @@ def test_merge():
     kernel1 = Kernel(
         kernel_id="test_kernel1",
         name="TestKernel1",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=basin1,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         domains=["synthesis"],
         total_cycles=100,
         success_count=80,
@@ -182,9 +183,9 @@ def test_merge():
     kernel2 = Kernel(
         kernel_id="test_kernel2",
         name="TestKernel2",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=basin2,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         domains=["foresight"],
         total_cycles=50,
         success_count=40,
@@ -218,9 +219,9 @@ def test_prune_and_resurrect():
     kernel = Kernel(
         kernel_id="test_kernel",
         name="TestKernel",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.05,  # Low phi
         total_cycles=200,
         success_count=10,
@@ -234,7 +235,7 @@ def test_prune_and_resurrect():
     assert shadow.shadow_id is not None
     assert shadow.original_kernel_id == kernel.kernel_id
     assert shadow.final_phi == 0.05
-    assert kernel.lifecycle_stage == "pruned"
+    assert kernel.lifecycle_state == "pruned"
     assert kernel.kernel_id not in manager.active_kernels
     
     print(f"✅ Pruned kernel to shadow: {shadow.shadow_id}")
@@ -245,7 +246,7 @@ def test_prune_and_resurrect():
     resurrected = manager.resurrect(shadow, "capability_needed")
     
     assert resurrected.kernel_id != kernel.kernel_id
-    assert resurrected.lifecycle_stage == "active"
+    assert resurrected.lifecycle_state == "active"
     assert resurrected.protection_cycles_remaining == 25  # Partial protection
     assert resurrected.phi > shadow.final_phi  # Should start with improved phi
     
@@ -264,9 +265,9 @@ def test_promote():
     chaos = Kernel(
         kernel_id="test_chaos",
         name="chaos_synthesis_1",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.65,  # High stable phi
         total_cycles=100,
         success_count=80,
@@ -281,7 +282,7 @@ def test_promote():
     assert god.god_name == "Prometheus"
     assert god.name == "Prometheus"
     assert god.phi == chaos.phi
-    assert chaos.lifecycle_stage == "promoted"
+    assert chaos.lifecycle_state == "promoted"
     
     print(f"✅ Promoted chaos kernel to: {god.name}")
     print(f"   Type: {god.kernel_type}")
@@ -302,9 +303,9 @@ def test_policy_engine():
     low_phi = Kernel(
         kernel_id="low_phi",
         name="LowPhiKernel",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.05,
         total_cycles=150,
     )
@@ -314,9 +315,9 @@ def test_policy_engine():
     high_phi = Kernel(
         kernel_id="high_phi",
         name="HighPhiKernel",
-        kernel_type="god",
+        kernel_kind=KernelKind.GOD,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.75,
         domains=["synthesis", "foresight", "strategy"],
         coupled_kernels=["k1", "k2", "k3", "k4", "k5", "k6"],
@@ -327,9 +328,9 @@ def test_policy_engine():
     good_chaos = Kernel(
         kernel_id="good_chaos",
         name="chaos_good_1",
-        kernel_type="chaos",
+        kernel_kind=KernelKind.CHAOS,
         basin_coords=np.ones(64) / 64,
-        lifecycle_stage="active",
+        lifecycle_state="active",
         phi=0.55,
         total_cycles=100,
         success_count=80,
@@ -359,9 +360,9 @@ def test_lifecycle_stats():
         kernel = Kernel(
             kernel_id=f"kernel_{i}",
             name=f"TestKernel{i}",
-            kernel_type="god" if i % 2 == 0 else "chaos",
+            kernel_kind=KernelKind.GOD if i % 2 == 0 else KernelKind.CHAOS,
             basin_coords=np.ones(64) / 64,
-            lifecycle_stage="protected" if i == 0 else "active",
+            lifecycle_state="protected" if i == 0 else "active",
         )
         manager.active_kernels[kernel.kernel_id] = kernel
     
