@@ -24,7 +24,7 @@ case "$SERVICE_NAME_LOWER" in
   *celery-worker*|*worker*)
     echo "[Entrypoint] ✓ Matched celery-worker service"
     echo "[Entrypoint] Starting Celery Worker service..."
-    cd /app/qig-backend
+    cd /app/qig-backend || exit 1
 
     # Start health check server in background
     echo "[Entrypoint] Starting health check server on port ${PORT:-8080}..."
@@ -35,7 +35,7 @@ case "$SERVICE_NAME_LOWER" in
 
     # Start Celery worker (health server starts in background above)
     echo "[Entrypoint] Starting Celery worker..."
-    "$UV_CMD" run --project "$PROJECT_ROOT" python -m celery -A training.celery_app worker --loglevel=info --concurrency=2 -Q training_fast,training_batch,training_slow &
+    "$UV_CMD" run --project "$PROJECT_ROOT" python -m celery -A training.celery_app worker --loglevel=info --concurrency=2 -Q training,batch,consolidation,transfer,checkpoints &
     CELERY_PID=$!
 
     # Handle shutdown
@@ -62,7 +62,7 @@ case "$SERVICE_NAME_LOWER" in
   *beat*|*scheduler*)
     echo "[Entrypoint] ✓ Matched beat/scheduler service"
     echo "[Entrypoint] Starting Celery Beat service..."
-    cd /app/qig-backend
+    cd /app/qig-backend || exit 1
 
     # Start health check server in background
     echo "[Entrypoint] Starting health check server on port ${PORT:-8080}..."

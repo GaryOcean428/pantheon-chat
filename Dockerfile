@@ -52,6 +52,11 @@ RUN apt-get update && apt-get install -y \
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
+RUN uv python install 3.13 --managed-python
+
+ENV UV_PYTHON=3.13 \
+    UV_MANAGED_PYTHON=1
+
 # Copy built Node.js files from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
@@ -72,6 +77,8 @@ COPY docs/09-curriculum ./docs/09-curriculum
 
 # Install Python dependencies from uv.lock (frozen)
 RUN uv sync --frozen
+
+RUN /app/.venv/bin/python -c "import sys; assert sys.version_info[:2] == (3, 13)"
 
 # Ensure console scripts installed into the uv-managed venv are discoverable
 # (e.g., celery, gunicorn, pytest). This also helps if the platform executes
