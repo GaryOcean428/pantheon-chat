@@ -33,7 +33,10 @@ from enum import Enum
 import numpy as np
 
 # E8 Protocol v4.0 - Import from canonical geometry module (single source of truth)
-from qig_geometry.canonical import frechet_mean as canonical_frechet_mean
+from qig_geometry.canonical import (
+    frechet_mean as canonical_frechet_mean,
+    fisher_rao_distance as canonical_fisher_rao_distance,
+)
 
 from pantheon_registry import (
     PantheonRegistry,
@@ -229,26 +232,16 @@ def compute_fisher_distance(basin1: np.ndarray, basin2: np.ndarray) -> float:
     """
     Compute Fisher-Rao distance between two basins.
     
-    Uses Hellinger distance (equivalent to Fisher-Rao for probability distributions).
+    Uses canonical Fisher-Rao distance on the probability simplex.
     
     Args:
         basin1: First basin coordinates (simplex)
         basin2: Second basin coordinates (simplex)
         
     Returns:
-        Fisher-Rao distance in [0, √2]
+        Fisher-Rao distance in [0, π/2]
     """
-    # Ensure non-negative and normalized
-    p1 = np.abs(basin1) + 1e-10
-    p1 = p1 / np.sum(p1)
-    
-    p2 = np.abs(basin2) + 1e-10
-    p2 = p2 / np.sum(p2)
-    
-    # Hellinger distance = √(2 - 2 * sum(√(p1 * p2)))
-    hellinger = np.sqrt(2 - 2 * np.sum(np.sqrt(p1 * p2)))
-    
-    return float(hellinger)
+    return canonical_fisher_rao_distance(basin1, basin2)
 
 
 def split_basin_coordinates(

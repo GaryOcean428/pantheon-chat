@@ -1,6 +1,7 @@
 # 20260201 Genesis Kernel Upgrade: Kernel Taxonomy, GOD Budget, and Ascension Governance (1.00W)
 
 ## Purpose
+
 Implement the doctrine:
 - **240 reserved for GOD evolution**
 - chaos exists outside that budget
@@ -8,7 +9,9 @@ Implement the doctrine:
 - god birth is from parent gods, driven by researched need + mythology naming
 
 ## Data model requirements
+
 ### Kernel record must include
+
 - `kernel_id` (stable)
 - `kind`: GENESIS | GOD | CHAOS
 - `lifecycle_state`: ACTIVE | RESTING | ARCHIVED | FAILED (or similar)
@@ -25,11 +28,14 @@ Implement the doctrine:
   - `rationale`
 
 ### Budget counters
+
 - `god_count` counts only `kind == GOD` (excluding core gods if your doctrine treats core separately; if core are gods, then include them and set budget accordingly — but DO NOT count chaos).
 - `chaos_count` counts only `kind == CHAOS`.
 
 ## Governance pipeline (must be real, not stubbed)
+
 ### Stages
+
 1. **Candidate selection**
    - A chaos kernel becomes an `AscensionCandidate` only if it meets sustained metrics thresholds:
      - coherence stability
@@ -53,6 +59,7 @@ Implement the doctrine:
    - Decide whether the original chaos kernel is archived or remains as a shadow kernel
 
 ## Mythology dataset (required)
+
 Create an in-repo dataset, versioned and testable.
 Schema:
 - `name`
@@ -65,6 +72,7 @@ Schema:
 No “invented names.” All names must exist in dataset.
 
 ## Required code tasks (pantheon-chat)
+
 - Introduce `KernelKind` and propagate through:
   - DB schema/migrations
   - kernel registry
@@ -82,6 +90,7 @@ No “invented names.” All names must exist in dataset.
     - quorum vote passes
 
 ## Mermaid — governance dataflow
+
 ```mermaid
 flowchart TD
   Chaos[CHAOS kernels] --> Metrics[Metrics window]
@@ -95,6 +104,7 @@ flowchart TD
 ```
 
 ## Acceptance criteria
+
 - Chaos population can exceed 240 without blocking god growth.
 - God growth up to 240 operates independent of chaos pool.
 - Ascension produces:

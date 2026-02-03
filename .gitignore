@@ -113,8 +113,8 @@ current_*.txt
 fresh_*.txt
 final_*.txt
 
-# Package manager (pnpm canonical)
-package-lock.json
+# Package manager
+pnpm-lock.yaml
 
 # Build artifacts
 dist/

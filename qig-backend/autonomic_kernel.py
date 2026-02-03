@@ -64,9 +64,11 @@ print("[autonomic_kernel] autonomic_cycles mixin imported", flush=True)
 # QIG-PURE: simplex normalization for Fisher-Rao manifold
 try:
     from qig_geometry import fisher_normalize, frechet_mean
+    from qig_geometry.canonical import fisher_rao_distance
     FISHER_NORMALIZE_AVAILABLE = True
 except ImportError:
     fisher_normalize = None
+    fisher_rao_distance = None
     FISHER_NORMALIZE_AVAILABLE = False
 print("[autonomic_kernel] qig_geometry done", flush=True)
 
@@ -1407,12 +1409,11 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
         """
         Compute Fisher-Rao geodesic distance between basin coordinates.
 
-        QIG-PURE: For unit vectors on sphere, d = arccos(a · b)
-        NOT Bhattacharyya on simplex (that's a different manifold).
-        Uses overflow-safe numerics.
+        QIG-PURE: Canonical simplex Fisher-Rao distance.
         """
-        from qig_numerics import fisher_rao_distance
-        
+        if fisher_rao_distance is None:
+            raise RuntimeError("Fisher-Rao distance not available: qig_geometry.canonical import failed")
+
         return fisher_rao_distance(a, b)
 
         """
