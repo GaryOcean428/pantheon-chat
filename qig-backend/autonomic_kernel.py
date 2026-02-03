@@ -1138,7 +1138,7 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
             # Component 3: Total trajectory length (Fisher-Rao distance traveled)
             total_distance = 0.0
             for i in range(1, min(len(basins), 20)):  # Last 20 steps
-                total_distance += self._compute_fisher_distance(basins[i-1], basins[i])
+                total_distance += self._fisher_rao_distance(basins[i-1], basins[i])
             distance_coverage = min(1.0, total_distance / 5.0)  # 5.0 radians = full coverage
             
             # Weighted combination
@@ -1305,7 +1305,7 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
 
             # Compute basin drift
             if basin_coords and reference_basin:
-                self.state.basin_drift = self._compute_fisher_distance(
+                self.state.basin_drift = self._fisher_rao_distance(
                     np.array(basin_coords),
                     np.array(reference_basin)
                 )
@@ -1432,7 +1432,7 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
                 } if ethics_evaluation else {'available': ETHICS_MONITOR_AVAILABLE},
             }
 
-    def _compute_fisher_distance(self, a: np.ndarray, b: np.ndarray) -> float:
+    def _fisher_rao_distance(self, a: np.ndarray, b: np.ndarray) -> float:
         """
         Compute Fisher-Rao geodesic distance between basin coordinates.
 

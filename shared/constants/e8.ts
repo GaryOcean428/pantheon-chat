@@ -292,7 +292,7 @@ export interface E8RootAlignmentResult {
   nearestRoot: number[];
   distance: number;
   rootIndex: number;
-  kernelType: KernelSpecialization | null;
+  kernelSpecialization: KernelSpecialization | null;
 }
 
 /**
@@ -341,7 +341,7 @@ export function computeE8RootAlignment(basin: number[]): E8RootAlignmentResult {
     nearestRoot,
     distance: minDistance,
     rootIndex: nearestRootIndex,
-    kernelType,
+    kernelSpecialization: kernelType,
   };
 }
 

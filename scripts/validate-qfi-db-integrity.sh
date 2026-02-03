@@ -59,20 +59,20 @@ cd - > /dev/null 2>&1 || true
 echo ""
 
 echo "[4/4] Checking database constraints..."
-# Check QFI range constraint
+# Check QFI range constraint exists (no writes)
 if psql "$DATABASE_URL" -t -c "
-    INSERT INTO coordizer_vocabulary (token, token_id, qfi_score, basin_embedding, token_status) 
-    VALUES ('__constraint_test__', 9999999, 1.5, array_fill(0.015625::double precision, ARRAY[64])::vector(64), 'quarantined')
-    ON CONFLICT (token) DO NOTHING;
-" 2>&1 | grep -q "coordizer_qfi_range"; then
-    echo -e "${GREEN}✓${NC} QFI range constraint is active"
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    WHERE t.relname = 'coordizer_vocabulary'
+      AND c.conname = 'coordizer_qfi_range'
+    LIMIT 1;
+" | grep -q "1"; then
+    echo "✅ QFI range constraint present (coordizer_qfi_range)"
 else
-    echo -e "${RED}✗${NC} QFI range constraint not working"
-    OVERALL_STATUS=1
+    echo "❌ QFI range constraint missing (coordizer_qfi_range)"
+    exit 1
 fi
-
-# Clean up test if it somehow got inserted
-psql "$DATABASE_URL" -c "DELETE FROM coordizer_vocabulary WHERE token = '__constraint_test__';" > /dev/null 2>&1 || true
 
 echo ""
 echo "============================================="

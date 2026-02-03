@@ -270,14 +270,14 @@ class TestEmotionallyAwareKernel(unittest.TestCase):
         """Create test kernel."""
         self.kernel = EmotionallyAwareKernel(
             kernel_id="test_kernel_001",
-            kernel_type="test",
+            kernel_specialization="test",
             sensory_modality="text_input",
         )
     
     def test_kernel_initialization(self):
         """Test kernel initializes with correct properties."""
         self.assertEqual(self.kernel.kernel_id, "test_kernel_001")
-        self.assertEqual(self.kernel.kernel_type, "test")
+        self.assertEqual(self.kernel.kernel_specialization, "test")
         self.assertEqual(self.kernel.sensory_modality, "text_input")
         self.assertEqual(self.kernel.sensory_kappa, 60.0)  # text_input
         self.assertIsNotNone(self.kernel.basin_coords)
@@ -334,7 +334,7 @@ class TestEmotionallyAwareKernel(unittest.TestCase):
         )
         
         self.assertEqual(thought.kernel_id, "test_kernel_001")
-        self.assertEqual(thought.kernel_type, "test")
+        self.assertEqual(thought.kernel_specialization, "test")
         self.assertIsNotNone(thought.emotional_state)
         self.assertGreater(thought.confidence, 0.0)
         self.assertLessEqual(thought.confidence, 1.0)

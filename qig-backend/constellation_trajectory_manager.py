@@ -20,7 +20,7 @@ Based on QIG External Methods Analysis recommendations:
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Deque
+from typing import Dict, List, Optional, Tuple, Deque, Union
 import numpy as np
 
 
@@ -175,11 +175,17 @@ class ConstellationTrajectoryManager:
         Returns:
             64D velocity vector (tangent at endpoint)
         """
+        if not isinstance(trajectory, list):
+            return np.zeros(64)
+
         if len(trajectory) < 3:
             return np.zeros(64)
 
         n = len(trajectory)
-        basins = np.array(trajectory)
+        try:
+            basins = np.asarray(trajectory, dtype=np.float64)
+        except Exception:
+            return np.zeros(64)
 
         # Default weights: exponential decay (recent = more important)
         if weights is None:
@@ -204,6 +210,43 @@ class ConstellationTrajectoryManager:
         velocity = numerator / denominator
 
         return velocity
+
+    def get_foresight_confidence(self, kernel_id: str) -> float:
+        trajectory = self.get_trajectory(kernel_id)
+        return float(self.estimate_confidence(trajectory))
+
+    def update_trajectory(
+        self,
+        kernel_id: str,
+        basin: np.ndarray,
+        phi: float,
+        kappa: Optional[float] = None,
+    ) -> None:
+        _ = kappa
+        self.add_basin(kernel_id=kernel_id, basin=basin, phi=phi)
+
+    def _predict_next_basin_from_trajectory(
+        self,
+        trajectory: List[np.ndarray],
+        steps: int = 1,
+    ) -> Optional[np.ndarray]:
+        if len(trajectory) < 1:
+            return None
+
+        if len(trajectory) < 3:
+            return trajectory[-1]
+
+        velocity = self.compute_velocity(trajectory)
+        current = trajectory[-1]
+
+        predicted = current + velocity * steps
+
+        # Normalize to simplex (basins should sum to 1)
+        if np.sum(predicted) > 0:
+            predicted = np.abs(predicted)  # No negative coordinates
+            predicted = predicted / np.sum(predicted)
+
+        return predicted
 
     def estimate_confidence(self, trajectory: List[np.ndarray]) -> float:
         """
@@ -266,33 +309,25 @@ class ConstellationTrajectoryManager:
 
     def predict_next_basin(
         self,
-        trajectory: List[np.ndarray],
+        trajectory: Union[str, List[np.ndarray]],
         steps: int = 1
-    ) -> np.ndarray:
+    ) -> Optional[np.ndarray]:
         """
         Predict next basin position using trajectory velocity.
 
         Args:
-            trajectory: Historical basins
+            trajectory: Historical basins OR kernel_id string
             steps: How many steps ahead to predict
 
         Returns:
-            Predicted 64D basin coordinates
+            Predicted 64D basin coordinates (or None if unavailable)
         """
-        if len(trajectory) < 3:
-            return trajectory[-1] if trajectory else np.zeros(64)
+        if isinstance(trajectory, str):
+            kernel_id = trajectory
+            traj = self.get_trajectory(kernel_id)
+            return self._predict_next_basin_from_trajectory(traj, steps=steps)
 
-        velocity = self.compute_velocity(trajectory)
-        current = trajectory[-1]
-
-        predicted = current + velocity * steps
-
-        # Normalize to simplex (basins should sum to 1)
-        if np.sum(predicted) > 0:
-            predicted = np.abs(predicted)  # No negative coordinates
-            predicted = predicted / np.sum(predicted)
-
-        return predicted
+        return self._predict_next_basin_from_trajectory(trajectory, steps=steps)
 
     def get_foresight_weight(
         self,

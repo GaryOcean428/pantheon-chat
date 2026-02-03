@@ -409,6 +409,15 @@ def geodesic_toward(
     return unsqrt_map(sqrt_result, eps=eps)
 
 
+def geodesic_interpolation(
+    p: np.ndarray,
+    q: np.ndarray,
+    t: float,
+    eps: float = EPS,
+) -> np.ndarray:
+    return geodesic_toward(source=p, target=q, fraction=t, eps=eps)
+
+
 # =============================================================================
 # GEOMETRIC MEAN (FRÉCHET MEAN)
 # =============================================================================

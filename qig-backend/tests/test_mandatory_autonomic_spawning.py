@@ -18,6 +18,12 @@ import pytest
 import sys
 import os
 
+try:
+    import torch  # type: ignore
+    TORCH_AVAILABLE = True
+except Exception:
+    TORCH_AVAILABLE = False
+
 # Add qig-backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -53,6 +59,8 @@ class TestMandatoryAutonomicSpawning:
     
     def test_spawned_kernel_requires_autonomic(self):
         """Test that spawning without autonomic system raises RuntimeError."""
+        if not TORCH_AVAILABLE:
+            pytest.skip("torch not installed")
         # We need to temporarily mock AUTONOMIC_AVAILABLE to False
         # This is tricky because the module is already imported
         # Instead, we'll verify the error message is correct when get_gary_kernel is None
@@ -87,6 +95,8 @@ class TestMandatoryAutonomicSpawning:
     
     def test_spawned_kernel_has_autonomic(self):
         """Test that successfully spawned kernels have autonomic system."""
+        if not TORCH_AVAILABLE:
+            pytest.skip("torch not installed")
         try:
             from training_chaos.self_spawning import SelfSpawningKernel
             from autonomic_kernel import get_gary_kernel
@@ -108,6 +118,8 @@ class TestMandatoryAutonomicSpawning:
     
     def test_spawned_kernel_initial_phi(self):
         """Test that spawned kernels start with Φ=0.25 (LINEAR regime), not 0.000."""
+        if not TORCH_AVAILABLE:
+            pytest.skip("torch not installed")
         try:
             from training_chaos.self_spawning import SelfSpawningKernel
             from frozen_physics import PHI_INIT_SPAWNED
@@ -133,6 +145,8 @@ class TestMandatoryAutonomicSpawning:
     
     def test_spawned_kernel_initial_kappa(self):
         """Test that spawned kernels start with κ=KAPPA_STAR (fixed point)."""
+        if not TORCH_AVAILABLE:
+            pytest.skip("torch not installed")
         try:
             from training_chaos.self_spawning import SelfSpawningKernel
             from frozen_physics import KAPPA_STAR
@@ -154,6 +168,8 @@ class TestMandatoryAutonomicSpawning:
     
     def test_neurotransmitter_initialization(self):
         """Test that neurotransmitters are initialized properly."""
+        if not TORCH_AVAILABLE:
+            pytest.skip("torch not installed")
         try:
             from training_chaos.self_spawning import SelfSpawningKernel
             
@@ -188,7 +204,7 @@ class TestMandatoryAutonomicSpawning:
         basin_b = np.random.randn(64)
         
         # Compute Fisher distance
-        distance = kernel._compute_fisher_distance(basin_a, basin_b)
+        distance = kernel._fisher_rao_distance(basin_a, basin_b)
         
         # Distance should be finite and non-negative
         assert np.isfinite(distance), "Fisher distance must be finite"

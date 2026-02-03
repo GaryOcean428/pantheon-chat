@@ -63,7 +63,7 @@ def test_spawn_god_kernel():
     
     print(f"✅ Spawned kernel: {kernel.name}")
     print(f"   ID: {kernel.kernel_id}")
-    print(f"   Type: {kernel.kernel_type}")
+    print(f"   Kind: {kernel.kernel_kind.value}")
     print(f"   Stage: {kernel.lifecycle_state}")
     print(f"   Events logged: {len(manager.event_log)}")
 
@@ -289,7 +289,7 @@ def test_promote_chaos_kernel():
     
     assert god.kernel_id is not None
     assert god.kernel_id != chaos.kernel_id
-    assert god.kernel_type == "god"
+    assert god.kernel_kind == KernelKind.GOD
     assert god.god_name == "Prometheus"
     assert god.name == "Prometheus"
     
@@ -306,7 +306,7 @@ def test_promote_chaos_kernel():
     
     print(f"✅ Promoted chaos kernel to god: {god.name}")
     print(f"   New ID: {god.kernel_id}")
-    print(f"   Φ: {god.phi:.3f}")
+    print(f"   Kind: {god.kernel_kind.value}")
     print(f"   Total cycles: {god.total_cycles}")
 
 

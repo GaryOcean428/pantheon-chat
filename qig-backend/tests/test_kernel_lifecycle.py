@@ -9,13 +9,17 @@ Status: ACTIVE
 Created: 2026-01-18
 """
 
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
+from qig_geometry.canonical import fisher_rao_distance
 from kernel_lifecycle import (
     Kernel,
     KernelKind,
     KernelLifecycleManager,
     compute_frechet_mean_simplex,
-    compute_fisher_distance,
     split_basin_coordinates,
 )
 from kernel_spawner import RoleSpec
@@ -40,9 +44,9 @@ def test_frechet_mean():
     assert np.abs(np.sum(mean) - 1.0) < 1e-6, "Mean should sum to 1"
     
     # Check it's between the two basins
-    d1 = compute_fisher_distance(mean, basin1)
-    d2 = compute_fisher_distance(mean, basin2)
-    d12 = compute_fisher_distance(basin1, basin2)
+    d1 = fisher_rao_distance(mean, basin1)
+    d2 = fisher_rao_distance(mean, basin2)
+    d12 = fisher_rao_distance(basin1, basin2)
     
     assert d1 < d12, "Mean should be closer to basin1 than basin1 is to basin2"
     assert d2 < d12, "Mean should be closer to basin2 than basin1 is to basin2"
@@ -60,7 +64,7 @@ def test_fisher_distance():
     
     # Test identical basins
     basin = np.ones(64) / 64
-    d = compute_fisher_distance(basin, basin)
+    d = fisher_rao_distance(basin, basin)
     assert d < 1e-6, "Distance to self should be near zero"
     print(f"✅ Distance to self: {d:.8f}")
     
@@ -69,7 +73,7 @@ def test_fisher_distance():
     basin1[0] = 1.0
     basin2 = np.zeros(64)
     basin2[-1] = 1.0
-    d = compute_fisher_distance(basin1, basin2)
+    d = fisher_rao_distance(basin1, basin2)
     assert d > 1.0, "Distance between opposite corners should be large"
     print(f"✅ Distance between opposite corners: {d:.4f}")
 
@@ -89,7 +93,7 @@ def test_split_basin():
     assert np.abs(np.sum(b2) - 1.0) < 1e-6, "Basin 2 should sum to 1"
     
     # Check they're different
-    d = compute_fisher_distance(b1, b2)
+    d = fisher_rao_distance(b1, b2)
     assert d > 0.1, "Split basins should be distinct"
     
     print(f"✅ Split basins valid")
@@ -122,7 +126,7 @@ def test_spawn():
     
     print(f"✅ Spawned kernel: {kernel.name}")
     print(f"   ID: {kernel.kernel_id}")
-    print(f"   Type: {kernel.kernel_type}")
+    print(f"   Kind: {kernel.kernel_kind.value}")
     print(f"   Stage: {kernel.lifecycle_state}")
     print(f"   Φ: {kernel.phi:.3f}")
 
@@ -278,14 +282,14 @@ def test_promote():
     # Promote it
     god = manager.promote(chaos, "Prometheus")
     
-    assert god.kernel_type == "god"
+    assert god.kernel_kind == KernelKind.GOD
     assert god.god_name == "Prometheus"
     assert god.name == "Prometheus"
     assert god.phi == chaos.phi
     assert chaos.lifecycle_state == "promoted"
     
     print(f"✅ Promoted chaos kernel to: {god.name}")
-    print(f"   Type: {god.kernel_type}")
+    print(f"   Kind: {god.kernel_kind.value}")
     print(f"   Φ: {god.phi:.3f}")
     print(f"   Total cycles: {god.total_cycles}")
 

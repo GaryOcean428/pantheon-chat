@@ -31,11 +31,12 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
+from qig_geometry.canonical import fisher_rao_distance
+
 from kernel_lifecycle import (
     Kernel,
     KernelLifecycleManager,
     LifecycleEvent,
-    compute_fisher_distance,
     KernelKind,
 )
 
@@ -449,7 +450,7 @@ class LifecyclePolicyEngine:
                 if i == j:
                     continue
                 
-                distance = compute_fisher_distance(
+                distance = fisher_rao_distance(
                     kernel.basin_coords,
                     other.basin_coords,
                 )

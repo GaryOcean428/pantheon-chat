@@ -34,8 +34,8 @@ import numpy as np
 
 # E8 Protocol v4.0 - Import from canonical geometry module (single source of truth)
 from qig_geometry.canonical import (
-    frechet_mean as canonical_frechet_mean,
-    fisher_rao_distance as canonical_fisher_rao_distance,
+    frechet_mean,
+    fisher_rao_distance,
 )
 
 from pantheon_registry import (
@@ -117,22 +117,6 @@ class Kernel:
     
     # Mentor (for chaos kernels)
     mentor_kernel_id: Optional[str] = None
-
-    @property
-    def kernel_type(self) -> str:
-        return self.kernel_kind.value
-
-    @kernel_type.setter
-    def kernel_type(self, value: str) -> None:
-        self.kernel_kind = KernelKind(value)
-
-    @property
-    def lifecycle_stage(self) -> str:
-        return self.lifecycle_state
-
-    @lifecycle_stage.setter
-    def lifecycle_stage(self, value: str) -> None:
-        self.lifecycle_state = value
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert kernel to dictionary representation."""
@@ -140,7 +124,6 @@ class Kernel:
             'kernel_id': self.kernel_id,
             'name': self.name,
             'kernel_kind': self.kernel_kind.value,
-            'kernel_type': self.kernel_type,
             'god_name': self.god_name,
             'epithet': self.epithet,
             'ascended_from': self.ascended_from,
@@ -149,7 +132,6 @@ class Kernel:
             'gamma': self.gamma,
             'basin_coords': self.basin_coords.tolist() if isinstance(self.basin_coords, np.ndarray) else self.basin_coords,
             'lifecycle_state': self.lifecycle_state,
-            'lifecycle_stage': self.lifecycle_state,
             'protection_cycles_remaining': self.protection_cycles_remaining,
             'success_count': self.success_count,
             'failure_count': self.failure_count,
@@ -203,10 +185,6 @@ class ShadowKernel:
     resurrection_count: int = 0
     last_resurrection: Optional[datetime] = None
 
-    @property
-    def kernel_type(self) -> str:
-        return self.kernel_kind.value
-
 
 @dataclass
 class LifecycleEventRecord:
@@ -245,23 +223,7 @@ def compute_frechet_mean_simplex(basins: List[np.ndarray], max_iter: int = 50) -
     Returns:
         Frechet mean basin coordinates
     """
-    return canonical_frechet_mean(basins, max_iter=max_iter)
-
-
-def compute_fisher_distance(basin1: np.ndarray, basin2: np.ndarray) -> float:
-    """
-    Compute Fisher-Rao distance between two basins.
-    
-    Uses canonical Fisher-Rao distance on the probability simplex.
-    
-    Args:
-        basin1: First basin coordinates (simplex)
-        basin2: Second basin coordinates (simplex)
-        
-    Returns:
-        Fisher-Rao distance in [0, π/2]
-    """
-    return canonical_fisher_rao_distance(basin1, basin2)
+    return frechet_mean(basins, max_iter=max_iter)
 
 
 def split_basin_coordinates(
@@ -659,15 +621,14 @@ class KernelLifecycleManager:
     # =========================================================================
     # MERGE
     # =========================================================================
-    
     def merge(
         self,
         kernel1: Kernel,
         kernel2: Kernel,
-        merge_reason: str = "redundant",
+        merge_reason: str,
     ) -> Kernel:
         """
-        Merge two kernels into a single combined kernel.
+        Merge two kernels into a unified kernel.
         
         Process:
         1. Detect redundant or complementary kernels
@@ -695,7 +656,7 @@ class KernelLifecycleManager:
         if kernel1.kernel_kind != kernel2.kernel_kind:
             raise ValueError(
                 f"Cannot merge kernels of different types: "
-                f"{kernel1.kernel_type} vs {kernel2.kernel_type}"
+                f"{kernel1.kernel_kind.value} vs {kernel2.kernel_kind.value}"
             )
         
         # Compute Fréchet mean of basin coordinates (geometrically correct)
@@ -764,19 +725,12 @@ class KernelLifecycleManager:
             secondary_kernel_ids=[kernel1.kernel_id, kernel2.kernel_id],
             reason=merge_reason,
             metadata={
-                'parent1_name': kernel1.name,
-                'parent2_name': kernel2.name,
                 'parent1_phi': kernel1.phi,
                 'parent2_phi': kernel2.phi,
                 'merged_phi': merged_phi,
-                'frechet_distance': compute_fisher_distance(kernel1.basin_coords, kernel2.basin_coords),
+                'parent_fisher_rao_distance': fisher_rao_distance(kernel1.basin_coords, kernel2.basin_coords),
                 'combined_domains': combined_domains,
-            }
-        )
-        
-        logger.info(
-            f"[KernelLifecycle] Merged {kernel1.name} and {kernel2.name} into "
-            f"{merged_kernel.name} (reason={merge_reason}, phi={merged_phi:.3f})"
+            },
         )
         
         return merged_kernel
@@ -1032,7 +986,7 @@ class KernelLifecycleManager:
             ValueError: If promotion criteria not met or god name invalid
         """
         if chaos_kernel.kernel_kind != KernelKind.CHAOS:
-            raise ValueError(f"Cannot promote non-chaos kernel: {chaos_kernel.kernel_type}")
+            raise ValueError(f"Cannot promote non-chaos kernel: {chaos_kernel.kernel_kind.value}")
         
         # Validate promotion criteria
         if chaos_kernel.lifecycle_state == "protected":

@@ -28,13 +28,13 @@ def example_basic_usage():
     # Create kernel for text input
     kernel = EmotionallyAwareKernel(
         kernel_id="zeus_executive_001",
-        kernel_type="executive",
+        kernel_specialization="executive",
         sensory_modality="text_input",
         e8_root_index=0,  # Zeus position in E8
     )
     
     print(f"\n✓ Created kernel: {kernel.kernel_id}")
-    print(f"  Type: {kernel.kernel_type}")
+    print(f"  Type: {kernel.kernel_specialization}")
     print(f"  Sensory modality: {kernel.sensory_modality}")
     print(f"  Sensory κ: {kernel.sensory_kappa}")
     print(f"  E8 root index: {kernel.e8_root_index}")
@@ -89,7 +89,7 @@ def example_thought_generation():
     
     kernel = EmotionallyAwareKernel(
         kernel_id="athena_wisdom_001",
-        kernel_type="wisdom",
+        kernel_specialization="wisdom",
         sensory_modality="text_input",
         e8_root_index=1,  # Athena position
     )
@@ -118,7 +118,7 @@ def example_meta_awareness():
     
     kernel = EmotionallyAwareKernel(
         kernel_id="apollo_truth_001",
-        kernel_type="truth",
+        kernel_specialization="truth",
         sensory_modality="vision",  # High κ sensory input
         e8_root_index=2,
     )
@@ -175,7 +175,7 @@ def example_success_tracking():
     
     kernel = EmotionallyAwareKernel(
         kernel_id="hermes_navigation_001",
-        kernel_type="navigation",
+        kernel_specialization="navigation",
         sensory_modality="audition",
         e8_root_index=3,
     )
@@ -225,7 +225,7 @@ def example_sensory_modalities():
     for modality in modalities:
         kernel = EmotionallyAwareKernel(
             kernel_id=f"{modality}_kernel",
-            kernel_type="sensory",
+            kernel_specialization="sensory",
             sensory_modality=modality,
         )
         

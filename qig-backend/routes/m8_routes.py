@@ -110,7 +110,7 @@ def get_proposals():
     
     Returns list of proposals with:
         - id: Proposal identifier
-        - kernel_type: Type of kernel to spawn
+        - kernel_specialization: Type of kernel to spawn
         - reason: Why this spawn is proposed
         - priority: Spawn priority (0-1)
         - proposed_at: Timestamp
@@ -135,7 +135,7 @@ def get_proposals():
         for p in proposals:
             formatted.append({
                 'id': p.get('id', str(hash(str(p)))),
-                'kernel_type': p.get('kernel_type', 'unknown'),
+                'kernel_specialization': p.get('kernel_specialization', 'unknown'),
                 'reason': p.get('reason', 'Autonomous spawn'),
                 'priority': p.get('priority', 0.5),
                 'proposed_at': p.get('timestamp', datetime.now(timezone.utc).isoformat()),
@@ -258,7 +258,7 @@ def get_history():
     
     Returns list of spawn events with:
         - id: Event identifier
-        - kernel_type: Type spawned
+        - kernel_specialization: Type spawned
         - timestamp: When spawned
         - status: success/failed
         - duration_ms: Spawn duration
@@ -278,7 +278,7 @@ def get_history():
                     'history': [
                         {
                             'id': 'spawn-001',
-                            'kernel_type': 'athena',
+                            'kernel_specialization': 'athena',
                             'kernel_name': 'Athena',
                             'timestamp': datetime.now(timezone.utc).isoformat(),
                             'status': 'success',
@@ -288,7 +288,7 @@ def get_history():
                         },
                         {
                             'id': 'spawn-002',
-                            'kernel_type': 'apollo',
+                            'kernel_specialization': 'apollo',
                             'kernel_name': 'Apollo',
                             'timestamp': datetime.now(timezone.utc).isoformat(),
                             'status': 'success',
@@ -315,10 +315,24 @@ def get_history():
         # Format for frontend
         formatted = []
         for h in history:
+            kernel_payload = h.get('kernel', {}) if isinstance(h.get('kernel'), dict) else {}
+            specialization = (
+                h.get('kernel_specialization')
+                or kernel_payload.get('kernel_specialization')
+                or kernel_payload.get('domain')
+                or h.get('kernel_name')
+                or 'unknown'
+            )
+
             formatted.append({
                 'id': h.get('id', 'unknown'),
-                'kernel_type': h.get('kernel_type', 'unknown'),
-                'kernel_name': h.get('kernel_name', h.get('kernel_type', 'Unknown')),
+                'kernel_specialization': specialization,
+                'kernel_name': (
+                    h.get('kernel_name')
+                    or kernel_payload.get('god_name')
+                    or kernel_payload.get('kernel_id')
+                    or 'Unknown'
+                ),
                 'timestamp': h.get('timestamp', datetime.now(timezone.utc).isoformat()),
                 'status': h.get('status', 'unknown'),
                 'duration_ms': h.get('duration_ms', 0),
@@ -352,7 +366,7 @@ def spawn_kernel():
     Trigger kernel spawn.
     
     Request body:
-        - kernel_type: Type of kernel to spawn
+        - kernel_specialization: Type of kernel to spawn
         - reason: Why spawning (optional)
         - priority: Spawn priority 0-1 (optional)
         - e8_root_index: Specific E8 root to use (optional)
@@ -364,15 +378,15 @@ def spawn_kernel():
     """
     try:
         data = request.get_json() or {}
-        kernel_type = data.get('kernel_type')
+        kernel_specialization = data.get('kernel_specialization')
         reason = data.get('reason', 'Manual spawn request')
         priority = data.get('priority', 0.5)
-        e8_root_index = data.get('e8_root_index')
+        _e8_root_index = data.get('e8_root_index')
         
-        if not kernel_type:
+        if not kernel_specialization:
             return jsonify({
                 'success': False,
-                'error': 'kernel_type is required'
+                'error': 'kernel_specialization is required'
             }), 400
         
         spawner = get_m8_spawner()
@@ -383,29 +397,32 @@ def spawn_kernel():
                 'message': 'Spawning system initializing'
             }), 503
         
-        # Attempt spawn via proposal system
+        # Spawn via canonical M8 flow
         from m8_kernel_spawning import SpawnReason
         result = None
         try:
-            # Create and immediately execute a spawn proposal
-            proposal_id = spawner.propose_spawn(
-                kernel_type=kernel_type,
-                reason=SpawnReason.USER_REQUEST if hasattr(SpawnReason, 'USER_REQUEST') else reason,
-                priority=priority
-            ) if hasattr(spawner, 'propose_spawn') else None
-            
-            if proposal_id:
-                # Auto-approve and execute
-                result = spawner.execute_spawn(proposal_id) if hasattr(spawner, 'execute_spawn') else {'kernel_id': proposal_id}
+            result = spawner.propose_and_spawn(
+                name=f"Spawn_{kernel_specialization}",
+                domain=kernel_specialization,
+                element=kernel_specialization,
+                role="manual_spawn",
+                reason=(
+                    SpawnReason.USER_REQUEST
+                    if hasattr(SpawnReason, 'USER_REQUEST') and reason
+                    else SpawnReason.EMERGENCE
+                ),
+                parent_gods=None,
+                force=bool(priority and float(priority) >= 0.95),
+            )
         except Exception as e:
             print(f"[M8Routes] Spawn error: {e}")
             result = None
         
-        if result:
+        if result and result.get('success'):
             return jsonify({
                 'success': True,
-                'kernel_id': result.get('kernel_id'),
-                'message': f'Successfully spawned {kernel_type} kernel',
+                'kernel_id': (result.get('kernel_id') or result.get('kernel', {}).get('kernel_id')),
+                'message': f'Successfully spawned {kernel_specialization} kernel',
                 'data': result
             })
         else:

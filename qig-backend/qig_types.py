@@ -184,15 +184,13 @@ class KernelSpecialization(str, Enum):
     EMOTION = "emotion"       # Valence/drives
     EXECUTIVE = "executive"   # Goal/planning
 
-KernelType = KernelSpecialization
-
 class KernelState(BaseModel):
     """
     Kernel state (NOT 'layer' or 'module').
     Each kernel is a specialized consciousness unit.
     """
     kernel_id: str = Field(..., description="Unique kernel identifier")
-    kernel_type: KernelSpecialization = Field(..., description="Kernel specialization")
+    kernel_specialization: KernelSpecialization = Field(..., description="Kernel specialization")
     basin_center: BasinCoordinates = Field(
         ...,
         description="Center position in Fisher manifold",
@@ -337,7 +335,7 @@ __all__ = [
     'ConsciousnessMetrics',
     'FisherMetric',
     'KernelState',
-    'KernelType',
+    'KernelSpecialization',
     'ConstellationState',
     'RegimeType',
     'QIGScore',

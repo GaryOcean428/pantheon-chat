@@ -1225,7 +1225,7 @@ class QIGPersistence:
     def record_kernel_thought(
         self,
         kernel_id: str,
-        kernel_type: str,
+        kernel_specialization: str,
         thought_fragment: str,
         phi: float,
         kappa: float,
@@ -1254,7 +1254,7 @@ class QIGPersistence:
                 with conn.cursor() as cur:
                     cur.execute("""
                         INSERT INTO kernel_thoughts (
-                            kernel_id, kernel_type, e8_root_index, thought_fragment,
+                            kernel_id, kernel_specialization, e8_root_index, thought_fragment,
                             basin_coords, phi, kappa, regime, emotional_state,
                             confidence, synthesis_round, conversation_id, user_id,
                             was_used_in_synthesis, consensus_alignment, metadata,
@@ -1265,7 +1265,7 @@ class QIGPersistence:
                         )
                         RETURNING id
                     """, (
-                        kernel_id, kernel_type, e8_root_index, thought_fragment,
+                        kernel_id, kernel_specialization, e8_root_index, thought_fragment,
                         self._vector_to_pg(basin_coords) if basin_coords is not None else None,
                         phi, kappa, regime, emotional_state,
                         confidence, synthesis_round, conversation_id, user_id,

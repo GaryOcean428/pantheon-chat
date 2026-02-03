@@ -99,7 +99,7 @@ def spawn_kernel():
         return jsonify({
             'success': True,
             'kernel': kernel.to_dict(),
-            'message': f"Spawned {kernel.kernel_type} kernel: {kernel.name}",
+            'message': f"Spawned {kernel.kernel_kind.value} kernel: {kernel.name}",
         })
     
     except Exception as e:
