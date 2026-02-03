@@ -7,22 +7,18 @@ Tests the updated methods in qig_generation.py and vocabulary_persistence.py.
 import os
 import sys
 
+import pytest
+
 # Verify database URL is set
 db_url = os.environ.get('DATABASE_URL')
 if not db_url:
-    print("❌ DATABASE_URL environment variable not set")
-    sys.exit(1)
-
-print("✅ DATABASE_URL is set")
+    pytest.skip("DATABASE_URL not set, skipping DB integration tests", allow_module_level=True)
 
 # Import required modules
 try:
     import psycopg2
-    print("✅ psycopg2 imported")
 except ImportError:
-    print("❌ psycopg2 not available - skipping Python tests")
-    print("   Schema migration and SQL queries verified successfully")
-    sys.exit(0)
+    pytest.skip("psycopg2 not available, skipping DB integration tests", allow_module_level=True)
 
 def test_god_profile_query():
     """Test querying god_profile JSONB column."""

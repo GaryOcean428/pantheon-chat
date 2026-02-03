@@ -37,16 +37,21 @@ class AgentActivityRecorder:
         return cls._instance
     
     def __init__(self):
-        if self._initialized:
+        if getattr(self, '_initialized', False):
             return
         self._initialized = True
         self._connection = None
         self._listeners: List[callable] = []
         self._recent_activities: List[Dict[str, Any]] = []
         self._max_recent = 100
+
+    def _db_recording_enabled(self) -> bool:
+        return os.environ.get('QIG_DB_RECORDER_ENABLED', '0') == '1'
         
     def _get_connection(self):
         """Get or create database connection."""
+        if not self._db_recording_enabled():
+            return None
         if self._connection is None:
             try:
                 import psycopg2

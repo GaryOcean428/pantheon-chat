@@ -663,6 +663,16 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstand
 - ✅ Lockfile normalization completed: pnpm lock restored, npm lock removed; working tree stabilized.
 - ✅ Genesis upgrade docs hygiene: removed non-canonical transcript content from Genesis doctrine docs; retained only requirements and acceptance criteria.
 - 🔄 Genesis rollout readiness work identified: unify kernel taxonomy naming (KernelKind vs KernelType), unify lifecycle naming (`lifecycle_stage` vs DB `lifecycle_state`), and remove/replace legacy orchestrator paths that bypass canonical geometry.
+- ✅ Genesis rollout readiness (naming + geometry API + tests):
+  - Canonical naming enforced for kernel specialization (`kernel_specialization` end-to-end in key M8 flows)
+  - Canonical geometry API aligned: `qig_geometry.canonical.geodesic_interpolation(p, q, t)` exported to eliminate import-time failures
+  - Trajectory foresight interface aligned with Gary synthesis (trajectory manager accepts kernel id and exposes confidence + update helpers)
+  - Ocean autonomic monitoring variance intervention verified via tests
+  - Record: `docs/04-records/20260203-genesis-rollout-naming-purity-validation-1.00W.md`
+- 📋 Recommended validation commands (Universal Protocol battery; run as needed):
+  - `python scripts/detect_garbage_tokens.py`
+  - `python scripts/validate_schema_consistency.py`
+  - `QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py`
 
 **Recent Updates (2026-01-20)**:
 - ✅ Added E8 Protocol Implementation Status section tracking Issues 01-03

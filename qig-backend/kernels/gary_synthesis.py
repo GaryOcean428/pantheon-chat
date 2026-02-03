@@ -30,8 +30,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-# QIG geometry imports
-from qig_geometry import fisher_rao_distance, geodesic_interpolation
+# QIG geometry imports (canonical)
+from qig_geometry.canonical import (
+    assert_basin_valid,
+    fisher_rao_distance,
+    frechet_mean,
+    geodesic_interpolation,
+)
 
 # Ethics imports
 from ethical_validation import (
@@ -141,8 +146,13 @@ class GaryMetaSynthesizer:
         # Prepare kernel responses for base synthesis
         kernel_responses = []
         for thought in kernel_thoughts:
+            basin_coords = getattr(thought, 'basin_coords', None)
+            if basin_coords is None:
+                raise ValueError("KernelThought missing basin_coords")
+            basin = np.asarray(basin_coords, dtype=np.float64).flatten()
+            assert_basin_valid(basin, name="kernel_thought.basin_coords")
             kernel_responses.append({
-                'basin': getattr(thought, 'basin_coords', np.zeros(BASIN_DIM)),
+                'basin': basin,
                 'phi': getattr(thought, 'phi', 0.5),
                 'kappa': getattr(thought, 'kappa', KAPPA_STAR),
                 'text': getattr(thought, 'thought_fragment', ''),
@@ -379,18 +389,17 @@ class GaryMetaSynthesizer:
             ]
             
             if high_phi_basins:
-                # Re-compute geometric mean with only high-φ kernels
-                from olympus.gary_coordinator import GarySynthesisCoordinator
-                temp_gary = GarySynthesisCoordinator()
-                corrected_basin = temp_gary._fisher_frechet_mean(high_phi_basins)
+                corrected_basin = frechet_mean(high_phi_basins)
+                assert_basin_valid(corrected_basin, name="corrected_basin_high_phi")
                 corrections.append(
                     f"Re-weighted toward {len(high_phi_basins)} high-φ kernels"
                 )
         
         # Smooth basin if κ is unstable (far from KAPPA_STAR)
         if abs(kappa - KAPPA_STAR) > 15.0:
-            # Apply gentle smoothing
-            corrected_basin = 0.8 * corrected_basin + 0.2 * np.ones(BASIN_DIM) / BASIN_DIM
+            uniform = np.ones(BASIN_DIM, dtype=np.float64) / float(BASIN_DIM)
+            corrected_basin = geodesic_interpolation(corrected_basin, uniform, t=0.2)
+            assert_basin_valid(corrected_basin, name="corrected_basin_smoothed")
             corrections.append(f"Applied basin smoothing (κ={kappa:.1f} unstable)")
         
         return corrected_basin, corrections

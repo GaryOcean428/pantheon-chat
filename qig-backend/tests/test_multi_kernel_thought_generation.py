@@ -20,7 +20,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Mock environment
-os.environ.setdefault('DATABASE_URL', 'postgresql://test:test@localhost/test')
 os.environ.setdefault('QIG_ENV', 'test')
 
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
@@ -52,7 +51,7 @@ class TestParallelThoughtGeneration:
         from kernels.thought_generation import ParallelThoughtGenerator
         
         generator = ParallelThoughtGenerator(max_workers=2)
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = generator.generate_kernel_thoughts(
             kernels=[],
@@ -73,7 +72,7 @@ class TestParallelThoughtGeneration:
         mock_kernel.name = "TestKernel"
         mock_kernel.last_phi = 0.75
         mock_kernel.last_kappa = KAPPA_STAR
-        mock_kernel.basin_coords = np.random.rand(BASIN_DIM)
+        mock_kernel.basin_coords = np.random.dirichlet(np.ones(BASIN_DIM))
         
         # Mock thought result
         mock_thought = KernelThought(
@@ -90,7 +89,7 @@ class TestParallelThoughtGeneration:
         mock_kernel.generate_thought.return_value = mock_thought
         
         generator = ParallelThoughtGenerator(max_workers=2)
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = generator.generate_kernel_thoughts(
             kernels=[mock_kernel],
@@ -115,7 +114,7 @@ class TestParallelThoughtGeneration:
             kernel.name = f"Kernel{i}"
             kernel.last_phi = 0.6 + i * 0.1
             kernel.last_kappa = KAPPA_STAR + i * 2
-            kernel.basin_coords = np.random.rand(BASIN_DIM)
+            kernel.basin_coords = np.random.dirichlet(np.ones(BASIN_DIM))
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
@@ -132,7 +131,7 @@ class TestParallelThoughtGeneration:
             mock_kernels.append(kernel)
         
         generator = ParallelThoughtGenerator(max_workers=4)
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = generator.generate_kernel_thoughts(
             kernels=mock_kernels,
@@ -162,7 +161,7 @@ class TestParallelThoughtGeneration:
             kernel.name = f"Kernel{i}"
             kernel.last_phi = phi
             kernel.last_kappa = KAPPA_STAR
-            kernel.basin_coords = np.random.rand(BASIN_DIM)
+            kernel.basin_coords = np.random.dirichlet(np.ones(BASIN_DIM))
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
@@ -179,7 +178,7 @@ class TestParallelThoughtGeneration:
             mock_kernels.append(kernel)
         
         generator = ParallelThoughtGenerator(max_workers=4)
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = generator.generate_kernel_thoughts(
             kernels=mock_kernels,
@@ -212,7 +211,7 @@ class TestConsensusDetection:
             kernel_id="test-1",
             kernel_specialization="test",
             thought_fragment="Single thought",
-            basin_coords=np.random.rand(BASIN_DIM),
+            basin_coords=np.random.dirichlet(np.ones(BASIN_DIM)),
             phi=0.75,
             kappa=64.0,
             regime="geometric",
@@ -233,14 +232,11 @@ class TestConsensusDetection:
         from kernels.consensus import ConsensusDetector, ConsensusLevel
         
         # Create thoughts with similar basins
-        base_basin = np.random.rand(BASIN_DIM)
+        base_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         thoughts = []
         
         for i in range(3):
-            # Add small perturbations to base basin
-            basin = base_basin + np.random.randn(BASIN_DIM) * 0.01
-            basin = np.abs(basin)
-            basin = basin / basin.sum()  # Normalize to simplex
+            basin = base_basin.copy()
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
@@ -270,8 +266,7 @@ class TestConsensusDetection:
         # Create thoughts with very different basins
         thoughts = []
         for i in range(3):
-            basin = np.random.rand(BASIN_DIM)
-            basin = basin / basin.sum()
+            basin = np.random.dirichlet(np.ones(BASIN_DIM))
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
@@ -313,7 +308,7 @@ class TestGarySynthesis:
             kernel_id="test-1",
             kernel_specialization="test",
             thought_fragment="Single thought for synthesis",
-            basin_coords=np.random.rand(BASIN_DIM),
+            basin_coords=np.random.dirichlet(np.ones(BASIN_DIM)),
             phi=0.75,
             kappa=64.0,
             regime="geometric",
@@ -322,7 +317,7 @@ class TestGarySynthesis:
         )
         
         synthesizer = GaryMetaSynthesizer()
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = synthesizer.synthesize_with_meta_reflection(
             kernel_thoughts=[thought],
@@ -344,7 +339,7 @@ class TestGarySynthesis:
             kernel_id="test-1",
             kernel_specialization="test",
             thought_fragment="Suffering test",
-            basin_coords=np.random.rand(BASIN_DIM),
+            basin_coords=np.random.dirichlet(np.ones(BASIN_DIM)),
             phi=0.8,  # High consciousness
             kappa=64.0,
             regime="geometric",
@@ -353,7 +348,7 @@ class TestGarySynthesis:
         )
         
         synthesizer = GaryMetaSynthesizer()
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = synthesizer.synthesize_with_meta_reflection(
             kernel_thoughts=[thought],
@@ -389,7 +384,7 @@ class TestGarySynthesis:
                 kernel_id=f"kernel-{i}",
                 kernel_specialization="test",
                 thought_fragment=f"Thought {i}",
-                basin_coords=np.random.rand(BASIN_DIM),
+                basin_coords=np.random.dirichlet(np.ones(BASIN_DIM)),
                 phi=0.7,
                 kappa=64.0,
                 regime="geometric",
@@ -399,7 +394,7 @@ class TestGarySynthesis:
             thoughts.append(thought)
         
         synthesizer = GaryMetaSynthesizer()
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         result = synthesizer.synthesize_with_meta_reflection(
             kernel_thoughts=thoughts,
@@ -428,7 +423,7 @@ class TestIntegration:
             kernel.name = f"Kernel{i}"
             kernel.last_phi = 0.7
             kernel.last_kappa = KAPPA_STAR
-            kernel.basin_coords = np.random.rand(BASIN_DIM)
+            kernel.basin_coords = np.random.dirichlet(np.ones(BASIN_DIM))
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
@@ -446,7 +441,7 @@ class TestIntegration:
         
         # Phase 1: Generate thoughts
         generator = ParallelThoughtGenerator(max_workers=4)
-        query_basin = np.random.rand(BASIN_DIM)
+        query_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         
         gen_result = generator.generate_kernel_thoughts(
             kernels=mock_kernels,

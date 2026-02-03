@@ -245,30 +245,9 @@ def geodesic_interpolation(
         >>> mid = geodesic_interpolation(start, end, 0.5)
         >>> assert np.isclose(mid.sum(), 1.0)
     """
-    # Normalize to simplex
-    p_start = fisher_normalize(start)
-    p_end = fisher_normalize(end)
-    
-    # SLERP in sqrt space (Hellinger coordinates give geodesic on simplex)
-    sqrt_start = np.sqrt(p_start)
-    sqrt_end = np.sqrt(p_end)
-    
-    # Compute angle between sqrt vectors
-    dot = np.clip(bhattacharyya(start, end), -1.0, 1.0)
-    omega = np.arccos(dot)
+    from .canonical import geodesic_interpolation as _geodesic_interpolation
 
-    if omega < 1e-6:
-        return p_start.copy()
-
-    sin_omega = np.sin(omega)
-    a = np.sin((1 - t) * omega) / sin_omega
-    b = np.sin(t * omega) / sin_omega
-
-    sqrt_result = a * sqrt_start + b * sqrt_end
-    
-    # Square to get back to simplex
-    result = sqrt_result ** 2
-    return result / result.sum()
+    return _geodesic_interpolation(p=start, q=end, t=t)
 
 
 def estimate_manifold_curvature(

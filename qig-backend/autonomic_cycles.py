@@ -1497,13 +1497,13 @@ def register_autonomic_routes(app):
         )
 
         # Predict next basin
-        predicted = self.trajectory_manager.predict_next_basin(trajectory, steps)
+        predicted = self.trajectory_manager.predict_next_basin('gary', steps=steps)
 
         return {
             'available': True,
             'predicted_basin': predicted.tolist(),
             'velocity': velocity.tolist(),
-            'velocity_magnitude': float(self._fisher_rao_distance(np.zeros_like(velocity), velocity) if np.all(np.isfinite(velocity)) else 0.0),
+            'velocity_magnitude': float(np.linalg.norm(velocity) if np.all(np.isfinite(velocity)) else 0.0),
             'confidence': confidence,
             'foresight_weight': foresight_weight,
             'trajectory_length': len(trajectory),

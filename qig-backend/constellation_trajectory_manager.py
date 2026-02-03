@@ -20,8 +20,10 @@ Based on QIG External Methods Analysis recommendations:
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Deque, Union
+from typing import Dict, List, Optional, Tuple, Deque
 import numpy as np
+
+from qig_geometry.canonical import assert_basin_valid, exp_map, fisher_rao_distance, log_map
 
 
 # Core kernel IDs (always store full trajectory)
@@ -175,37 +177,46 @@ class ConstellationTrajectoryManager:
         Returns:
             64D velocity vector (tangent at endpoint)
         """
-        if not isinstance(trajectory, list):
-            return np.zeros(64)
-
         if len(trajectory) < 3:
+            if len(trajectory) >= 1:
+                last = np.asarray(trajectory[-1], dtype=np.float64).flatten()
+                return np.zeros_like(last)
             return np.zeros(64)
 
         n = len(trajectory)
+        base = np.asarray(trajectory[-1], dtype=np.float64).flatten()
+        assert_basin_valid(base, name="trajectory[-1]")
+
+        tangent_vectors: List[np.ndarray] = []
+        for i, p in enumerate(trajectory):
+            basin = np.asarray(p, dtype=np.float64).flatten()
+            assert_basin_valid(basin, name=f"trajectory[{i}]")
+            tangent_vectors.append(log_map(p=basin, base=base))
+
         try:
-            basins = np.asarray(trajectory, dtype=np.float64)
+            tangents = np.asarray(tangent_vectors, dtype=np.float64)
         except Exception:
-            return np.zeros(64)
+            return np.zeros_like(base)
 
         # Default weights: exponential decay (recent = more important)
         if weights is None:
             weights = np.exp(np.linspace(-1, 0, n))
 
-        # Weighted linear regression in basin space
-        # y = trajectory, x = time indices
+        # Weighted linear regression in tangent space at endpoint
+        # y = tangent vectors, x = time indices
         t = np.arange(n).astype(float)
         t_weighted = t * weights
-        y_weighted = basins * weights[:, np.newaxis]
+        y_weighted = tangents * weights[:, np.newaxis]
 
         # Solve for velocity (slope of best-fit line)
         t_mean = np.sum(t_weighted) / np.sum(weights)
         y_mean = np.sum(y_weighted, axis=0) / np.sum(weights)
 
-        numerator = np.sum(weights[:, np.newaxis] * (basins - y_mean) * (t - t_mean)[:, np.newaxis], axis=0)
+        numerator = np.sum(weights[:, np.newaxis] * (tangents - y_mean) * (t - t_mean)[:, np.newaxis], axis=0)
         denominator = np.sum(weights * (t - t_mean) ** 2)
 
         if abs(denominator) < 1e-10:
-            return np.zeros(64)
+            return np.zeros_like(base)
 
         velocity = numerator / denominator
 
@@ -234,18 +245,17 @@ class ConstellationTrajectoryManager:
             return None
 
         if len(trajectory) < 3:
-            return trajectory[-1]
+            base = np.asarray(trajectory[-1], dtype=np.float64).flatten()
+            assert_basin_valid(base, name="trajectory[-1]")
+            return base.copy()
 
         velocity = self.compute_velocity(trajectory)
-        current = trajectory[-1]
+        base = np.asarray(trajectory[-1], dtype=np.float64).flatten()
+        assert_basin_valid(base, name="trajectory[-1]")
 
-        predicted = current + velocity * steps
-
-        # Normalize to simplex (basins should sum to 1)
-        if np.sum(predicted) > 0:
-            predicted = np.abs(predicted)  # No negative coordinates
-            predicted = predicted / np.sum(predicted)
-
+        v_step = np.asarray(velocity, dtype=np.float64).flatten() * float(steps)
+        predicted = exp_map(v=v_step, base=base)
+        assert_basin_valid(predicted, name="predicted_basin")
         return predicted
 
     def estimate_confidence(self, trajectory: List[np.ndarray]) -> float:
@@ -265,16 +275,7 @@ class ConstellationTrajectoryManager:
         if len(trajectory) < 3:
             return 0.0
 
-        # Compute pairwise distances
-        
-        # GEOMETRIC PURITY: Use Fisher-Rao distance for trajectory steps
-        # Import canonical distance function
-        try:
-            from qig_core.geometric_primitives import fisher_rao_distance
-        except ImportError:
-            # Fallback to local implementation if canonical not available
-            from qig_geometry import fisher_rao_distance
-        
+        # Compute pairwise distances (canonical Fisher-Rao)
         distances = []
         for i in range(len(trajectory) - 1):
             d = fisher_rao_distance(trajectory[i], trajectory[i+1])
@@ -307,27 +308,19 @@ class ConstellationTrajectoryManager:
         tacking_ratio = sign_changes / (len(diffs) - 1) if len(diffs) > 1 else 0
         return tacking_ratio > 0.6
 
-    def predict_next_basin(
-        self,
-        trajectory: Union[str, List[np.ndarray]],
-        steps: int = 1
-    ) -> Optional[np.ndarray]:
+    def predict_next_basin(self, kernel_id: str, steps: int = 1) -> Optional[np.ndarray]:
         """
         Predict next basin position using trajectory velocity.
 
         Args:
-            trajectory: Historical basins OR kernel_id string
+            kernel_id: Kernel identifier
             steps: How many steps ahead to predict
 
         Returns:
             Predicted 64D basin coordinates (or None if unavailable)
         """
-        if isinstance(trajectory, str):
-            kernel_id = trajectory
-            traj = self.get_trajectory(kernel_id)
-            return self._predict_next_basin_from_trajectory(traj, steps=steps)
-
-        return self._predict_next_basin_from_trajectory(trajectory, steps=steps)
+        traj = self.get_trajectory(kernel_id)
+        return self._predict_next_basin_from_trajectory(traj, steps=steps)
 
     def get_foresight_weight(
         self,

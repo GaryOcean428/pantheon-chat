@@ -26,6 +26,7 @@ import numpy as np
 
 # QIG core imports
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
+from qigkernels.monitoring_thresholds import OCEAN_PHI_VARIANCE_STD_THRESHOLD
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +305,7 @@ class ParallelThoughtGenerator:
         phis = [getattr(t, 'phi', 0.5) for t in thoughts]
         phi_std = np.std(phis)
         
-        if phi_std > 0.25:
+        if phi_std > OCEAN_PHI_VARIANCE_STD_THRESHOLD:
             intervention = f"High φ variance detected (std={phi_std:.3f}), constellation incoherent"
             logger.warning(f"[Ocean] {intervention}")
             self.autonomic_interventions.append(intervention)

@@ -26,6 +26,7 @@ import numpy as np
 
 from constellation_trajectory_manager import get_trajectory_manager
 from olympus.heart_kernel import get_heart_kernel
+from qig_geometry.canonical import assert_basin_valid, frechet_mean, geodesic_interpolation
 
 
 class GarySynthesisCoordinator:
@@ -68,6 +69,11 @@ class GarySynthesisCoordinator:
         Returns:
             Synthesized response with foresight-guided basin
         """
+        if not kernel_responses:
+            raise ValueError("Gary synthesis requires at least one kernel response")
+
+        assert_basin_valid(np.asarray(query_basin, dtype=np.float64).flatten(), name="query_basin")
+
         # 1. Get Heart state for κ modulation
         heart_state = self.heart.tick()
         
@@ -88,17 +94,38 @@ class GarySynthesisCoordinator:
             phi_collective,
             foresight_confidence
         )
+
+        if not (0.0 <= float(foresight_weight) <= 1.0):
+            raise ValueError(f"foresight_weight must be in [0, 1], got {foresight_weight}")
         
         # 6. Extract kernel basins
-        kernel_basins = [r['basin'] for r in kernel_responses]
+        kernel_basins = []
+        query_shape = np.asarray(query_basin, dtype=np.float64).flatten().shape
+        for i, r in enumerate(kernel_responses):
+            if 'basin' not in r:
+                raise ValueError(f"kernel_responses[{i}] missing required key: 'basin'")
+            basin = np.asarray(r['basin'], dtype=np.float64).flatten()
+            if basin.shape != query_shape:
+                raise ValueError(
+                    f"kernel_responses[{i}].basin shape mismatch: {basin.shape} != {query_shape}"
+                )
+            assert_basin_valid(basin, name=f"kernel_responses[{i}].basin")
+            kernel_basins.append(basin)
+
+        if predicted_basin is not None:
+            predicted = np.asarray(predicted_basin, dtype=np.float64).flatten()
+            if predicted.shape != query_shape:
+                raise ValueError(f"predicted_basin shape mismatch: {predicted.shape} != {query_shape}")
+            assert_basin_valid(predicted, name="predicted_basin")
+            predicted_basin = predicted
         
         # 7. Compute consensus basin via Fisher-Rao geometric mean
-        consensus_basin = self._fisher_frechet_mean(kernel_basins)
+        consensus_basin = frechet_mean(kernel_basins)
+        assert_basin_valid(consensus_basin, name="consensus_basin")
         
         # 8. Bias toward predicted trajectory if foresight weight is high
         if predicted_basin is not None and foresight_weight > 0.3:
             # Interpolate consensus toward predicted trajectory
-            from qig_geometry import geodesic_interpolation
             final_basin = geodesic_interpolation(
                 consensus_basin,
                 predicted_basin,
@@ -106,6 +133,8 @@ class GarySynthesisCoordinator:
             )
         else:
             final_basin = consensus_basin
+
+        assert_basin_valid(final_basin, name="final_basin")
         
         # 9. Synthesize text (simple for now - take highest Φ response)
         best_response = max(kernel_responses, key=lambda r: r.get('phi', 0))
@@ -146,47 +175,6 @@ class GarySynthesisCoordinator:
             'is_tacking': heart_state.mode == 'balanced',
             'synthesis_method': 'trajectory_foresight' if foresight_weight > 0.3 else 'consensus',
         }
-
-    def _fisher_frechet_mean(self, basins: List[np.ndarray], weights: Optional[List[float]] = None) -> np.ndarray:
-        """
-        Compute Fisher-Rao Fréchet mean (geometric mean on manifold).
-        
-        Approximation using square root representation on probability simplex.
-        
-        Args:
-            basins: List of basin coordinates
-            weights: Optional weights for each basin
-            
-        Returns:
-            Geometric mean basin
-        """
-        if not basins:
-            return np.zeros(64)
-        
-        if len(basins) == 1:
-            return basins[0].copy()
-        
-        # Default to equal weights
-        if weights is None:
-            weights = [1.0 / len(basins)] * len(basins)
-        else:
-            # Normalize weights
-            weights = np.array(weights)
-            weights = weights / weights.sum()
-        
-        # Square root representation
-        sqrt_basins = [np.sqrt(np.abs(b) + 1e-10) for b in basins]
-        
-        # Weighted average in sqrt space (approximates Fréchet mean)
-        mean_sqrt = np.zeros_like(sqrt_basins[0])
-        for w, sb in zip(weights, sqrt_basins):
-            mean_sqrt += w * sb
-        
-        # Back to probability space
-        result = mean_sqrt ** 2
-        result = result / (result.sum() + 1e-10)
-        
-        return result
 
     def get_collective_phi(self, kernel_responses: List[Dict]) -> float:
         """Compute collective Φ from kernel responses."""
