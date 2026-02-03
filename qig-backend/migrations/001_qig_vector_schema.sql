@@ -69,9 +69,6 @@ CREATE TABLE IF NOT EXISTS basin_history (
 CREATE INDEX IF NOT EXISTS idx_basin_history_phi ON basin_history(phi DESC);
 CREATE INDEX IF NOT EXISTS idx_basin_history_recorded_at ON basin_history(recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_basin_history_source ON basin_history(source);
--- HNSW index for fast similarity search
-CREATE INDEX IF NOT EXISTS idx_basin_history_coords_hnsw
-    ON basin_history USING hnsw (basin_coords vector_cosine_ops);
 
 -- Learning Events: High-Φ discoveries for reinforcement
 CREATE TABLE IF NOT EXISTS learning_events (
@@ -187,9 +184,6 @@ CREATE TABLE IF NOT EXISTS hermes_conversations (
 -- Indexes for hermes_conversations
 CREATE INDEX IF NOT EXISTS idx_hermes_conversations_phi ON hermes_conversations(phi DESC);
 CREATE INDEX IF NOT EXISTS idx_hermes_conversations_created_at ON hermes_conversations(created_at DESC);
--- HNSW index for semantic similarity search
-CREATE INDEX IF NOT EXISTS idx_hermes_conversations_basin_hnsw
-    ON hermes_conversations USING hnsw (message_basin vector_cosine_ops);
 
 -- Sync Packets: Cross-instance coordination
 CREATE TABLE IF NOT EXISTS sync_packets (

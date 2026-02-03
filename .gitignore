@@ -113,7 +113,7 @@ current_*.txt
 fresh_*.txt
 final_*.txt
 
-# Package manager
+# Package manager (npm)
 pnpm-lock.yaml
 
 # Build artifacts

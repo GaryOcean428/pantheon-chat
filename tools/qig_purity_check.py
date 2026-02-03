@@ -80,9 +80,6 @@ FORBIDDEN_PATTERNS_SQL = [
     (r"<->", "<-> operator (Euclidean L2 - use fisher_rao_distance())"),
     (r"<#>", "<#> operator (inner product - use fisher_rao_distance())"),
     
-    # Cosine index operations (only flag if not in CREATE INDEX context for approximate retrieval)
-    # Note: We allow vector_cosine_ops in CREATE INDEX for approximate retrieval
-    # but flag it in ORDER BY or WHERE clauses
     (r"ORDER\s+BY.*<=>", "ORDER BY with <=> (use fisher_rao_distance())"),
     (r"ORDER\s+BY.*<->", "ORDER BY with <-> (use fisher_rao_distance())"),
     (r"1\s*-\s*\([^)]*<=>", "1 - (<=> similarity) pattern (use fisher_rao_similarity())"),
@@ -94,7 +91,6 @@ SQL_ALLOWED_EXCEPTIONS = [
     r"CREATE\s+INDEX",  # Index creation is allowed (necessary for approximate retrieval)
     r"USING\s+hnsw",    # HNSW index configuration
     r"USING\s+ivfflat", # IVFFlat index configuration
-    r"vector_cosine_ops",  # Only in index definitions
     r"vector_l2_ops",      # Only in index definitions
     r"-- pgvector approximate",  # Documented exception
     r"-- necessary evil",        # Documented necessary evil

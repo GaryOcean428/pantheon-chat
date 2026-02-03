@@ -136,12 +136,6 @@ CREATE INDEX IF NOT EXISTS idx_underworld_results_source_id ON underworld_search
 CREATE INDEX IF NOT EXISTS idx_underworld_results_threat_level ON underworld_search_results(threat_level);
 CREATE INDEX IF NOT EXISTS idx_underworld_results_timestamp ON underworld_search_results(search_timestamp);
 
--- Geometric similarity search (HNSW for fast approximate nearest neighbor)
-CREATE INDEX IF NOT EXISTS idx_underworld_sources_basin_hnsw ON underworld_sources
-    USING hnsw (basin_embedding vector_cosine_ops);
-CREATE INDEX IF NOT EXISTS idx_underworld_results_basin_hnsw ON underworld_search_results
-    USING hnsw (result_basin vector_cosine_ops);
-
 -- Flags for immune system monitoring
 CREATE INDEX IF NOT EXISTS idx_underworld_results_credentials ON underworld_search_results(contains_credentials)
     WHERE contains_credentials = true;

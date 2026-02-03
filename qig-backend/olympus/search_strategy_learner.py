@@ -21,7 +21,7 @@ import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional
 
 import numpy as np
 
@@ -56,7 +56,6 @@ from .conversation_encoder import ConversationEncoder
 
 if TYPE_CHECKING:
     import psycopg2
-    from psycopg2.extensions import connection as PgConnection, cursor as PgCursor
 
 try:
     import psycopg2
@@ -142,9 +141,53 @@ class SearchFeedbackPersistence:
         if self.enabled:
             print("[SearchFeedbackPersistence] Initialized with PostgreSQL")
             self._ensure_table_exists()
+            self._backfill_hellinger_vectors()
         else:
             print("[SearchFeedbackPersistence] Running in memory-only mode (no DB)")
     
+    def _to_hellinger_vector(self, basin: np.ndarray) -> np.ndarray:
+        """Convert a basin to Hellinger (sqrt-simplex) coordinates."""
+        p = fisher_normalize(basin)
+        return np.sqrt(np.maximum(p, 0.0))
+
+    def _backfill_hellinger_vectors(self) -> None:
+        """Backfill stored Hellinger vectors for older rows (strict purity requirement)."""
+        if not self.enabled:
+            return
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
+                        """
+                        SELECT record_id, combined_basin
+                        FROM search_feedback
+                        WHERE combined_hellinger IS NULL
+                        """
+                    )
+                    rows = cur.fetchall()
+
+                    if not rows:
+                        return
+
+                    for row in rows:
+                        record_id = row.get("record_id")
+                        combined_basin = self._pg_to_vector(row.get("combined_basin"))
+                        combined_hellinger = self._to_hellinger_vector(combined_basin)
+                        cur.execute(
+                            """
+                            UPDATE search_feedback
+                            SET combined_hellinger = %s::vector
+                            WHERE record_id = %s
+                            """,
+                            (
+                                self._vector_to_pg(combined_hellinger),
+                                record_id,
+                            ),
+                        )
+        except Exception as e:
+            print(f"[SearchFeedbackPersistence] Failed to backfill Hellinger vectors: {e}")
+
     @contextmanager
     def get_connection(self) -> Generator[Any, None, None]:
         """Get a database connection with automatic cleanup.
@@ -199,6 +242,7 @@ class SearchFeedbackPersistence:
                             query_basin vector(64),
                             feedback_basin vector(64),
                             combined_basin vector(64),
+                            combined_hellinger vector(64),
                             modification_basin vector(64),
                             outcome_quality DOUBLE PRECISION DEFAULT 0.5,
                             confirmations_positive INTEGER DEFAULT 0,
@@ -208,8 +252,14 @@ class SearchFeedbackPersistence:
                         )
                     """)
                     cur.execute("""
-                        CREATE INDEX IF NOT EXISTS idx_search_feedback_combined_basin 
-                        ON search_feedback USING ivfflat (combined_basin vector_cosine_ops)
+                        ALTER TABLE search_feedback
+                        ADD COLUMN IF NOT EXISTS combined_hellinger vector(64)
+                    """)
+
+                    cur.execute("DROP INDEX IF EXISTS idx_search_feedback_combined_basin")
+                    cur.execute("""
+                        CREATE INDEX IF NOT EXISTS idx_search_feedback_combined_hellinger
+                        ON search_feedback USING ivfflat (combined_hellinger vector_ip_ops)
                         WITH (lists = 10)
                     """)
             print("[SearchFeedbackPersistence] Table search_feedback ensured")
@@ -234,16 +284,17 @@ class SearchFeedbackPersistence:
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cur:
+                    combined_hellinger = self._to_hellinger_vector(record.combined_basin)
                     cur.execute("""
                         INSERT INTO search_feedback (
                             record_id, query, user_feedback, results_summary,
                             search_params, query_basin, feedback_basin,
-                            combined_basin, modification_basin, outcome_quality,
+                            combined_basin, combined_hellinger, modification_basin, outcome_quality,
                             confirmations_positive, confirmations_negative,
                             created_at, last_used_at
                         ) VALUES (
                             %s, %s, %s, %s, %s, %s::vector, %s::vector,
-                            %s::vector, %s::vector, %s, %s, %s, %s, %s
+                            %s::vector, %s::vector, %s::vector, %s, %s, %s, %s, %s
                         )
                         ON CONFLICT (record_id) DO UPDATE SET
                             outcome_quality = EXCLUDED.outcome_quality,
@@ -259,6 +310,7 @@ class SearchFeedbackPersistence:
                         self._vector_to_pg(record.query_basin),
                         self._vector_to_pg(record.feedback_basin),
                         self._vector_to_pg(record.combined_basin),
+                        self._vector_to_pg(combined_hellinger),
                         self._vector_to_pg(record.modification_basin),
                         record.outcome_quality,
                         record.confirmations_positive,
@@ -385,15 +437,13 @@ class SearchFeedbackPersistence:
     ) -> List[FeedbackRecord]:
         """
         Find similar feedback records using QIG-pure approach:
-        1. Retrieve candidates via PostgreSQL IVFFLAT (cosine ops - fast but approximate)
+        1. Retrieve candidates via PostgreSQL IVFFLAT on Hellinger (sqrt-simplex)
+           coordinates using inner-product ops (Bhattacharyya-consistent)
         2. Re-rank with proper Fisher-Rao geodesic distance (accurate)
         
-        IMPORTANT: pgvector uses cosine similarity which is Euclidean-based.
-        We mitigate this contamination by:
-        - Using 10x MINIMUM oversampling to ensure good candidates aren't missed
-        - Re-rank ALL candidates using proper Fisher-Rao geodesic distance
-        
-        The final ranking is ALWAYS by Fisher-Rao distance, not cosine.
+        STRICT PURITY: No cosine similarity is used. Candidate retrieval is
+        performed in Hellinger space (sqrt(p)) where the dot product corresponds
+        to the Bhattacharyya coefficient, and the final ranking is by Fisher-Rao.
             
         Returns:
             List of FeedbackRecords sorted by Fisher-Rao distance
@@ -406,10 +456,11 @@ class SearchFeedbackPersistence:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     # Step 1: Fast approximate retrieval with 10x MINIMUM oversampling
                     retrieval_count = max(top_n * 10, 100)
-                    basin_str = "[" + ",".join(str(float(x)) for x in query_basin) + "]"
+                    query_hellinger = self._to_hellinger_vector(query_basin)
+                    basin_str = "[" + ",".join(str(float(x)) for x in query_hellinger) + "]"
                     cur.execute("""
                         SELECT * FROM search_feedback
-                        ORDER BY combined_basin <=> %s::vector
+                        ORDER BY combined_hellinger <#> %s::vector
                         LIMIT %s
                     """, (basin_str, retrieval_count))
                     rows = cur.fetchall()
@@ -437,7 +488,7 @@ class SearchFeedbackPersistence:
                                 timestamp=row['created_at'].timestamp() if row.get('created_at') else time.time(),
                             )
                             candidates.append(record)
-                        except Exception as e:
+                        except Exception:
                             continue
                     
                     if not candidates:
