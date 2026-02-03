@@ -14,7 +14,7 @@ echo "[celery-worker] Starting health check server on port ${PORT:-8080}..."
 HEALTH_PID=$!
 
 echo "[celery-worker] Starting Celery worker..."
-"$UV_CMD" run --project "$PROJECT_ROOT" celery -A training.celery_app worker --loglevel=info --concurrency=2 -Q training,batch,consolidation,transfer,checkpoints &
+"$UV_CMD" run --project "$PROJECT_ROOT" celery -A training.celery_app worker --loglevel=info --concurrency=2 -Q training_fast,training_batch,training_slow &
 CELERY_PID=$!
 
 # Function to handle shutdown

@@ -40,15 +40,6 @@ BEGIN
                WHERE table_name = 'basin_memory' AND column_name = 'basin_vector') THEN
         -- Drop existing index if present
         DROP INDEX IF EXISTS idx_basin_memory_ann;
-        
-        -- Create IVFFlat index
-        -- lists = 100 is good for datasets up to 1M vectors
-        CREATE INDEX idx_basin_memory_ann 
-        ON basin_memory 
-        USING ivfflat (basin_vector vector_cosine_ops)
-        WITH (lists = 100);
-        
-        RAISE NOTICE 'Created IVFFlat index for approximate nearest neighbor';
     END IF;
 END $$;
 

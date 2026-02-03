@@ -132,10 +132,6 @@ CREATE INDEX IF NOT EXISTS idx_learned_words_frequency ON learned_words(frequenc
 CREATE INDEX IF NOT EXISTS idx_learned_words_category ON learned_words(phrase_category);
 CREATE INDEX IF NOT EXISTS idx_learned_words_last_used ON learned_words(last_used_at DESC);
 
--- Create pgvector index for fast nearest neighbor search
-CREATE INDEX IF NOT EXISTS idx_learned_words_basin_hnsw 
-ON learned_words USING hnsw (basin_embedding vector_cosine_ops);
-
 COMMENT ON TABLE learned_words IS 'Generation vocabulary - words used for text synthesis (separate from coordizer_vocabulary encoding)';
 COMMENT ON COLUMN learned_words.word IS 'Actual English word (validated, no BPE subwords)';
 COMMENT ON COLUMN learned_words.basin_embedding IS '64D Fisher manifold coordinates for geometric operations';

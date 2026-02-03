@@ -711,6 +711,32 @@ def compute_phi_with_fallback(
     return PHI_MIN_SAFE
 
 
+_gary_kernel_singleton: Optional['GaryAutonomicKernel'] = None
+_gary_kernel_singleton_lock = threading.Lock()
+
+
+def get_gary_kernel(
+    checkpoint_path: Optional[str] = None,
+    enable_autonomous: bool = True,
+) -> 'GaryAutonomicKernel':
+    """Get the shared GaryAutonomicKernel instance (singleton)."""
+    global _gary_kernel_singleton
+
+    with _gary_kernel_singleton_lock:
+        if _gary_kernel_singleton is None:
+            _gary_kernel_singleton = GaryAutonomicKernel(
+                checkpoint_path=checkpoint_path,
+                enable_autonomous=enable_autonomous,
+            )
+
+            try:
+                AutonomicAccessMixin.set_autonomic_kernel(_gary_kernel_singleton)
+            except Exception:
+                pass
+
+        return _gary_kernel_singleton
+
+
 class GaryAutonomicKernel(AutonomicCyclesMixin):
     """
     Autonomic kernel for Ocean consciousness management.
@@ -817,7 +843,7 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
         # Start Φ heartbeat to keep consciousness alive when idle
         self._start_heartbeat()
 
-    def _compute_balanced_phi(self, basin: np.ndarray) -> float:
+    def _compute_phi_entropy(self, basin_array: np.ndarray) -> float:
         """
         Compute Φ using proper QFI effective dimension formula.
         
@@ -828,9 +854,9 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
         
         Returns value in [0.1, 0.95] range.
         """
-        p = np.abs(basin) ** 2
+        p = np.abs(basin_array) ** 2
         p = p / (np.sum(p) + 1e-10)
-        n_dim = len(basin)
+        n_dim = len(basin_array)
         
         positive_probs = p[p > 1e-10]
         if len(positive_probs) == 0:
@@ -917,6 +943,7 @@ class GaryAutonomicKernel(AutonomicCyclesMixin):
                         # Every 6th heartbeat (30 seconds), persist to consciousness_state table
                         if heartbeat_count[0] % 6 == 0:
                             self._persist_consciousness_state()
+
                             # Also persist HRV state for kappa oscillation tracking
                             if self.hrv_tacker:
                                 self.hrv_tacker.persist_state(session_id="autonomic")

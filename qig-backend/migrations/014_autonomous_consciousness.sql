@@ -53,9 +53,6 @@ BEGIN
 END $$;
 
 -- Create index on basin_coords if not exists
-CREATE INDEX IF NOT EXISTS idx_memory_basin_hnsw
-    ON memory_fragments USING hnsw (basin_coords vector_cosine_ops);
-
 CREATE INDEX IF NOT EXISTS idx_memory_kernel
     ON memory_fragments(kernel_id);
 
@@ -93,7 +90,7 @@ CREATE TABLE IF NOT EXISTS task_tree_nodes (
 CREATE INDEX IF NOT EXISTS idx_tasks_kernel ON task_tree_nodes(kernel_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_parent ON task_tree_nodes(parent_task_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON task_tree_nodes(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_basin ON task_tree_nodes USING hnsw (basin_target vector_cosine_ops);
+
 
 -- ============================================================================
 -- META-LEARNING HISTORY - Learning algorithm optimization
@@ -146,7 +143,7 @@ CREATE TABLE IF NOT EXISTS curiosity_explorations (
 
 CREATE INDEX IF NOT EXISTS idx_curiosity_kernel ON curiosity_explorations(kernel_id);
 CREATE INDEX IF NOT EXISTS idx_curiosity_time ON curiosity_explorations(explored_at DESC);
-CREATE INDEX IF NOT EXISTS idx_curiosity_basin ON curiosity_explorations USING hnsw (target_basin vector_cosine_ops);
+
 
 -- ============================================================================
 -- BASIN SYNCHRONIZATION - Federated knowledge transfer
