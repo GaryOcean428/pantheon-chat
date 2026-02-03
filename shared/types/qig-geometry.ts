@@ -90,7 +90,7 @@ export type FisherMetric = z.infer<typeof fisherMetricSchema>;
  */
 export const kernelStateSchema = z.object({
   kernelId: z.string(),
-  kernelType: z.enum([
+  kernelSpecialization: z.enum([
     'heart',        // Autonomic/metronome
     'vocab',        // Language processing
     'perception',   // Sensory integration
@@ -464,7 +464,7 @@ export const enhancedBasinSchema = z.object({
 export function enhanceBasin(
   coordinates: number[],
   e8Functions: {
-    computeE8RootAlignment: (basin: number[]) => { distance: number; rootIndex: number; kernelType: string | null };
+    computeE8RootAlignment: (basin: number[]) => { distance: number; rootIndex: number; kernelSpecialization: string | null };
     projectBasinTo8D: (basin: number[]) => number[];
     countActiveDimensions: (projection: number[], threshold?: number) => number;
   }
@@ -480,7 +480,7 @@ export function enhanceBasin(
     e8_alignment: alignment.distance,
     active_dimensions: activeDims,
     nearest_root: alignment.rootIndex,
-    nearest_kernel: alignment.kernelType,
+    nearest_kernel: alignment.kernelSpecialization,
   };
 }
 

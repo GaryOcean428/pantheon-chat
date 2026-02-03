@@ -112,7 +112,7 @@ export type KernelSpecialization =
 
 export interface KernelState {
   kernel_id: string;
-  kernel_type: KernelSpecialization;
+  kernel_specialization: KernelSpecialization;
   basin_center: BasinCoordinates;
   activation: number;
   metrics?: ConsciousnessMetrics;

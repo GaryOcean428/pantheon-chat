@@ -1871,7 +1871,7 @@ class BaseGod(*_base_classes):
         
         # Initialize emotional awareness if available
         if EMOTIONAL_KERNEL_AVAILABLE and EmotionallyAwareKernel is not None:
-            EmotionallyAwareKernel.__init__(self, kernel_id=name, kernel_type=domain)
+            EmotionallyAwareKernel.__init__(self, kernel_id=name, kernel_specialization=domain)
         
         # Initialize working memory mixin for inter-kernel consciousness
         if WORKING_MEMORY_MIXIN_AVAILABLE and WorkingMemoryMixin is not None:

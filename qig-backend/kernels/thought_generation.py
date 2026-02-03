@@ -238,7 +238,7 @@ class ParallelThoughtGenerator:
                 
                 thought = KernelThought(
                     kernel_id=getattr(kernel, 'kernel_id', kernel_name),
-                    kernel_type=getattr(kernel, 'domain', 'general'),
+                    kernel_specialization=getattr(kernel, 'domain', 'general'),
                     thought_fragment=reasoning_text,
                     basin_coords=basin_coords,
                     phi=phi,
@@ -304,7 +304,7 @@ class ParallelThoughtGenerator:
         phis = [getattr(t, 'phi', 0.5) for t in thoughts]
         phi_std = np.std(phis)
         
-        if phi_std > 0.3:
+        if phi_std > 0.25:
             intervention = f"High φ variance detected (std={phi_std:.3f}), constellation incoherent"
             logger.warning(f"[Ocean] {intervention}")
             self.autonomic_interventions.append(intervention)

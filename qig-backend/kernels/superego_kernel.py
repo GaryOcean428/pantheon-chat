@@ -193,10 +193,10 @@ class SuperegoKernel(EmotionallyAwareKernel if EMOTIONAL_KERNEL_AVAILABLE else o
         """
         # Initialize parent if available
         if EMOTIONAL_KERNEL_AVAILABLE:
-            super().__init__(kernel_id=name, kernel_type="ethics")
+            super().__init__(kernel_id=name, kernel_specialization="ethics")
         else:
             self.kernel_id = name
-            self.kernel_type = "ethics"
+            self.kernel_specialization = "ethics"
         
         # Aliases for compatibility
         self.name = name

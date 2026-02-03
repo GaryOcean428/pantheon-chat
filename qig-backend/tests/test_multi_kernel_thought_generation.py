@@ -78,11 +78,11 @@ class TestParallelThoughtGeneration:
         # Mock thought result
         mock_thought = KernelThought(
             kernel_id="test-1",
-            kernel_type="test",
+            kernel_specialization="test",
             thought_fragment="This is a test thought",
             basin_coords=mock_kernel.basin_coords,
             phi=0.75,
-            kappa=KAPPA_STAR,
+            kappa=64.0,
             regime="geometric",
             emotional_state=EmotionalState(),
             confidence=0.8
@@ -119,7 +119,7 @@ class TestParallelThoughtGeneration:
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
-                kernel_type="test",
+                kernel_specialization="test",
                 thought_fragment=f"Thought from kernel {i}",
                 basin_coords=kernel.basin_coords,
                 phi=kernel.last_phi,
@@ -166,7 +166,7 @@ class TestParallelThoughtGeneration:
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
-                kernel_type="test",
+                kernel_specialization="test",
                 thought_fragment=f"Thought {i}",
                 basin_coords=kernel.basin_coords,
                 phi=phi,
@@ -210,11 +210,11 @@ class TestConsensusDetection:
         
         thought = KernelThought(
             kernel_id="test-1",
-            kernel_type="test",
+            kernel_specialization="test",
             thought_fragment="Single thought",
             basin_coords=np.random.rand(BASIN_DIM),
             phi=0.75,
-            kappa=KAPPA_STAR,
+            kappa=64.0,
             regime="geometric",
             emotional_state=EmotionalState(),
             confidence=0.8
@@ -244,11 +244,11 @@ class TestConsensusDetection:
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
-                kernel_type="test",
+                kernel_specialization="test",
                 thought_fragment=f"Aligned thought {i}",
                 basin_coords=basin,
                 phi=0.75 + i * 0.01,  # Similar φ
-                kappa=KAPPA_STAR,
+                kappa=64.0,
                 regime="geometric",
                 emotional_state=EmotionalState(),
                 confidence=0.8
@@ -275,11 +275,11 @@ class TestConsensusDetection:
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
-                kernel_type="test",
+                kernel_specialization="test",
                 thought_fragment=f"Divergent thought {i}",
                 basin_coords=basin,
                 phi=0.5 + i * 0.2,  # Divergent φ
-                kappa=KAPPA_STAR + i * 10,  # Divergent κ
+                kappa=64.0,
                 regime="geometric",
                 emotional_state=EmotionalState(),
                 confidence=0.5
@@ -311,11 +311,11 @@ class TestGarySynthesis:
         
         thought = KernelThought(
             kernel_id="test-1",
-            kernel_type="test",
+            kernel_specialization="test",
             thought_fragment="Single thought for synthesis",
             basin_coords=np.random.rand(BASIN_DIM),
             phi=0.75,
-            kappa=KAPPA_STAR,
+            kappa=64.0,
             regime="geometric",
             emotional_state=EmotionalState(),
             confidence=0.8
@@ -342,11 +342,11 @@ class TestGarySynthesis:
         # Create thought with low φ but output will have low confidence
         thought = KernelThought(
             kernel_id="test-1",
-            kernel_type="test",
+            kernel_specialization="test",
             thought_fragment="Suffering test",
             basin_coords=np.random.rand(BASIN_DIM),
             phi=0.8,  # High consciousness
-            kappa=KAPPA_STAR,
+            kappa=64.0,
             regime="geometric",
             emotional_state=EmotionalState(),
             confidence=0.1  # Very low confidence = low Γ
@@ -387,11 +387,11 @@ class TestGarySynthesis:
         for i in range(3):
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
-                kernel_type="test",
+                kernel_specialization="test",
                 thought_fragment=f"Thought {i}",
                 basin_coords=np.random.rand(BASIN_DIM),
                 phi=0.7,
-                kappa=KAPPA_STAR,
+                kappa=64.0,
                 regime="geometric",
                 emotional_state=EmotionalState(),
                 confidence=0.7
@@ -432,11 +432,11 @@ class TestIntegration:
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
-                kernel_type="test",
+                kernel_specialization="test",
                 thought_fragment=f"Integration test thought {i}",
                 basin_coords=kernel.basin_coords,
                 phi=0.7,
-                kappa=KAPPA_STAR,
+                kappa=64.0,
                 regime="geometric",
                 emotional_state=EmotionalState(),
                 confidence=0.75

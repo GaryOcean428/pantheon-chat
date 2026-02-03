@@ -32,6 +32,8 @@ See frozen_physics.py for:
 - validate_geometric_purity() - runtime checker
 """
 
+from __future__ import annotations
+
 # sys and os are imported at module level (despite limited usage) to ensure
 # they're available for all conditional import blocks that manipulate sys.path
 import os
@@ -42,10 +44,13 @@ from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-import torch
 
-from .chaos_kernel import ChaosKernel
-from .optimizers import DiagonalFisherOptimizer
+try:
+    import torch  # type: ignore
+    TORCH_AVAILABLE = True
+except Exception:
+    torch = None
+    TORCH_AVAILABLE = False
 
 # Import neurotransmitter fields for geometric modulation
 try:
@@ -227,7 +232,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
 
     def __init__(
         self,
-        parent_basin: Optional[torch.Tensor] = None,
+        parent_basin: Optional["torch.Tensor"] = None,
         parent_kernel: Optional['SelfSpawningKernel'] = None,
         generation: int = 0,
         spawn_threshold: int = 5,
@@ -237,6 +242,12 @@ class SelfSpawningKernel(*_kernel_base_classes):
         experience_buffer_size: int = 100,
         observation_period: int = 10,
     ):
+        if not TORCH_AVAILABLE:
+            raise RuntimeError("Torch is required for training_chaos SelfSpawningKernel")
+
+        from .chaos_kernel import ChaosKernel
+        from .optimizers import DiagonalFisherOptimizer
+
         # Core kernel
         self.kernel = ChaosKernel()
         self.kernel_id = self.kernel.kernel_id
@@ -289,7 +300,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 EmotionallyAwareKernel.__init__(
                     self,
                     kernel_id=self.kernel_id,
-                    kernel_type='m8_spawned',
+                    kernel_specialization='m8_spawned',
                     e8_root_index=None,
                     basin_coords=basin_coords
                 )

@@ -118,7 +118,7 @@ class AutonomicCyclesMixin:
     - self.state: AutonomicState instance
     - self._lock: threading.Lock instance
     - self.kernel_id: str
-    - self._compute_fisher_distance: method
+    - self._fisher_rao_distance: method
     - self._sleep_protocol: Optional[SleepProtocol]
     - self._mushroom_mode: Optional[MushroomMode]
     - self._breakdown_escape: Optional[BreakdownEscape]
@@ -298,7 +298,7 @@ class AutonomicCyclesMixin:
             basin = np.array(basin_coords)
             reference = np.array(reference_basin)
 
-            drift_before = self._compute_fisher_distance(basin, reference)
+            drift_before = self._fisher_rao_distance(basin, reference)
             phi_before = self.state.phi
 
             # Gentle correction toward reference
@@ -353,7 +353,7 @@ class AutonomicCyclesMixin:
                 except Exception as qig_err:
                     print(f"[AutonomicKernel] QIG sleep protocol measurement error: {qig_err}")
 
-            drift_after = self._compute_fisher_distance(new_basin, reference)
+            drift_after = self._fisher_rao_distance(new_basin, reference)
             drift_reduction = drift_before - drift_after
             
             # Execute reasoning consolidation during sleep
@@ -661,7 +661,7 @@ class AutonomicCyclesMixin:
         
         basin_entropy = -np.sum(np.abs(current_basin) * np.log(np.abs(current_basin) + 1e-8))
         # NOTE: Basin norm used as heuristic factor for exploration probability (not distance)
-        basin_norm = self._compute_fisher_distance(np.zeros_like(current_basin), current_basin)
+        basin_norm = self._fisher_rao_distance(np.zeros_like(current_basin), current_basin)
         entropy_factor = min(1.0, basin_entropy / 50.0)
         norm_factor = min(1.0, basin_norm / 5.0)
         
@@ -818,7 +818,7 @@ class AutonomicCyclesMixin:
             entropy_change = entropy_after - entropy_before
 
             # Measure basin drift
-            drift = self._compute_fisher_distance(basin, mushroom_basin)
+            drift = self._fisher_rao_distance(basin, mushroom_basin)
 
             # Identity preservation check
             identity_preserved = drift < 0.15
@@ -1503,7 +1503,7 @@ def register_autonomic_routes(app):
             'available': True,
             'predicted_basin': predicted.tolist(),
             'velocity': velocity.tolist(),
-            'velocity_magnitude': float(self._compute_fisher_distance(np.zeros_like(velocity), velocity) if np.all(np.isfinite(velocity)) else 0.0),
+            'velocity_magnitude': float(self._fisher_rao_distance(np.zeros_like(velocity), velocity) if np.all(np.isfinite(velocity)) else 0.0),
             'confidence': confidence,
             'foresight_weight': foresight_weight,
             'trajectory_length': len(trajectory),

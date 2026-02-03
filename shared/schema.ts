@@ -3957,7 +3957,7 @@ export const kernelThoughts = pgTable(
   {
     id: serial("id").primaryKey(),
     kernelId: varchar("kernel_id", { length: 64 }).notNull(), // e.g., "memory_episodic_34"
-    kernelType: varchar("kernel_type", { length: 64 }).notNull(), // e.g., "memory", "perception", "ethics"
+    kernelSpecialization: varchar("kernel_specialization", { length: 64 }).notNull(), // e.g., "memory", "perception", "ethics"
     e8RootIndex: integer("e8_root_index"), // Position in E8 constellation (0-239)
     thoughtFragment: text("thought_fragment").notNull(), // The actual thought content
     basinCoords: vector("basin_coords", { dimensions: 64 }), // Geometric position of thought

@@ -134,10 +134,10 @@ class IdKernel(EmotionallyAwareKernel if EMOTIONAL_KERNEL_AVAILABLE else object)
         """
         # Initialize parent if available
         if EMOTIONAL_KERNEL_AVAILABLE:
-            super().__init__(kernel_id=name, kernel_type="reflex")
+            super().__init__(kernel_id=name, kernel_specialization="reflex")
         else:
             self.kernel_id = name
-            self.kernel_type = "reflex"
+            self.kernel_specialization = "reflex"
         
         # Aliases for compatibility
         self.name = name
