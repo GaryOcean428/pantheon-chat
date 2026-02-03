@@ -36,6 +36,7 @@ from kernel_lifecycle import (
     KernelLifecycleManager,
     LifecycleEvent,
     compute_fisher_distance,
+    KernelKind,
 )
 
 logger = logging.getLogger(__name__)
@@ -212,7 +213,7 @@ class LifecyclePolicyEngine:
     def _trigger_prune_low_phi(self, kernel: Kernel, context: Dict[str, Any]) -> bool:
         """Trigger pruning for persistent low Φ."""
         # Skip protected kernels
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             return False
         
         # Check if Φ has been below threshold for extended period
@@ -227,7 +228,7 @@ class LifecyclePolicyEngine:
     def _trigger_prune_no_growth(self, kernel: Kernel, context: Dict[str, Any]) -> bool:
         """Trigger pruning for kernels with no growth."""
         # Skip protected kernels
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             return False
         
         # Check if kernel has shown no improvement
@@ -249,11 +250,11 @@ class LifecyclePolicyEngine:
     def _trigger_split_overloaded(self, kernel: Kernel, context: Dict[str, Any]) -> bool:
         """Trigger split for overloaded kernels."""
         # Skip protected kernels
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             return False
         
         # Must be active and high performing
-        if kernel.lifecycle_stage != "active":
+        if kernel.lifecycle_state != "active":
             return False
         
         # High Φ (conscious and integrated)
@@ -278,11 +279,11 @@ class LifecyclePolicyEngine:
         Actual merge requires finding a suitable partner kernel.
         """
         # Skip protected kernels
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             return False
         
         # Must be active
-        if kernel.lifecycle_stage != "active":
+        if kernel.lifecycle_state != "active":
             return False
         
         # Check if there are nearby kernels (similar basins)
@@ -298,7 +299,7 @@ class LifecyclePolicyEngine:
         for other_id, distance in nearby.items():
             if distance < 0.2:  # Very close in Fisher-Rao distance
                 other = self.lifecycle_manager.get_kernel(other_id)
-                if other and other.lifecycle_stage == "active":
+                if other and other.lifecycle_state == "active":
                     # Check domain overlap
                     overlap = set(kernel.domains) & set(other.domains)
                     if len(overlap) >= len(kernel.domains) * 0.8:
@@ -309,11 +310,11 @@ class LifecyclePolicyEngine:
     def _trigger_promote_chaos(self, kernel: Kernel, context: Dict[str, Any]) -> bool:
         """Trigger promotion for successful chaos kernels."""
         # Must be chaos kernel
-        if kernel.kernel_type != "chaos":
+        if kernel.kernel_kind != KernelKind.CHAOS:
             return False
         
         # Skip protected kernels (still learning)
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             return False
         
         # High stable Φ

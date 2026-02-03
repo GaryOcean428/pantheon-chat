@@ -55,7 +55,7 @@ export interface FisherMetric {
   eigenvalues?: number[];
 }
 
-export type KernelType =
+export type KernelSpecialization =
   | "heart"
   | "vocab"
   | "perception"
@@ -67,7 +67,7 @@ export type KernelType =
 
 export interface KernelState {
   kernel_id: string;
-  kernel_type: KernelType;
+  kernel_type: KernelSpecialization;
   basin_center: BasinCoordinates;
   activation: number;
   metrics?: ConsciousnessMetrics;

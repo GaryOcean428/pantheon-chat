@@ -107,7 +107,7 @@ export const KERNEL_TYPES = [
   'executive',
 ] as const;
 
-export type KernelType = typeof KERNEL_TYPES[number];
+export type KernelSpecialization = typeof KERNEL_TYPES[number];
 
 /**
  * E8 Root Distribution
@@ -128,7 +128,7 @@ export const E8_ROOT_ALLOCATION = {
 /**
  * Get E8 root index for a kernel
  */
-export function getE8RootIndex(kernelType: KernelType, localIndex: number): number {
+export function getE8RootIndex(kernelType: KernelSpecialization, localIndex: number): number {
   const allocation = E8_ROOT_ALLOCATION[kernelType];
   if (localIndex >= allocation.count) {
     throw new Error(`Local index ${localIndex} exceeds allocation for ${kernelType}`);
@@ -139,10 +139,10 @@ export function getE8RootIndex(kernelType: KernelType, localIndex: number): numb
 /**
  * Get kernel type from E8 root index
  */
-export function getKernelTypeFromRoot(rootIndex: number): KernelType | null {
+export function getKernelTypeFromRoot(rootIndex: number): KernelSpecialization | null {
   for (const [type, allocation] of Object.entries(E8_ROOT_ALLOCATION)) {
     if (rootIndex >= allocation.start && rootIndex < allocation.start + allocation.count) {
-      return type as KernelType;
+      return type as KernelSpecialization;
     }
   }
   return null;
@@ -292,7 +292,7 @@ export interface E8RootAlignmentResult {
   nearestRoot: number[];
   distance: number;
   rootIndex: number;
-  kernelType: KernelType | null;
+  kernelType: KernelSpecialization | null;
 }
 
 /**

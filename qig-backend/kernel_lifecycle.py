@@ -79,7 +79,6 @@ class Kernel:
     """
     kernel_id: str
     name: str
-    kernel_type: str  # "god" or "chaos"
     kernel_kind: KernelKind = KernelKind.CHAOS
     god_name: Optional[str] = None
     epithet: Optional[str] = None
@@ -93,7 +92,7 @@ class Kernel:
     basin_coords: np.ndarray = field(default_factory=lambda: np.ones(64) / 64)
     
     # Lifecycle tracking
-    lifecycle_stage: str = "active"  # active, protected, pruned, promoted
+    lifecycle_state: str = "active"  # active, protected, pruned, promoted
     protection_cycles_remaining: int = 50  # Protected period for new kernels
     
     # Performance metrics
@@ -118,14 +117,30 @@ class Kernel:
     
     # Mentor (for chaos kernels)
     mentor_kernel_id: Optional[str] = None
+
+    @property
+    def kernel_type(self) -> str:
+        return self.kernel_kind.value
+
+    @kernel_type.setter
+    def kernel_type(self, value: str) -> None:
+        self.kernel_kind = KernelKind(value)
+
+    @property
+    def lifecycle_stage(self) -> str:
+        return self.lifecycle_state
+
+    @lifecycle_stage.setter
+    def lifecycle_stage(self, value: str) -> None:
+        self.lifecycle_state = value
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert kernel to dictionary representation."""
         return {
             'kernel_id': self.kernel_id,
             'name': self.name,
-            'kernel_type': self.kernel_type,
             'kernel_kind': self.kernel_kind.value,
+            'kernel_type': self.kernel_type,
             'god_name': self.god_name,
             'epithet': self.epithet,
             'ascended_from': self.ascended_from,
@@ -133,7 +148,8 @@ class Kernel:
             'kappa': self.kappa,
             'gamma': self.gamma,
             'basin_coords': self.basin_coords.tolist() if isinstance(self.basin_coords, np.ndarray) else self.basin_coords,
-            'lifecycle_stage': self.lifecycle_stage,
+            'lifecycle_state': self.lifecycle_state,
+            'lifecycle_stage': self.lifecycle_state,
             'protection_cycles_remaining': self.protection_cycles_remaining,
             'success_count': self.success_count,
             'failure_count': self.failure_count,
@@ -161,7 +177,7 @@ class ShadowKernel:
     shadow_id: str
     original_kernel_id: str
     name: str
-    kernel_type: str
+    kernel_kind: KernelKind
     
     # Final state before pruning
     final_phi: float
@@ -186,6 +202,10 @@ class ShadowKernel:
     # Resurrection tracking
     resurrection_count: int = 0
     last_resurrection: Optional[datetime] = None
+
+    @property
+    def kernel_type(self) -> str:
+        return self.kernel_kind.value
 
 
 @dataclass
@@ -363,6 +383,11 @@ class KernelLifecycleManager:
         self.active_kernels = active_kernels or {}
         self.shadow_pantheon = shadow_pantheon or {}
         self.event_log = event_log or []
+
+        self._active_gods: Dict[str, int] = {}
+        for k in self.active_kernels.values():
+            if k.kernel_kind == KernelKind.GOD and k.god_name:
+                self._active_gods[k.god_name] = self._active_gods.get(k.god_name, 0) + 1
         
         # Track chaos kernel naming
         self._chaos_counter: Dict[str, int] = {}
@@ -371,11 +396,11 @@ class KernelLifecycleManager:
         from kernel_spawner import KernelSpawner
         self.spawner = KernelSpawner(
             registry=self.registry,
-            active_instances={},
+            active_instances=self._active_gods,
             chaos_counter=self._chaos_counter,
             active_chaos_count=len([
                 k for k in self.active_kernels.values()
-                if k.kernel_type == "chaos"
+                if k.kernel_kind == KernelKind.CHAOS
             ])
         )
     
@@ -433,12 +458,11 @@ class KernelLifecycleManager:
             kernel = Kernel(
                 kernel_id=kernel_id,
                 name=f"{selection.god_name} {selection.epithet}" if selection.epithet else selection.god_name,
-                kernel_type="god",
                 kernel_kind=KernelKind.GOD,
                 god_name=selection.god_name,
                 epithet=selection.epithet,
                 basin_coords=initial_basin,
-                lifecycle_stage="protected",  # Protected for 50 cycles
+                lifecycle_state="protected",  # Protected for 50 cycles
                 protection_cycles_remaining=50,
                 domains=role_spec.domains,
                 role_description=f"God kernel: {selection.rationale}",
@@ -462,10 +486,9 @@ class KernelLifecycleManager:
             kernel = Kernel(
                 kernel_id=kernel_id,
                 name=chaos_name,
-                kernel_type="chaos",
                 kernel_kind=KernelKind.CHAOS,
                 basin_coords=initial_basin,
-                lifecycle_stage="protected",
+                lifecycle_state="protected",
                 protection_cycles_remaining=50,
                 domains=role_spec.domains,
                 role_description=f"Chaos kernel: {selection.rationale}",
@@ -484,6 +507,9 @@ class KernelLifecycleManager:
         
         # Register kernel
         self.active_kernels[kernel_id] = kernel
+
+        if kernel.kernel_kind == KernelKind.GOD and kernel.god_name:
+            self._active_gods[kernel.god_name] = self._active_gods.get(kernel.god_name, 0) + 1
         
         # Record lifecycle event
         self._record_event(
@@ -531,7 +557,7 @@ class KernelLifecycleManager:
         Raises:
             ValueError: If kernel cannot be split
         """
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             raise ValueError(
                 f"Cannot split protected kernel {kernel.name} "
                 f"({kernel.protection_cycles_remaining} cycles remaining)"
@@ -558,10 +584,10 @@ class KernelLifecycleManager:
         kernel1 = Kernel(
             kernel_id=child1_id,
             name=f"{kernel.name}_specialist_1",
-            kernel_type=kernel.kernel_type,
+            kernel_kind=kernel.kernel_kind,
             god_name=kernel.god_name,
             basin_coords=basin1,
-            lifecycle_stage="active",
+            lifecycle_state="active",
             protection_cycles_remaining=0,  # No protection for split kernels
             phi=kernel.phi * 0.9,  # Slightly reduced phi initially
             kappa=kernel.kappa,
@@ -580,10 +606,10 @@ class KernelLifecycleManager:
         kernel2 = Kernel(
             kernel_id=child2_id,
             name=f"{kernel.name}_specialist_2",
-            kernel_type=kernel.kernel_type,
+            kernel_kind=kernel.kernel_kind,
             god_name=kernel.god_name,
             basin_coords=basin2,
-            lifecycle_stage="active",
+            lifecycle_state="active",
             protection_cycles_remaining=0,
             phi=kernel.phi * 0.9,
             kappa=kernel.kappa,
@@ -601,7 +627,7 @@ class KernelLifecycleManager:
         # Update parent kernel to track children
         kernel.child_kernels.append(child1_id)
         kernel.child_kernels.append(child2_id)
-        kernel.lifecycle_stage = "split"
+        kernel.lifecycle_state = "split"
         
         # Register new kernels
         self.active_kernels[child1_id] = kernel1
@@ -662,11 +688,11 @@ class KernelLifecycleManager:
             ValueError: If kernels cannot be merged
         """
         # Cannot merge protected kernels
-        if kernel1.lifecycle_stage == "protected" or kernel2.lifecycle_stage == "protected":
+        if kernel1.lifecycle_state == "protected" or kernel2.lifecycle_state == "protected":
             raise ValueError("Cannot merge protected kernels")
         
         # Cannot merge if different types (god vs chaos) unless one is being promoted
-        if kernel1.kernel_type != kernel2.kernel_type:
+        if kernel1.kernel_kind != kernel2.kernel_kind:
             raise ValueError(
                 f"Cannot merge kernels of different types: "
                 f"{kernel1.kernel_type} vs {kernel2.kernel_type}"
@@ -701,10 +727,10 @@ class KernelLifecycleManager:
         merged_kernel = Kernel(
             kernel_id=merged_id,
             name=f"{kernel1.god_name or 'merged'}_unified" if kernel1.god_name else f"merged_{merged_id[:8]}",
-            kernel_type=kernel1.kernel_type,
+            kernel_kind=kernel1.kernel_kind,
             god_name=kernel1.god_name,  # Preserve god name if present
             basin_coords=merged_basin,
-            lifecycle_stage="active",
+            lifecycle_state="active",
             protection_cycles_remaining=0,
             phi=merged_phi,
             kappa=merged_kappa,
@@ -725,8 +751,8 @@ class KernelLifecycleManager:
         # Update parent kernels to track merge
         kernel1.child_kernels.append(merged_id)
         kernel2.child_kernels.append(merged_id)
-        kernel1.lifecycle_stage = "merged"
-        kernel2.lifecycle_stage = "merged"
+        kernel1.lifecycle_state = "merged"
+        kernel2.lifecycle_state = "merged"
         
         # Register merged kernel
         self.active_kernels[merged_id] = merged_kernel
@@ -789,7 +815,7 @@ class KernelLifecycleManager:
             ValueError: If kernel cannot be pruned
         """
         # Cannot prune protected kernels
-        if kernel.lifecycle_stage == "protected":
+        if kernel.lifecycle_state == "protected":
             raise ValueError(
                 f"Cannot prune protected kernel {kernel.name} "
                 f"({kernel.protection_cycles_remaining} cycles remaining)"
@@ -826,7 +852,7 @@ class KernelLifecycleManager:
             shadow_id=shadow_id,
             original_kernel_id=kernel.kernel_id,
             name=kernel.name,
-            kernel_type=kernel.kernel_type,
+            kernel_kind=kernel.kernel_kind,
             final_phi=kernel.phi,
             final_kappa=kernel.kappa,
             final_basin=kernel.basin_coords.copy(),
@@ -843,11 +869,18 @@ class KernelLifecycleManager:
         
         # Move to shadow pantheon
         self.shadow_pantheon[shadow_id] = shadow
-        kernel.lifecycle_stage = "pruned"
+        kernel.lifecycle_state = "pruned"
         
         # Remove from active kernels
         if kernel.kernel_id in self.active_kernels:
             del self.active_kernels[kernel.kernel_id]
+
+        if kernel.kernel_kind == KernelKind.GOD and kernel.god_name:
+            current = self._active_gods.get(kernel.god_name, 0)
+            if current <= 1:
+                self._active_gods.pop(kernel.god_name, None)
+            else:
+                self._active_gods[kernel.god_name] = current - 1
         
         # Record lifecycle event
         self._record_event(
@@ -921,9 +954,9 @@ class KernelLifecycleManager:
         kernel = Kernel(
             kernel_id=kernel_id,
             name=f"{shadow.name}_resurrected",
-            kernel_type=shadow.kernel_type,
+            kernel_kind=shadow.kernel_kind,
             basin_coords=improved_basin,
-            lifecycle_stage="active",
+            lifecycle_state="active",
             protection_cycles_remaining=25,  # Partial protection
             phi=initial_phi,
             kappa=shadow.final_kappa,
@@ -998,11 +1031,11 @@ class KernelLifecycleManager:
         Raises:
             ValueError: If promotion criteria not met or god name invalid
         """
-        if chaos_kernel.kernel_type != "chaos":
+        if chaos_kernel.kernel_kind != KernelKind.CHAOS:
             raise ValueError(f"Cannot promote non-chaos kernel: {chaos_kernel.kernel_type}")
         
         # Validate promotion criteria
-        if chaos_kernel.lifecycle_stage == "protected":
+        if chaos_kernel.lifecycle_state == "protected":
             raise ValueError(
                 f"Cannot promote protected kernel {chaos_kernel.name} "
                 f"({chaos_kernel.protection_cycles_remaining} cycles remaining)"
@@ -1034,11 +1067,10 @@ class KernelLifecycleManager:
         god_kernel = Kernel(
             kernel_id=god_kernel_id,
             name=god_name,
-            kernel_type="god",
             kernel_kind=KernelKind.GOD,
             god_name=god_name,
             basin_coords=chaos_kernel.basin_coords.copy(),
-            lifecycle_stage="active",
+            lifecycle_state="active",
             protection_cycles_remaining=0,  # No protection for promoted gods
             phi=chaos_kernel.phi,
             kappa=chaos_kernel.kappa,
@@ -1058,10 +1090,13 @@ class KernelLifecycleManager:
         
         # Update chaos kernel to track promotion
         chaos_kernel.child_kernels.append(god_kernel_id)
-        chaos_kernel.lifecycle_stage = "promoted"
+        chaos_kernel.lifecycle_state = "promoted"
         
         # Register promoted god
         self.active_kernels[god_kernel_id] = god_kernel
+
+        if god_kernel.god_name:
+            self._active_gods[god_kernel.god_name] = self._active_gods.get(god_kernel.god_name, 0) + 1
         
         # Record lifecycle event
         self._record_event(
@@ -1165,9 +1200,9 @@ class KernelLifecycleManager:
             'shadow_kernels': len(self.shadow_pantheon),
             'total_events': len(self.event_log),
             'event_counts': event_counts,
-            'god_count': sum(1 for k in self.active_kernels.values() if k.kernel_type == "god"),
-            'chaos_count': sum(1 for k in self.active_kernels.values() if k.kernel_type == "chaos"),
-            'protected_count': sum(1 for k in self.active_kernels.values() if k.lifecycle_stage == "protected"),
+            'god_count': sum(1 for k in self.active_kernels.values() if k.kernel_kind == KernelKind.GOD),
+            'chaos_count': sum(1 for k in self.active_kernels.values() if k.kernel_kind == KernelKind.CHAOS),
+            'protected_count': sum(1 for k in self.active_kernels.values() if k.lifecycle_state == "protected"),
         }
 
 

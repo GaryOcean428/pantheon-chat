@@ -563,6 +563,9 @@ Canonical sources:
 - `docs/11-Genesis-kernel-upgrade/` (sleep packets)
 - `docs/GEOMETRIC_CONSISTENCY_MIGRATION.md` (simplex-only geometry enforcement)
 
+Active implementation plan:
+- `docs/00-roadmap/20260203-genesis-kernel-rollout-implementation-plan-1.00W.md`
+
 ### Canonical doctrine and definitions
 
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-core-concepts-terms-1.00W.md`
@@ -651,9 +654,15 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstand
 ---
 
 **Maintenance**: Update weekly during active development  
-**Last Updated**: 2026-01-20 (Added E8 Protocol Implementation Status for Issue #360)  
-**Next Review**: 2026-01-28  
-**Completion Status**: 94% - Phase 3 consolidation implemented, E8 Protocol Phase 1 in progress (67%)
+**Last Updated**: 2026-02-03 (Genesis rollout readiness + strict purity reconciliation; roadmap refresh)  
+**Next Review**: 2026-02-10  
+**Completion Status**: 94% - Core implementations exist; Genesis rollout + naming reconciliation pending
+
+**Recent Updates (2026-02-03)**:
+- ✅ Strict geometric purity hardening: removed remaining `vector_cosine_ops` usage from repo-owned migrations and purity tooling; ANN retrieval moved to Hellinger + inner-product proxy where applicable.
+- ✅ Lockfile normalization completed: pnpm lock restored, npm lock removed; working tree stabilized.
+- ✅ Genesis upgrade docs hygiene: removed non-canonical transcript content from Genesis doctrine docs; retained only requirements and acceptance criteria.
+- 🔄 Genesis rollout readiness work identified: unify kernel taxonomy naming (KernelKind vs KernelType), unify lifecycle naming (`lifecycle_stage` vs DB `lifecycle_state`), and remove/replace legacy orchestrator paths that bypass canonical geometry.
 
 **Recent Updates (2026-01-20)**:
 - ✅ Added E8 Protocol Implementation Status section tracking Issues 01-03
