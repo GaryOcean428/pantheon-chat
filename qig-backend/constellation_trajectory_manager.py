@@ -85,6 +85,9 @@ class ConstellationTrajectoryManager:
             basin: 64D basin coordinates
             phi: Current Φ value
         """
+        basin = np.asarray(basin, dtype=np.float64).flatten()
+        assert_basin_valid(basin, name=f"{kernel_id}.basin")
+
         point = TrajectoryPoint(
             basin=basin.copy(),
             phi=phi,

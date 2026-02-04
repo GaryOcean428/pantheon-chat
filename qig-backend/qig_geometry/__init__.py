@@ -271,7 +271,8 @@ def estimate_manifold_curvature(
 
     if center is None:
         # Compute Fréchet mean (geometric mean on simplex)
-        center = fisher_normalize(np.mean(points, axis=0))
+        from .canonical import frechet_mean
+        center = frechet_mean(list(points))
 
     distances = []
     for point in points:
