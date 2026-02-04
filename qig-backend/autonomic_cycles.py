@@ -1499,11 +1499,25 @@ def register_autonomic_routes(app):
         # Predict next basin
         predicted = self.trajectory_manager.predict_next_basin('gary', steps=steps)
 
+        if predicted is None:
+            return {
+                'available': False,
+                'reason': 'predicted_basin unavailable'
+            }
+
+        from qig_geometry.canonical import assert_basin_valid, fisher_rao_distance
+
+        base_basin = np.asarray(trajectory[-1], dtype=np.float64).flatten()
+        predicted_basin = np.asarray(predicted, dtype=np.float64).flatten()
+        assert_basin_valid(base_basin, name="trajectory[-1]")
+        assert_basin_valid(predicted_basin, name="predicted_basin")
+        velocity_magnitude = float(fisher_rao_distance(base_basin, predicted_basin))
+
         return {
             'available': True,
             'predicted_basin': predicted.tolist(),
             'velocity': velocity.tolist(),
-            'velocity_magnitude': float(np.linalg.norm(velocity) if np.all(np.isfinite(velocity)) else 0.0),
+            'velocity_magnitude': velocity_magnitude,
             'confidence': confidence,
             'foresight_weight': foresight_weight,
             'trajectory_length': len(trajectory),
