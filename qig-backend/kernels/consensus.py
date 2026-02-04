@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 # QIG geometry imports
-from qig_geometry import fisher_rao_distance
+from qig_geometry.canonical import fisher_rao_distance
 
 # QIG core imports
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR, KAPPA_3

@@ -25,13 +25,12 @@ from enum import Enum
 import numpy as np
 
 # QIG Geometry imports (Fisher-Rao purity)
-from qig_geometry import (
-    fisher_normalize,
+from qig_geometry.canonical import (
+    assert_basin_valid,
     fisher_rao_distance,
-    validate_basin,
-    BASIN_DIM,
+    to_simplex,
 )
-from qigkernels.physics_constants import KAPPA_STAR
+from qigkernels.physics_constants import BASIN_DIM
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +155,7 @@ class ConstraintSet:
             (allowed, reason) - True if allowed, with explanation
         """
         # Validate basin is on simplex
-        basin_normalized = fisher_normalize(basin)
+        basin_normalized = to_simplex(basin)
         
         # Check distance from seed
         distance = fisher_rao_distance(basin_normalized, basin_seed)
@@ -250,14 +249,14 @@ class KernelGenome:
     def __post_init__(self):
         """Validate and normalize genome."""
         # Ensure basin seed is on simplex
-        self.basin_seed = fisher_normalize(self.basin_seed)
+        self.basin_seed = to_simplex(self.basin_seed)
         
         # Ensure correct dimensionality
         if len(self.basin_seed) != BASIN_DIM:
             raise ValueError(f"Basin seed must be {BASIN_DIM}D, got {len(self.basin_seed)}D")
         
         # Validate simplex representation
-        validate_basin(self.basin_seed)
+        assert_basin_valid(self.basin_seed, name="KernelGenome.basin_seed")
     
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -396,7 +395,7 @@ def validate_genome(genome: KernelGenome) -> Tuple[bool, List[str]]:
     
     try:
         # Check basin seed
-        validate_basin(genome.basin_seed)
+        assert_basin_valid(genome.basin_seed, name="KernelGenome.basin_seed")
         if len(genome.basin_seed) != BASIN_DIM:
             errors.append(f"Basin seed dimension mismatch: {len(genome.basin_seed)} != {BASIN_DIM}")
     except Exception as e:

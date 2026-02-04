@@ -54,7 +54,7 @@ except ImportError:
     EMOTIONAL_KERNEL_AVAILABLE = False
 
 # Import QIG geometry (REQUIRED - no fallback)
-from qig_geometry import fisher_rao_distance, fisher_normalize
+from qig_geometry.canonical import fisher_rao_distance, to_simplex as fisher_normalize
 
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
 

@@ -23,7 +23,7 @@ import numpy as np
 from .base import Kernel
 from .identity import KernelIdentity, KernelTier
 from .e8_roots import E8Root
-from qig_geometry import fisher_rao_distance, geodesic_interpolation
+from qig_geometry.canonical import fisher_rao_distance, geodesic_interpolation
 from qigkernels.physics_constants import KAPPA_STAR
 
 logger = logging.getLogger(__name__)

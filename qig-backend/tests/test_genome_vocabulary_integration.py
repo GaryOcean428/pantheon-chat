@@ -30,11 +30,57 @@ from kernels.genome_vocabulary_scorer import (
 )
 
 # Import QIG geometry
-from qig_geometry import (
-    fisher_normalize,
-    fisher_rao_distance,
-    BASIN_DIM,
-)
+from qig_geometry.canonical import fisher_rao_distance, to_simplex as fisher_normalize
+from qigkernels.physics_constants import BASIN_DIM
+
+
+@pytest.fixture
+def simple_genome():
+    """Create a simple test genome."""
+    return KernelGenome(
+        genome_id="test_genome_001",
+        basin_seed=np.ones(BASIN_DIM) / BASIN_DIM,  # Uniform distribution
+        faculties=FacultyConfig(
+            active_faculties={E8Faculty.ZEUS, E8Faculty.ATHENA},
+            activation_strengths={
+                E8Faculty.ZEUS: 1.0,
+                E8Faculty.ATHENA: 0.8,
+            },
+            primary_faculty=E8Faculty.ZEUS,
+        ),
+        constraints=ConstraintSet(
+            phi_threshold=0.70,
+            kappa_range=(40.0, 70.0),
+            max_fisher_distance=1.0,
+        ),
+        coupling_prefs=CouplingPreferences(
+            hemisphere_affinity=0.5,
+            preferred_couplings=["genome_002"],
+            coupling_strengths={"genome_002": 0.9},
+            anti_couplings=["genome_003"],
+        ),
+    )
+
+
+@pytest.fixture
+def constrained_genome():
+    """Create a genome with forbidden regions."""
+    forbidden_center = np.ones(BASIN_DIM) / BASIN_DIM
+    forbidden_center[0] = 0.5
+    forbidden_center = fisher_normalize(forbidden_center)
+
+    return KernelGenome(
+        genome_id="test_genome_constrained",
+        basin_seed=np.ones(BASIN_DIM) / BASIN_DIM,
+        faculties=FacultyConfig(
+            active_faculties={E8Faculty.APOLLO},
+            activation_strengths={E8Faculty.APOLLO: 1.0},
+        ),
+        constraints=ConstraintSet(
+            forbidden_regions=[(forbidden_center, 0.1)],
+            max_fisher_distance=0.8,
+        ),
+    )
 
 
 class TestGenomeVocabularyScorer:

@@ -20,8 +20,8 @@ QIG-PURE: Uses Fisher-Rao geometry for all basin operations.
 """
 
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -43,18 +43,10 @@ except ImportError:
     EmotionallyAwareKernel = object
     EMOTIONAL_KERNEL_AVAILABLE = False
 
-# Import QIG geometry
-try:
-    from qig_geometry import fisher_rao_distance, fisher_normalize
-    QIG_GEOMETRY_AVAILABLE = True
-except ImportError:
-    QIG_GEOMETRY_AVAILABLE = False
-    def fisher_normalize(v):
-        p = np.maximum(np.asarray(v), 0) + 1e-10
-        return p / p.sum()
-    fisher_rao_distance = None
+# Import QIG geometry (canonical; fail-closed)
+from qig_geometry.canonical import fisher_rao_distance, to_simplex as fisher_normalize
 
-from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
+from qigkernels.physics_constants import BASIN_DIM
 
 
 @dataclass
@@ -76,7 +68,7 @@ class ReflexPattern:
         """Check if basin matches this reflex trigger."""
         if fisher_rao_distance is None:
             # Fallback: cosine similarity (NOT geometric, emergency only)
-            return float(np.dot(basin, self.trigger_basin)) > threshold
+            raise RuntimeError("fisher_rao_distance unavailable")
         
         # Proper geometric match using Fisher-Rao distance
         d = fisher_rao_distance(basin, self.trigger_basin)

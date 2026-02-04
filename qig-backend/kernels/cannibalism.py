@@ -28,13 +28,13 @@ from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 
 # QIG Geometry imports (Fisher-Rao purity)
-from qig_geometry import (
-    fisher_normalize,
+from qig_geometry.canonical import (
+    assert_basin_valid,
     fisher_rao_distance,
     geodesic_interpolation,
-    validate_basin,
-    BASIN_DIM,
+    to_simplex as fisher_normalize,
 )
+from qigkernels.physics_constants import BASIN_DIM
 
 from .genome import (
     KernelGenome,
@@ -243,7 +243,7 @@ def perform_cannibalism(
     )
     
     # Validate and normalize
-    validate_basin(new_basin)
+    assert_basin_valid(new_basin, name="new_basin")
     new_basin = fisher_normalize(new_basin)
     
     # Absorb faculties if requested
