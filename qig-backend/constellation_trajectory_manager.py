@@ -194,7 +194,7 @@ class ConstellationTrajectoryManager:
         for i, p in enumerate(trajectory):
             basin = np.asarray(p, dtype=np.float64).flatten()
             assert_basin_valid(basin, name=f"trajectory[{i}]")
-            tangent_vectors.append(log_map(p=basin, base=base))
+            tangent_vectors.append(log_map(basin, base))
 
         try:
             tangents = np.asarray(tangent_vectors, dtype=np.float64)
