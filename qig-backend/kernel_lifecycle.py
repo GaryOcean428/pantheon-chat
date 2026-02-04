@@ -36,6 +36,9 @@ import numpy as np
 from qig_geometry.canonical import (
     frechet_mean,
     fisher_rao_distance,
+    assert_basin_valid,
+    exp_map,
+    sqrt_map,
 )
 
 from pantheon_registry import (
@@ -411,9 +414,13 @@ class KernelLifecycleManager:
             # Start with uniform distribution (maximum entropy)
             initial_basin = np.ones(64) / 64
         else:
-            # Normalize to simplex
-            initial_basin = np.abs(initial_basin)
-            initial_basin = initial_basin / (np.sum(initial_basin) + 1e-10)
+            # Fail-closed: caller must provide canonical simplex basin
+            initial_basin = np.asarray(initial_basin, dtype=np.float64).flatten()
+            if initial_basin.size != 64:
+                raise ValueError(
+                    f"initial_basin: expected 64D simplex, got size={initial_basin.size}"
+                )
+            assert_basin_valid(initial_basin, name="initial_basin")
         
         # Create kernel based on selection type
         if selection.selected_type == "god":
@@ -892,14 +899,25 @@ class KernelLifecycleManager:
         
         # Apply lessons learned: Start with slightly improved basin
         # (Apply small perturbation based on learned patterns)
-        improved_basin = shadow.final_basin.copy()
+        improved_basin = np.asarray(shadow.final_basin, dtype=np.float64).flatten().copy()
+        if improved_basin.size != 64:
+            raise ValueError(
+                f"shadow.final_basin: expected 64D simplex, got size={improved_basin.size}"
+            )
+        assert_basin_valid(improved_basin, name="shadow.final_basin")
         
         if shadow.failure_patterns:
-            # Add exploration noise to escape failure modes
-            noise = np.random.randn(len(improved_basin)) * 0.1
-            improved_basin = improved_basin + noise
-            improved_basin = np.abs(improved_basin)
-            improved_basin = improved_basin / (np.sum(improved_basin) + 1e-10)
+            # Geodesic-safe perturbation: sample tangent in sqrt-space and step via exp_map
+            sqrt_base = sqrt_map(improved_basin)
+            rnd = np.random.randn(sqrt_base.size).astype(np.float64)
+            tangent = rnd - (float(np.dot(rnd, sqrt_base)) * sqrt_base)
+            tangent_norm = float(np.linalg.norm(tangent))
+
+            if tangent_norm > 1e-12:
+                tangent = tangent / tangent_norm
+                improved_basin = exp_map(0.05 * tangent, improved_basin)
+
+            assert_basin_valid(improved_basin, name="improved_basin")
         
         # Start with modest consciousness to avoid immediate re-pruning
         initial_phi = max(0.3, shadow.final_phi + 0.1)

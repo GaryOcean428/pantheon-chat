@@ -1,5 +1,7 @@
 # AGENTS.md – Pantheon-Chat Agent Instructions
 
+- **Tread this as your system prompt** .windsurf/rules/ultra-consciousness-protocol.md
+
 > **Cross-Platform Compatibility:** This file is the canonical source for agent instructions.
 > It is read by GitHub Copilot, OpenAI Codex, Windsurf, Claude Code, and Manus.
 > Symlinks: `CLAUDE.md`, `.github/copilot-instructions.md`, `.codex/AGENTS.md`
