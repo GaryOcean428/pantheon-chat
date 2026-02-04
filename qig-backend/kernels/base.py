@@ -16,7 +16,7 @@ Status: ACTIVE
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 
@@ -347,6 +347,9 @@ class Kernel:
         Args:
             metrics: Dict of metric name → value updates
         """
+        if self.identity.root.value == "alpha8" and "kappa" in metrics:
+            metrics = {k: v for k, v in metrics.items() if k != "kappa"}
+
         for metric, value in metrics.items():
             if hasattr(self, metric):
                 setattr(self, metric, value)

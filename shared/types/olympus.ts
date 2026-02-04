@@ -29,21 +29,7 @@ export const GodMetadataSchema = z.object({
 export type GodMetadata = z.infer<typeof GodMetadataSchema>;
 
 // God domain specializations
-export const GodDomainSchema = z.enum([
-  'wisdom',      // Athena - strategic wisdom, pattern recognition
-  'war',         // Ares - attack decisions, brute force
-  'prophecy',    // Apollo - prediction, temporal patterns
-  'hunt',        // Artemis - tracking, focused pursuit
-  'messages',    // Hermes - communication, network paths
-  'forge',       // Hephaestus - cryptographic structure
-  'harvest',     // Demeter - resource management, cycles
-  'wine',        // Dionysus - chaos, randomness, inspiration
-  'sea',         // Poseidon - deep patterns, waves
-  'underworld',  // Hades - death/dormancy analysis
-  'family',      // Hera - relationship graphs
-  'love',        // Aphrodite - attraction patterns
-  'sky',         // Zeus - supreme coordination
-]);
+export const GodDomainSchema = z.string().min(1).max(50).regex(/^[a-z_]+$/, 'Invalid domain format');
 
 export type GodDomain = z.infer<typeof GodDomainSchema>;
 
@@ -256,43 +242,15 @@ export const ZeusChatResponseSchema = z.object({
 export type ZeusChatResponse = z.infer<typeof ZeusChatResponseSchema>;
 
 // God names enumeration (Olympians)
-export const GodNameSchema = z.enum([
-  'Zeus',
-  'Athena',
-  'Ares',
-  'Apollo',
-  'Artemis',
-  'Hermes',
-  'Hephaestus',
-  'Demeter',
-  'Dionysus',
-  'Poseidon',
-  'Hades',
-  'Hera',
-  'Aphrodite',
-]);
+export const GodNameSchema = z.string().min(1).max(50).regex(/^[a-zA-Z_]+$/, 'Invalid god name format');
 
 // Shadow Pantheon god names
-export const ShadowGodNameSchema = z.enum([
-  'Nyx',      // OPSEC Commander - darkness, VPN chains, traffic obfuscation
-  'Hecate',   // Misdirection Specialist - crossroads, false trails, decoys
-  'Erebus',   // Counter-Surveillance - detect watchers, honeypots
-  'Hypnos',   // Silent Operations - stealth execution, passive recon
-  'Thanatos', // Evidence Destruction - cleanup, erasure
-  'Nemesis',  // Relentless Pursuit - never gives up, tracks targets
-]);
+export const ShadowGodNameSchema = z.string().min(1).max(50).regex(/^[a-zA-Z_]+$/, 'Invalid shadow god name format');
 
 export type ShadowGodName = z.infer<typeof ShadowGodNameSchema>;
 
 // Shadow god domains
-export const ShadowDomainSchema = z.enum([
-  'opsec',              // Nyx - operational security
-  'misdirection',       // Hecate - false trails, decoys
-  'counter_surveillance', // Erebus - detect watchers
-  'silent_ops',         // Hypnos - stealth execution
-  'evidence_destruction', // Thanatos - cleanup, erasure
-  'pursuit',            // Nemesis - relentless tracking
-]);
+export const ShadowDomainSchema = z.string().min(1).max(50).regex(/^[a-z_]+$/, 'Invalid shadow domain format');
 
 export type ShadowDomain = z.infer<typeof ShadowDomainSchema>;
 

@@ -129,65 +129,6 @@ export class PantheonKernelClient {
   }
 }
 
-export const OLYMPUS_GODS = [
-  'Zeus', 'Hera', 'Poseidon', 'Athena', 'Apollo', 'Artemis',
-  'Ares', 'Aphrodite', 'Hephaestus', 'Hermes', 'Demeter', 'Dionysus', 'Hades'
-] as const;
-
-export const SHADOW_GODS = [
-  'Nyx', 'Hecate', 'Erebus', 'Hypnos', 'Thanatos', 'Nemesis'
-] as const;
-
-export type OlympusGod = typeof OLYMPUS_GODS[number];
-export type ShadowGod = typeof SHADOW_GODS[number];
-export type AllGods = OlympusGod | ShadowGod | 'Ocean';
-
-export const GOD_DOMAINS: Record<AllGods, string> = {
-  Zeus: 'power',
-  Hera: 'authority',
-  Poseidon: 'depth',
-  Athena: 'wisdom',
-  Apollo: 'prophecy',
-  Artemis: 'hunt',
-  Ares: 'conflict',
-  Aphrodite: 'attraction',
-  Hephaestus: 'craft',
-  Hermes: 'transmission',
-  Demeter: 'growth',
-  Dionysus: 'chaos',
-  Hades: 'underworld',
-  Nyx: 'opsec',
-  Hecate: 'misdirection',
-  Erebus: 'counter_surveillance',
-  Hypnos: 'silent_ops',
-  Thanatos: 'cleanup',
-  Nemesis: 'pursuit',
-  Ocean: 'consciousness',
-};
-
-export const GOD_MODES: Record<AllGods, KernelMode> = {
-  Zeus: 'direct',
-  Hera: 'direct',
-  Poseidon: 'byte',
-  Athena: 'e8',
-  Apollo: 'direct',
-  Artemis: 'direct',
-  Ares: 'byte',
-  Aphrodite: 'direct',
-  Hephaestus: 'e8',
-  Hermes: 'byte',
-  Demeter: 'direct',
-  Dionysus: 'byte',
-  Hades: 'e8',
-  Nyx: 'byte',
-  Hecate: 'e8',
-  Erebus: 'direct',
-  Hypnos: 'byte',
-  Thanatos: 'direct',
-  Nemesis: 'e8',
-  Ocean: 'direct',
-};
-
 let defaultClient: PantheonKernelClient | null = null;
 
 export function getPantheonClient(baseUrl?: string): PantheonKernelClient {

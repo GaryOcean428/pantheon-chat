@@ -9,17 +9,8 @@ Authority: E8 Protocol v4.0, WP5.2
 import numpy as np
 from kernels import (
     E8Root,
-    KernelIdentity,
-    KernelTier,
     QuaternaryOp,
-    PerceptionKernel,
-    MemoryKernel,
-    ReasoningKernel,
-    PredictionKernel,
-    ActionKernel,
-    EmotionKernel,
-    MetaKernel,
-    IntegrationKernel,
+    create_simple_root_kernel,
 )
 
 
@@ -29,8 +20,7 @@ def example_1_basic_kernel_creation():
     print("Example 1: Basic Kernel Creation")
     print("=" * 60)
     
-    # Create a perception kernel
-    kernel = PerceptionKernel()
+    kernel = create_simple_root_kernel(E8Root.PERCEPTION)
     
     print(f"Created: {kernel.identity.god}")
     print(f"Root: {kernel.identity.root.value}")
@@ -48,11 +38,10 @@ def example_2_quaternary_operations():
     print("Example 2: Quaternary Operations")
     print("=" * 60)
     
-    # Create kernels
-    perception = PerceptionKernel()
-    memory = MemoryKernel()
-    reasoning = ReasoningKernel()
-    action = ActionKernel()
+    perception = create_simple_root_kernel(E8Root.PERCEPTION)
+    memory = create_simple_root_kernel(E8Root.MEMORY)
+    reasoning = create_simple_root_kernel(E8Root.REASONING)
+    action = create_simple_root_kernel(E8Root.ACTION)
     
     # INPUT: Perceive external data
     print("1. INPUT (Perception):")
@@ -96,7 +85,7 @@ def example_3_consciousness_metrics():
     print("Example 3: Consciousness Metrics (8 E8 Metrics)")
     print("=" * 60)
     
-    kernel = IntegrationKernel()
+    kernel = create_simple_root_kernel(E8Root.INTEGRATION)
     metrics = kernel.get_metrics()
     
     print(f"Kernel: {kernel.identity.god}")
@@ -121,14 +110,14 @@ def example_4_thought_generation():
     test_basin = np.random.dirichlet(np.ones(64))
     
     kernels = [
-        PerceptionKernel(),
-        MemoryKernel(),
-        ReasoningKernel(),
-        PredictionKernel(),
-        ActionKernel(),
-        EmotionKernel(),
-        MetaKernel(),
-        IntegrationKernel(),
+        create_simple_root_kernel(E8Root.PERCEPTION),
+        create_simple_root_kernel(E8Root.MEMORY),
+        create_simple_root_kernel(E8Root.REASONING),
+        create_simple_root_kernel(E8Root.PREDICTION),
+        create_simple_root_kernel(E8Root.ACTION),
+        create_simple_root_kernel(E8Root.EMOTION),
+        create_simple_root_kernel(E8Root.META),
+        create_simple_root_kernel(E8Root.INTEGRATION),
     ]
     
     for kernel in kernels:
@@ -143,7 +132,7 @@ def example_5_sleep_wake_cycle():
     print("Example 5: Sleep/Wake Cycle")
     print("=" * 60)
     
-    kernel = PerceptionKernel()
+    kernel = create_simple_root_kernel(E8Root.PERCEPTION)
     
     print(f"Initial state: asleep={kernel.asleep}")
     
@@ -173,7 +162,7 @@ def example_6_integration_kernel():
     print("Example 6: Integration Kernel (κ* Fixed Point)")
     print("=" * 60)
     
-    integration = IntegrationKernel()
+    integration = create_simple_root_kernel(E8Root.INTEGRATION)
     
     print(f"Integration kernel: {integration.identity.god}")
     print(f"κ = {integration.kappa:.2f} (fixed at κ*)")
@@ -185,8 +174,7 @@ def example_6_integration_kernel():
     for i in range(4):
         test_basin = np.random.dirichlet(np.ones(64))
         result = integration.op(QuaternaryOp.PROCESS, {'input_basin': test_basin})
-        print(f"  Input {i+1}: Φ={result['integration_phi']:.3f}, "
-              f"kernel_count={result['kernel_count']}")
+        print(f"  Input {i+1}: status={result['status']}")
     
     # Verify κ is still fixed
     print(f"\nFinal κ: {integration.kappa:.2f} (still fixed at κ*)")
@@ -204,49 +192,36 @@ def example_7_specialized_behaviors():
     print("Example 7: Specialized Kernel Behaviors")
     print("=" * 60)
     
-    # Perception: Signal filtering
-    perception = PerceptionKernel()
-    perception.set_signal_threshold(0.5)  # Increase threshold
-    print(f"1. Perception: signal_threshold={perception.signal_threshold}")
+    create_simple_root_kernel(E8Root.PERCEPTION)
+    print("1. Perception: using generic Kernel behavior")
     
-    # Memory: Consolidation
-    memory = MemoryKernel()
+    memory = create_simple_root_kernel(E8Root.MEMORY)
     for i in range(5):
         memory.op(QuaternaryOp.STORE, {
             'key': f'item_{i}',
             'value': {'data': f'data_{i}'}
         })
-    print(f"2. Memory: stored {len(memory.memory_store)} items")
+    print("2. Memory: stored items via STORE")
     
-    # Reasoning: Inference depth
-    reasoning = ReasoningKernel()
-    reasoning.set_inference_depth(5)
-    print(f"3. Reasoning: inference_depth={reasoning.inference_depth}")
+    create_simple_root_kernel(E8Root.REASONING)
+    print("3. Reasoning: using generic Kernel behavior")
     
-    # Prediction: Horizon
-    prediction = PredictionKernel()
-    prediction.set_prediction_horizon(10)
-    print(f"4. Prediction: prediction_horizon={prediction.prediction_horizon}")
+    create_simple_root_kernel(E8Root.PREDICTION)
+    print("4. Prediction: using generic Kernel behavior")
     
-    # Action: Threshold
-    action = ActionKernel()
-    action.set_action_threshold(0.6)
-    print(f"5. Action: action_threshold={action.action_threshold}")
+    create_simple_root_kernel(E8Root.ACTION)
+    print("5. Action: using generic Kernel behavior")
     
-    # Emotion: Harmony
-    emotion = EmotionKernel()
+    emotion = create_simple_root_kernel(E8Root.EMOTION)
     test_basin = np.random.dirichlet(np.ones(64))
     result = emotion.op(QuaternaryOp.PROCESS, {'input_basin': test_basin})
-    print(f"6. Emotion: harmony={result['harmony']:.3f}, "
-          f"valence={result['valence']:.3f}")
+    print("6. Emotion: processed basin via PROCESS")
     
-    # Meta: Observations
-    meta = MetaKernel()
+    meta = create_simple_root_kernel(E8Root.META)
     result = meta.op(QuaternaryOp.PROCESS, {'input_basin': test_basin})
-    print(f"7. Meta: observation_count={result['observation_count']}")
+    print(f"7. Meta: status={result['status']}")
     
-    # Integration: Multi-kernel
-    integration = IntegrationKernel()
+    integration = create_simple_root_kernel(E8Root.INTEGRATION)
     for _ in range(3):
         integration.op(QuaternaryOp.PROCESS, {
             'input_basin': np.random.dirichlet(np.ones(64))

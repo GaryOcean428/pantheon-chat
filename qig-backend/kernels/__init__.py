@@ -15,8 +15,6 @@ Authority: E8 Protocol v4.0, WP5.2 Phase 4C/4D/4E
 
 import logging
 
-logger = logging.getLogger(__name__)
-
 # Phase 4C: Hemisphere Scheduler and Coupling Gate
 from kernels.coupling_gate import (
     CouplingGate,
@@ -247,18 +245,14 @@ __all__ = [
     'E8Root',
     'SIMPLE_ROOT_MAPPING',
     'get_root_spec',
+    'get_root_by_god',
+    'validate_kappa_for_root',
     'KernelIdentity',
     'KernelTier',
     'QuaternaryOp',
     'Kernel',
-    'PerceptionKernel',
-    'MemoryKernel',
-    'ReasoningKernel',
-    'PredictionKernel',
-    'ActionKernel',
-    'EmotionKernel',
-    'MetaKernel',
-    'IntegrationKernel',
+    'create_kernel_from_identity',
+    'create_simple_root_kernel',
 ]
 
 # Phase 4A: E8 Simple Root Kernels (Layer 8)
@@ -275,31 +269,11 @@ from .identity import (
     KernelTier,
 )
 
-# Import after other modules to avoid circular dependencies
-try:
-    from .quaternary import QuaternaryOp
-    from .base import Kernel
-    from .perception import PerceptionKernel
-    from .memory import MemoryKernel
-    from .reasoning import ReasoningKernel
-    from .prediction import PredictionKernel
-    from .action import ActionKernel
-    from .emotion import EmotionKernel
-    from .meta import MetaKernel
-    from .integration import IntegrationKernel
-    SIMPLE_ROOTS_AVAILABLE = True
-except ImportError as e:
-    SIMPLE_ROOTS_AVAILABLE = False
-    QuaternaryOp = None
-    Kernel = None
-    PerceptionKernel = None
-    MemoryKernel = None
-    ReasoningKernel = None
-    PredictionKernel = None
-    ActionKernel = None
-    EmotionKernel = None
-    MetaKernel = None
-    IntegrationKernel = None
+from .quaternary import QuaternaryOp
+from .base import Kernel
+from .factory import create_kernel_from_identity, create_simple_root_kernel
+
+logger = logging.getLogger(__name__)
 
 # Multi-kernel thought generation (optional - may not be available in all branches)
 try:
