@@ -21,6 +21,18 @@ const router = Router();
 const TELEMETRY_LOG_DIR = path.join(process.cwd(), "qig-backend", "logs", "telemetry");
 const EMERGENCY_LOG_DIR = path.join(process.cwd(), "qig-backend", "logs", "emergency");
 
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+
+function resolveSafeChildPath(baseDir: string, filename: string): string {
+  const base = path.resolve(baseDir);
+  const candidate = path.resolve(base, filename);
+  const rel = path.relative(base, candidate);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error("Invalid path");
+  }
+  return candidate;
+}
+
 interface PythonTelemetryRecord {
   timestamp: string;
   step: number;
@@ -75,7 +87,11 @@ async function listTelemetrySessions(): Promise<string[]> {
  * Read telemetry session file
  */
 async function readTelemetrySession(sessionId: string): Promise<PythonTelemetryRecord[]> {
-  const filePath = path.join(TELEMETRY_LOG_DIR, `session_${sessionId}.jsonl`);
+  if (!SAFE_ID_RE.test(sessionId)) {
+    throw new Error("Telemetry session not found");
+  }
+
+  const filePath = resolveSafeChildPath(TELEMETRY_LOG_DIR, `session_${sessionId}.jsonl`);
   
   if (!existsSync(filePath)) {
     throw new Error(`Telemetry session not found: ${sessionId}`);
@@ -105,7 +121,11 @@ async function listEmergencyEvents(): Promise<string[]> {
  * Read emergency event
  */
 async function readEmergencyEvent(eventId: string): Promise<EmergencyRecord> {
-  const filePath = path.join(EMERGENCY_LOG_DIR, `emergency_${eventId}.json`);
+  if (!SAFE_ID_RE.test(eventId)) {
+    throw new Error("Emergency event not found");
+  }
+
+  const filePath = resolveSafeChildPath(EMERGENCY_LOG_DIR, `emergency_${eventId}.json`);
   
   if (!existsSync(filePath)) {
     throw new Error(`Emergency event not found: ${eventId}`);
@@ -135,7 +155,7 @@ router.get("/sessions", async (req: Request, res: Response) => {
       })),
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 
@@ -172,7 +192,8 @@ router.get("/sessions/:sessionId", async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    if (error.message.includes("not found")) {
+    const message = getErrorMessage(error);
+    if (message.includes("not found")) {
       res.status(404).json({ error: error.message });
     } else {
       res.status(500).json({ error: error.message });
@@ -209,10 +230,11 @@ router.get("/sessions/:sessionId/latest", async (req: Request, res: Response) =>
       } : null,
     });
   } catch (error: any) {
-    if (error.message.includes("not found")) {
-      res.status(404).json({ error: error.message });
+    const message = getErrorMessage(error);
+    if (message.includes("not found")) {
+      res.status(404).json({ error: message });
     } else {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: message });
     }
   }
 });
@@ -245,10 +267,11 @@ router.get("/sessions/:sessionId/trajectory", async (req: Request, res: Response
       trajectory,
     });
   } catch (error: any) {
-    if (error.message.includes("not found")) {
-      res.status(404).json({ error: error.message });
+    const message = getErrorMessage(error);
+    if (message.includes("not found")) {
+      res.status(404).json({ error: message });
     } else {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: message });
     }
   }
 });
@@ -285,7 +308,8 @@ router.get("/emergencies/:eventId", async (req: Request, res: Response) => {
     
     res.json(event);
   } catch (error: any) {
-    if (error.message.includes("not found")) {
+    const message = getErrorMessage(error);
+    if (message.includes("not found")) {
       res.status(404).json({ error: error.message });
     } else {
       res.status(500).json({ error: error.message });
@@ -315,7 +339,7 @@ router.get("/health", async (req: Request, res: Response) => {
       totalEmergencies: emergencies.length,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: getErrorMessage(error) });
   }
 });
 

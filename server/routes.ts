@@ -12,6 +12,7 @@ import KernelActivityStreamer from "./kernel-activity-websocket";
 import MeshNetworkStreamer from "./mesh-network-websocket";
 import telemetryDashboardRouter from "./routes/telemetry";
 import { pythonReadiness, createTypedErrorResponse } from "./python-readiness";
+import { generousLimiter } from "./rate-limiters";
 
 // WebSocket message validation schema (addresses Issue 13/14 from bottleneck report)
 const wsMessageSchema = z.object({
@@ -122,6 +123,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/favicon.ico", (req, res) => {
     res.redirect(301, "/favicon.png");
   });
+
+  app.use("/api", generousLimiter);
+  app.use("/api/v1", generousLimiter);
 
   // Python backend status endpoint for frontend initialization UI
   app.get("/api/python/status", (req, res) => {

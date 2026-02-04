@@ -116,12 +116,7 @@ function extractApiKey(req: Request): string | null {
   if (typeof xApiKey === 'string') {
     return xApiKey;
   }
-  
-  // Check query parameter (less secure, for debugging only)
-  if (process.env.NODE_ENV === 'development' && req.query.api_key) {
-    return req.query.api_key as string;
-  }
-  
+
   return null;
 }
 
