@@ -167,16 +167,40 @@ def fisher_rao_distance(
     # SIMPLEX BASINS (canonical Fisher-Rao)
     # ---------------------------------------------------------------------
     if state_a.ndim == 1 and state_b.ndim == 1:
-        if method != "bures":
-            raise ValueError(
-                f"Unknown method: {method}. Expected 'bures' for density matrices."
-            )
-
         a = np.asarray(state_a, dtype=np.float64).flatten()
         b = np.asarray(state_b, dtype=np.float64).flatten()
-        assert_basin_valid(a, name="state_a")
-        assert_basin_valid(b, name="state_b")
-        return float(simplex_fisher_rao_distance(a, b))
+
+        if method == "bures":
+            assert_basin_valid(a, name="state_a")
+            assert_basin_valid(b, name="state_b")
+            return float(simplex_fisher_rao_distance(a, b))
+
+        if method == "diagonal":
+            if metric is None:
+                raise ValueError("metric is required for method='diagonal'")
+            g_diag = np.asarray(metric, dtype=np.float64).flatten()
+            if g_diag.shape != a.shape:
+                raise ValueError(
+                    f"Diagonal metric shape mismatch: metric.shape={g_diag.shape}, state.shape={a.shape}"
+                )
+            dx = a - b
+            return float(np.sqrt(np.sum(np.clip(g_diag, 0.0, np.inf) * (dx * dx))))
+
+        if method == "full":
+            if metric is None:
+                raise ValueError("metric is required for method='full'")
+            G = np.asarray(metric, dtype=np.float64)
+            if G.ndim != 2 or G.shape[0] != G.shape[1] or G.shape[0] != a.shape[0]:
+                raise ValueError(
+                    f"Full metric shape mismatch: metric.shape={G.shape}, state.shape={a.shape}"
+                )
+            dx = (a - b).reshape(-1, 1)
+            d2 = float((dx.T @ G @ dx).squeeze())
+            return float(np.sqrt(max(d2, 0.0)))
+
+        raise ValueError(
+            f"Unknown method: {method}. Expected 'bures' (simplex basins), 'diagonal', or 'full' (metric basins)."
+        )
 
     # ---------------------------------------------------------------------
     # DENSITY MATRICES (Bures via quantum fidelity)
