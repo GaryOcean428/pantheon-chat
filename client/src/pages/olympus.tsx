@@ -134,39 +134,21 @@ function GodCard({ name, god }: { name: string; god: GodStatus }) {
 }
 
 function PantheonGrid({ gods }: { gods: Record<string, GodStatus> }) {
-  const olympianNames = ['athena', 'ares', 'apollo', 'artemis', 'hermes', 'hephaestus', 'demeter', 'dionysus', 'poseidon', 'hades', 'hera', 'aphrodite'];
-  const shadowNames = ['nyx', 'hecate', 'erebus', 'hypnos', 'thanatos', 'nemesis'];
-  
-  const olympians = olympianNames.filter(name => gods[name]);
-  const shadows = shadowNames.filter(name => gods[name]);
+  const names = Object.keys(gods || {}).sort();
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
           <Crown className="h-4 w-4 text-yellow-500" />
-          Olympian Pantheon
+          Pantheon
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {olympians.map(name => (
+          {names.map(name => (
             <GodCard key={name} name={name} god={gods[name]} />
           ))}
         </div>
       </div>
-      
-      {shadows.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Moon className="h-4 w-4 text-indigo-400" />
-            Shadow Pantheon
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {shadows.map(name => (
-              <GodCard key={name} name={name} god={gods[name]} />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
