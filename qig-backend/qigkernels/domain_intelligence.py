@@ -191,7 +191,7 @@ class DomainDiscovery:
     
     No hardcoded domain lists. Domains emerge from:
     1. Event patterns in shadow_pantheon_intel
-    2. Kernel evolution in m8_kernel_awareness
+    2. Kernel evolution in e8_kernel_awareness
     3. Search feedback geometric clusters
     4. Near-miss address patterns
     5. Balance hit categories
@@ -257,7 +257,7 @@ class DomainDiscovery:
                     # Discover domains from kernel evolution
                     cur.execute("""
                         SELECT DISTINCT domain, COUNT(*) as cnt
-                        FROM m8_spawned_kernels
+                        FROM e8_spawned_kernels
                         WHERE status = 'active'
                         GROUP BY domain
                     """)

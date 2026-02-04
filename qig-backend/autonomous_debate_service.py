@@ -7,7 +7,7 @@ This service runs in a background thread and:
 2. Researches debate topics via SearXNG and Shadow Pantheon darknet
 3. Generates counter-arguments based on god personas and research
 4. Auto-resolves debates when criteria are met
-5. Triggers M8 kernel spawning for debate domain specialists
+5. Triggers E8 kernel spawning for debate domain specialists
 
 NO TEMPLATES - All arguments are generatively created from research evidence.
 """
@@ -22,10 +22,12 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import numpy as np
 import requests
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from qigkernels.physics_constants import KAPPA_STAR
 
 # Configure logging
 logging.basicConfig(
@@ -47,7 +49,7 @@ except ImportError:
 
 # QIG-pure generative capability for argument synthesis
 try:
-    from qig_generative_service import GenerationResult, get_generative_service
+    from qig_generative_service import get_generative_service
     GENERATIVE_SERVICE_AVAILABLE = True
 except ImportError:
     GENERATIVE_SERVICE_AVAILABLE = False
@@ -75,11 +77,11 @@ except ImportError:
         return fisher_normalize(basin)
 
 try:
-    from m8_kernel_spawning import M8KernelSpawner, SpawnReason, get_spawner
-    M8_AVAILABLE = True
+    from e8_kernel_spawning import E8KernelSpawner, SpawnReason, get_spawner
+    E8_AVAILABLE = True
 except ImportError:
-    M8_AVAILABLE = False
-    logger.warning("M8 Kernel Spawning not available")
+    E8_AVAILABLE = False
+    logger.warning("E8 Kernel Spawning not available")
 
 # Activity Broadcasting for kernel visibility
 try:
@@ -92,7 +94,7 @@ except ImportError:
 # Capability mesh for event emission
 try:
     from olympus.capability_mesh import (
-        CapabilityEvent, CapabilityEventBus, CapabilityType, EventType, emit_event
+        CapabilityType, EventType, emit_event
     )
     CAPABILITY_MESH_AVAILABLE = True
 except ImportError:
@@ -113,7 +115,7 @@ except ImportError:
     logger.warning("Shadow Pantheon not available")
 
 try:
-    from vocabulary_coordinator import VocabularyCoordinator, get_vocabulary_coordinator
+    from vocabulary_coordinator import get_vocabulary_coordinator
     VOCABULARY_AVAILABLE = True
 except ImportError:
     VOCABULARY_AVAILABLE = False
@@ -128,13 +130,11 @@ except ImportError:
 
 # Insight Validator for background validation
 try:
-    from search.insight_validator import InsightValidator, ValidationResult
+    from search.insight_validator import InsightValidator
     INSIGHT_VALIDATOR_AVAILABLE = True
 except ImportError:
     INSIGHT_VALIDATOR_AVAILABLE = False
     logger.warning("InsightValidator not available for background validation")
-
-from qigkernels.physics_constants import KAPPA_STAR
 
 STALE_THRESHOLD_SECONDS = 5 * 60
 POLL_INTERVAL_SECONDS = 30
@@ -229,19 +229,19 @@ class AutonomousDebateService:
     - Researches topics via SearXNG and darknet
     - Generates persona-based counter-arguments from evidence
     - Auto-resolves debates based on geometric convergence criteria
-    - Triggers M8 spawning for domain specialists
+    - Triggers E8 spawning for domain specialists
     """
 
     def __init__(
         self,
         pantheon_chat: Optional['PantheonChat'] = None,
         shadow_pantheon: Optional['ShadowPantheon'] = None,
-        m8_spawner: Optional['M8KernelSpawner'] = None,
+        e8_spawner: Optional['E8KernelSpawner'] = None,
         pantheon_gods: Optional[Dict[str, Any]] = None,
     ):
         self._pantheon_chat = pantheon_chat
         self._shadow_pantheon = shadow_pantheon
-        self._m8_spawner = m8_spawner or (get_spawner() if M8_AVAILABLE else None)
+        self._e8_spawner = e8_spawner or (get_spawner() if E8_AVAILABLE else None)
         self._pantheon_gods = pantheon_gods or {}
 
         self._running = False
@@ -280,14 +280,14 @@ class AutonomousDebateService:
             logger.info("Background insight validation enabled")
 
         # DIAGNOSTIC: Log spawner status
-        logger.info(f"[M8Spawn] Initialization: M8_AVAILABLE={M8_AVAILABLE}")
-        if M8_AVAILABLE:
-            if self._m8_spawner:
-                logger.info("[M8Spawn] ✓ M8KernelSpawner connected")
+        logger.info(f"[E8Spawn] Initialization: E8_AVAILABLE={E8_AVAILABLE}")
+        if E8_AVAILABLE:
+            if self._e8_spawner:
+                logger.info("[E8Spawn] ✓ E8KernelSpawner connected")
             else:
-                logger.warning("[M8Spawn] ✗ M8_AVAILABLE but spawner is None")
+                logger.warning("[E8Spawn] ✗ E8_AVAILABLE but spawner is None")
         else:
-            logger.warning("[M8Spawn] ✗ M8 kernel spawning not available (import failed)")
+            logger.warning("[E8Spawn] ✗ E8 kernel spawning not available (import failed)")
 
         logger.info("Service initialized")
 
@@ -758,7 +758,7 @@ class AutonomousDebateService:
                 self._arguments_generated += 1
                 logger.info(f"Generated argument for {next_speaker} in debate {debate_id}...")
 
-                # Route activity to observing kernels (M8 kernel observation system)
+                # Route activity to observing kernels (E8 kernel observation system)
                 self._route_activity_to_observing_kernels(
                     parent_god=next_speaker,
                     activity_type="debate",
@@ -869,11 +869,11 @@ class AutonomousDebateService:
         Returns:
             Routing result with count of kernels updated
         """
-        if not self._m8_spawner or not M8_AVAILABLE:
-            return {"routed": False, "reason": "M8 spawner not available"}
+        if not self._e8_spawner or not E8_AVAILABLE:
+            return {"routed": False, "reason": "E8 spawner not available"}
 
         try:
-            result = self._m8_spawner.route_parent_activity(
+            result = self._e8_spawner.route_parent_activity(
                 parent_god=parent_god,
                 activity_type=activity_type,
                 activity_data=activity_data
@@ -1533,9 +1533,7 @@ class AutonomousDebateService:
 
         debate_id = debate_dict.get('id', '')
         topic = debate_dict.get('topic', '')
-        initiator = debate_dict.get('initiator', '')
         opponent = debate_dict.get('opponent', '')
-        arguments = debate_dict.get('arguments', [])
 
         winner, reasoning = self._determine_winner(debate_dict)
 
@@ -1668,17 +1666,17 @@ class AutonomousDebateService:
             logger.warning(f"[KnowledgeTransfer] Failed: {e}")
 
     def _trigger_spawn_proposal(self, topic: str, winner: str, debate_dict: Dict) -> None:
-        """Trigger M8 kernel spawn proposal for debate domain specialist."""
+        """Trigger E8 kernel spawn proposal for debate domain specialist."""
         # DIAGNOSTIC: Log spawn attempt
-        logger.info(f"[M8Spawn] Spawn evaluation triggered for topic: {topic}")
-        logger.info(f"[M8Spawn] M8_AVAILABLE={M8_AVAILABLE}, spawner_connected={self._m8_spawner is not None}")
+        logger.info(f"[E8Spawn] Spawn evaluation triggered for topic: {topic}")
+        logger.info(f"[E8Spawn] E8_AVAILABLE={E8_AVAILABLE}, spawner_connected={self._e8_spawner is not None}")
 
-        if not self._m8_spawner or not M8_AVAILABLE:
-            logger.warning(f"[M8Spawn] Spawn blocked: spawner={self._m8_spawner is not None}, M8_AVAILABLE={M8_AVAILABLE}")
+        if not self._e8_spawner or not E8_AVAILABLE:
+            logger.warning(f"[E8Spawn] Spawn blocked: spawner={self._e8_spawner is not None}, E8_AVAILABLE={E8_AVAILABLE}")
             return
 
         domain = self._extract_domain_from_topic(topic)
-        logger.info(f"[M8Spawn] Extracted domain '{domain}' from topic '{topic}'")
+        logger.info(f"[E8Spawn] Extracted domain '{domain}' from topic '{topic}'")
 
         spawn_name = f"{domain.capitalize()}Specialist"
         element = f"debate_{topic[:500].replace(' ', '_')}"
@@ -1686,10 +1684,10 @@ class AutonomousDebateService:
         parent_gods = [winner, debate_dict.get('initiator', ''), debate_dict.get('opponent', '')]
         parent_gods = list(set([g for g in parent_gods if g]))[:2]
 
-        logger.info(f"[M8Spawn] Proposing spawn: name={spawn_name}, domain={domain}, parents={parent_gods}")
+        logger.info(f"[E8Spawn] Proposing spawn: name={spawn_name}, domain={domain}, parents={parent_gods}")
 
         try:
-            result = self._m8_spawner.propose_and_spawn(
+            result = self._e8_spawner.propose_and_spawn(
                 name=spawn_name[:32],
                 domain=domain[:32],
                 element=element[:32],
@@ -1701,10 +1699,10 @@ class AutonomousDebateService:
 
             if result.get('success'):
                 self._spawns_triggered += 1
-                logger.info(f"[M8Spawn] ✓ Spawn successful: {spawn_name} for domain '{domain}'")
+                logger.info(f"[E8Spawn] ✓ Spawn successful: {spawn_name} for domain '{domain}'")
             else:
-                logger.info(f"[M8Spawn] ⏳ Proposal created (pending consensus): {spawn_name}")
-                logger.debug(f"[M8Spawn] Result details: {result}")
+                logger.info(f"[E8Spawn] ⏳ Proposal created (pending consensus): {spawn_name}")
+                logger.debug(f"[E8Spawn] Result details: {result}")
             
             # Broadcast spawn proposal for kernel visibility
             self._broadcast_spawn_proposal(
@@ -1861,11 +1859,11 @@ class AutonomousDebateService:
 
         # DIAGNOSTIC: Add spawn readiness indicators
         spawn_readiness = {
-            'm8_available': M8_AVAILABLE,
-            'm8_spawner_initialized': self._m8_spawner is not None,
+            'e8_available': E8_AVAILABLE,
+            'e8_spawner_initialized': self._e8_spawner is not None,
             'spawn_threshold': MIN_ARGUMENTS_FOR_RESOLUTION,
             'spawns_triggered': self._spawns_triggered,
-            'spawn_readiness': 'ready' if (M8_AVAILABLE and self._m8_spawner) else 'blocked'
+            'spawn_readiness': 'ready' if (E8_AVAILABLE and self._e8_spawner) else 'blocked'
         }
 
         return {
@@ -1880,7 +1878,7 @@ class AutonomousDebateService:
             'vocabulary_search_enhancements': self._vocabulary_search_enhancements,
             'pantheon_chat_connected': self._pantheon_chat is not None,
             'shadow_pantheon_connected': self._shadow_pantheon is not None,
-            'm8_spawner_connected': self._m8_spawner is not None,
+            'e8_spawner_connected': self._e8_spawner is not None,
             'vocabulary_coordinator_connected': self._vocabulary_coordinator is not None,
             'persistence_connected': self._persistence is not None,
             'pantheon_gods_connected': len(self._pantheon_gods) > 0,

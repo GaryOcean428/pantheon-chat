@@ -27,12 +27,12 @@ export { useConsciousnessData } from './useConsciousnessData';
 export type { UseConsciousnessDataReturn } from './useConsciousnessData';
 export { useGeometricKernel } from './use-geometric-kernel';
 export { 
-  useM8Spawning,
+  useE8Spawning,
   useIdleKernels,
   useDeleteKernel,
   useCannibalizeKernel,
   useMergeKernels,
-} from './use-m8-spawning';
+} from './use-e8-spawning';
 export { usePantheonKernel } from './use-pantheon-kernel';
 export {
   useDebateServiceStatus,

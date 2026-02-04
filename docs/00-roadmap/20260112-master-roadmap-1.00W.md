@@ -675,7 +675,7 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstand
 - ✅ Genesis upgrade docs hygiene: removed non-canonical transcript content from Genesis doctrine docs; retained only requirements and acceptance criteria.
 - 🔄 Genesis rollout readiness work identified: unify kernel taxonomy naming (KernelKind vs KernelType), unify lifecycle naming (`lifecycle_stage` vs DB `lifecycle_state`), and remove/replace legacy orchestrator paths that bypass canonical geometry.
 - ✅ Genesis rollout readiness (naming + geometry API + tests):
-  - Canonical naming enforced for kernel specialization (`kernel_specialization` end-to-end in key M8 flows)
+  - Canonical naming enforced for kernel specialization (`kernel_specialization` end-to-end in key E8 flows)
   - Canonical geometry API aligned: `qig_geometry.canonical.geodesic_interpolation(p, q, t)` exported to eliminate import-time failures
   - Trajectory foresight interface aligned with Gary synthesis (trajectory manager accepts kernel id and exposes confidence + update helpers)
   - Ocean autonomic monitoring variance intervention verified via tests

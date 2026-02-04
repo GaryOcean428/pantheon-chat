@@ -12,7 +12,7 @@ export { SSEConnectionManager, createSSEConnection, type SSEEvent, type SSEConfi
 export { telemetry } from './telemetry';
 export { isUnauthorizedError } from './authUtils';
 export * from './geometric-kernels';
-export * from './m8-kernel-spawning';
+export * from './e8-kernel-spawning';
 export * from './pantheon-kernels';
 
 // Pantheon External API SDK

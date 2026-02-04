@@ -187,12 +187,12 @@ ALTER COLUMN light_cone_past SET DEFAULT '{}';
 ALTER TABLE tps_landmarks
 ALTER COLUMN light_cone_future SET DEFAULT '{}';
 
--- m8_spawned_kernels.basin_coords
+-- e8_spawned_kernels.basin_coords
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'm8_spawned_kernels' AND column_name = 'basin_coords') THEN
-        EXECUTE 'ALTER TABLE m8_spawned_kernels ALTER COLUMN basin_coords SET DEFAULT ''{}''';
+               WHERE table_name = 'e8_spawned_kernels' AND column_name = 'basin_coords') THEN
+        EXECUTE 'ALTER TABLE e8_spawned_kernels ALTER COLUMN basin_coords SET DEFAULT ''{}''';
     END IF;
 END $$;
 
@@ -362,12 +362,12 @@ ALTER COLUMN run_with_learning_results SET DEFAULT '{}';
 ALTER TABLE search_replay_tests
 ALTER COLUMN run_without_learning_results SET DEFAULT '{}';
 
--- m8_spawned_kernels.m8_position
+-- e8_spawned_kernels.e8_position
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name = 'm8_spawned_kernels' AND column_name = 'm8_position') THEN
-        EXECUTE 'ALTER TABLE m8_spawned_kernels ALTER COLUMN m8_position SET DEFAULT ''{}''';
+               WHERE table_name = 'e8_spawned_kernels' AND column_name = 'e8_position') THEN
+        EXECUTE 'ALTER TABLE e8_spawned_kernels ALTER COLUMN e8_position SET DEFAULT ''{}''';
     END IF;
 END $$;
 

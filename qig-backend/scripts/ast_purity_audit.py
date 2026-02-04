@@ -115,7 +115,7 @@ EXEMPT_VAR_PATTERNS = {
     'v',           # generic vector
     'single',      # single vector
     'combined',    # combined vector
-    'pm8',         # M8 projection
+    'pe8',         # E8 projection
     'displacement', # displacement vector
     'mean',        # mean normalization
     'wild',        # wild perturbation

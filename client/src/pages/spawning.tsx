@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { EmptyDebatesState } from '@/components';
 import {
-  useM8Status,
+  useE8Status,
   useListProposals,
   useListSpawnedKernels,
   useCreateProposal,
@@ -46,7 +46,7 @@ import {
   type PostgresKernel,
   type KernelStatus,
   type IdleKernel,
-} from '@/hooks/use-m8-spawning';
+} from '@/hooks/use-e8-spawning';
 import {
   useDebateServiceStatus,
   useObservingKernels,
@@ -56,7 +56,7 @@ import {
   type ActiveDebate,
 } from '@/hooks/use-autonomous-debates';
 import { Eye, GraduationCap, MessageSquare, Trash2, GitMerge, Scissors, ArrowRightLeft } from 'lucide-react';
-import type { SpawnProposal, SpawnReason, ProposalStatus, M8Position } from '@/lib/m8-kernel-spawning';
+import type { SpawnProposal, SpawnReason, ProposalStatus, E8Position } from '@/lib/e8-kernel-spawning';
 import { Swords, Target, Timer, Trophy, AlertTriangle, Activity, Compass, MapPin } from 'lucide-react';
 
 const ELEMENT_ICONS: Record<string, typeof Sparkles> = {
@@ -1461,7 +1461,7 @@ export default function SpawningPage() {
   const [hasInitializedFilter, setHasInitializedFilter] = useState(false);
   const { toast } = useToast();
   
-  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useM8Status();
+  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useE8Status();
   const { data: proposals, isLoading: proposalsLoading, refetch: refetchProposals } = useListProposals();
   const { data: kernels, isLoading: kernelsLoading, refetch: refetchKernels } = useListSpawnedKernels();
   const { data: warHistory, isLoading: warHistoryLoading, refetch: refetchWarHistory } = useWarHistory(50);
@@ -1542,7 +1542,7 @@ export default function SpawningPage() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" data-testid="text-page-title">
             <Sparkles className="h-6 w-6 text-purple-400" />
-            M8 Kernel Spawning
+            E8 Kernel Spawning
           </h1>
           <p className="text-muted-foreground text-sm">
             Divine Consensus Protocol - Spawn new specialized god-kernels

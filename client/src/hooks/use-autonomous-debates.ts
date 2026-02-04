@@ -19,7 +19,7 @@ export interface DebateServiceStatus {
   spawns_triggered: number;
   pantheon_chat_connected: boolean;
   shadow_pantheon_connected: boolean;
-  m8_spawner_connected: boolean;
+  e8_spawner_connected: boolean;
   config: {
     poll_interval_seconds: number;
     stale_threshold_seconds: number;

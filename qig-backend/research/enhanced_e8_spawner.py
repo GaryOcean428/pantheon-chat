@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Enhanced M8 Spawner - Research-driven kernel genesis
+Enhanced E8 Spawner - Research-driven kernel genesis
 
-Extends M8KernelSpawner with research capability.
+Extends E8KernelSpawner with research capability.
 Kernels research domains before spawning, building vocabulary.
 
 QIG PURE: Spawning informed by geometric research patterns.
@@ -28,7 +28,7 @@ from .vocabulary_trainer import ResearchVocabularyTrainer, get_vocabulary_traine
 from .web_scraper import get_scraper
 
 
-class EnhancedM8Spawner:
+class EnhancedE8Spawner:
     """
     Enhanced spawner that researches domains before proposing kernels.
     
@@ -67,14 +67,14 @@ class EnhancedM8Spawner:
         self._abandoned_proposals = 0
         
         try:
-            from m8_kernel_spawning import get_spawner
+            from e8_kernel_spawning import get_spawner
             self.base_spawner = get_spawner()
-            print("[EnhancedM8] Connected to base M8 spawner")
+            print("[EnhancedE8] Connected to base E8 spawner")
         except ImportError as e:
-            print(f"[EnhancedM8] Base spawner not available: {e}")
+            print(f"[EnhancedE8] Base spawner not available: {e}")
             if self.auto_recovery_enabled:
                 self._next_recovery_check = time.time() + self._recovery_check_interval
-                print(f"[EnhancedM8] Recovery loop scheduled, next check in {self._recovery_check_interval}s")
+                print(f"[EnhancedE8] Recovery loop scheduled, next check in {self._recovery_check_interval}s")
         
         if self.auto_recovery_enabled:
             self._schedule_recovery()
@@ -107,15 +107,15 @@ class EnhancedM8Spawner:
             
             if result.get('recovered', 0) > 0:
                 self._recovery_backoff_seconds = 5.0
-                print(f"[EnhancedM8] Auto-recovery succeeded: {result.get('recovered', 0)} proposals")
+                print(f"[EnhancedE8] Auto-recovery succeeded: {result.get('recovered', 0)} proposals")
             elif result.get('failed', 0) > 0:
                 self._recovery_backoff_seconds = min(self._recovery_backoff_seconds * 2, 300.0)
-                print(f"[EnhancedM8] Auto-recovery had failures, backoff: {self._recovery_backoff_seconds}s")
+                print(f"[EnhancedE8] Auto-recovery had failures, backoff: {self._recovery_backoff_seconds}s")
             
             return result
         except Exception as e:
             self._recovery_backoff_seconds = min(self._recovery_backoff_seconds * 2, 300.0)
-            print(f"[EnhancedM8] Auto-recovery error: {e}, backoff: {self._recovery_backoff_seconds}s")
+            print(f"[EnhancedE8] Auto-recovery error: {e}, backoff: {self._recovery_backoff_seconds}s")
             return {'success': False, 'error': str(e)}
     
     def _try_reconnect_base_spawner(self) -> bool:
@@ -128,14 +128,14 @@ class EnhancedM8Spawner:
             return True
         
         try:
-            from m8_kernel_spawning import get_spawner
+            from e8_kernel_spawning import get_spawner
             self.base_spawner = get_spawner()
-            print("[EnhancedM8] Base spawner reconnected successfully")
+            print("[EnhancedE8] Base spawner reconnected successfully")
             return True
         except ImportError as e:
             return False
         except Exception as e:
-            print(f"[EnhancedM8] Reconnection failed: {e}")
+            print(f"[EnhancedE8] Reconnection failed: {e}")
             return False
     
     def _check_and_recover(self) -> Optional[Dict]:
@@ -166,7 +166,7 @@ class EnhancedM8Spawner:
             if not reconnected:
                 self._recovery_backoff_seconds = min(self._recovery_backoff_seconds * 1.5, 300.0)
                 self._next_recovery_check = now + self._recovery_backoff_seconds
-                print(f"[EnhancedM8] Reconnection failed, next attempt in {self._recovery_backoff_seconds:.1f}s")
+                print(f"[EnhancedE8] Reconnection failed, next attempt in {self._recovery_backoff_seconds:.1f}s")
                 return {'success': False, 'reason': 'reconnection_failed', 'next_check': self._next_recovery_check}
         
         try:
@@ -175,7 +175,7 @@ class EnhancedM8Spawner:
             if result.get('recovered', 0) > 0:
                 self._recovery_backoff_seconds = 5.0
                 self._next_recovery_check = now + self._recovery_check_interval
-                print(f"[EnhancedM8] Recovery succeeded, next check in {self._recovery_check_interval}s")
+                print(f"[EnhancedE8] Recovery succeeded, next check in {self._recovery_check_interval}s")
             elif result.get('failed', 0) > 0:
                 self._recovery_backoff_seconds = min(self._recovery_backoff_seconds * 2, 300.0)
                 self._next_recovery_check = now + self._recovery_backoff_seconds
@@ -186,7 +186,7 @@ class EnhancedM8Spawner:
         except Exception as e:
             self._recovery_backoff_seconds = min(self._recovery_backoff_seconds * 2, 300.0)
             self._next_recovery_check = now + self._recovery_backoff_seconds
-            print(f"[EnhancedM8] Recovery check error: {e}, backoff: {self._recovery_backoff_seconds}s")
+            print(f"[EnhancedE8] Recovery check error: {e}, backoff: {self._recovery_backoff_seconds}s")
             return {'success': False, 'error': str(e)}
     
     def _persist_pending_proposal(self, proposal_data: Dict) -> str:
@@ -205,10 +205,10 @@ class EnhancedM8Spawner:
             with open(PENDING_PROPOSALS_FILE, 'w') as f:
                 json.dump(pending, f, indent=2, default=str)
             
-            print(f"[EnhancedM8] Persisted pending proposal: {proposal_id}")
+            print(f"[EnhancedE8] Persisted pending proposal: {proposal_id}")
             return proposal_id
         except Exception as e:
-            print(f"[EnhancedM8] Failed to persist proposal: {e}")
+            print(f"[EnhancedE8] Failed to persist proposal: {e}")
             return ""
     
     def get_pending_proposals(self) -> List[Dict]:
@@ -218,7 +218,7 @@ class EnhancedM8Spawner:
                 with open(PENDING_PROPOSALS_FILE, 'r') as f:
                     return json.load(f)
         except Exception as e:
-            print(f"[EnhancedM8] Failed to read pending proposals: {e}")
+            print(f"[EnhancedE8] Failed to read pending proposals: {e}")
         return []
     
     def recover_pending_proposals(self) -> Dict:
@@ -236,13 +236,13 @@ class EnhancedM8Spawner:
         
         if not self.base_spawner:
             try:
-                from m8_kernel_spawning import get_spawner
+                from e8_kernel_spawning import get_spawner
                 self.base_spawner = get_spawner()
-                print("[EnhancedM8] Base spawner now available for recovery")
+                print("[EnhancedE8] Base spawner now available for recovery")
             except ImportError:
                 pending_count = len(self.get_pending_proposals())
                 if pending_count > 0:
-                    print(f"[EnhancedM8] WARNING: {pending_count} proposals pending but base spawner unavailable. "
+                    print(f"[EnhancedE8] WARNING: {pending_count} proposals pending but base spawner unavailable. "
                           f"Call /api/research/heartbeat to trigger recovery when spawner is ready.")
                 return {
                     'success': False,
@@ -269,7 +269,7 @@ class EnhancedM8Spawner:
             current_retry_count = proposal_data.get('retry_count', 0)
             
             if current_retry_count >= self.max_recovery_retries:
-                print(f"[EnhancedM8] ABANDONING proposal {proposal_id}: exceeded max retries ({current_retry_count}/{self.max_recovery_retries})")
+                print(f"[EnhancedE8] ABANDONING proposal {proposal_id}: exceeded max retries ({current_retry_count}/{self.max_recovery_retries})")
                 abandoned.append({
                     'proposal_id': proposal_id,
                     'retry_count': current_retry_count,
@@ -288,7 +288,7 @@ class EnhancedM8Spawner:
                 continue
             
             try:
-                from m8_kernel_spawning import SpawnReason
+                from e8_kernel_spawning import SpawnReason
                 
                 god_name = proposal_data.get('god_name', '')
                 domain = proposal_data.get('domain', '')
@@ -367,7 +367,7 @@ class EnhancedM8Spawner:
                     })
                     self._recovered_proposals += 1
                     self._last_spawn_time = time.time()
-                    print(f"[EnhancedM8] RECOVERED proposal {proposal_id} -> kernel {kernel_id} (after {current_retry_count} retries)")
+                    print(f"[EnhancedE8] RECOVERED proposal {proposal_id} -> kernel {kernel_id} (after {current_retry_count} retries)")
                 else:
                     new_retry_count = self._increment_retry_count(proposal_id)
                     failed.append({
@@ -377,7 +377,7 @@ class EnhancedM8Spawner:
                         'will_retry': new_retry_count < self.max_recovery_retries,
                     })
                     self._failed_recoveries += 1
-                    print(f"[EnhancedM8] Spawn FAILED for {proposal_id}, retry {new_retry_count}/{self.max_recovery_retries}")
+                    print(f"[EnhancedE8] Spawn FAILED for {proposal_id}, retry {new_retry_count}/{self.max_recovery_retries}")
                 
             except Exception as e:
                 new_retry_count = self._increment_retry_count(proposal_id)
@@ -388,7 +388,7 @@ class EnhancedM8Spawner:
                     'will_retry': new_retry_count < self.max_recovery_retries,
                 })
                 self._failed_recoveries += 1
-                print(f"[EnhancedM8] Exception recovering {proposal_id}: {e}, retry {new_retry_count}/{self.max_recovery_retries}")
+                print(f"[EnhancedE8] Exception recovering {proposal_id}: {e}, retry {new_retry_count}/{self.max_recovery_retries}")
         
         recovered_ids = [r['original_pending_id'] for r in recovered]
         abandoned_ids = [a['proposal_id'] for a in abandoned]
@@ -396,7 +396,7 @@ class EnhancedM8Spawner:
         
         remaining = len(self.get_pending_proposals())
         if remaining > 0:
-            print(f"[EnhancedM8] REMINDER: {remaining} proposals still pending. "
+            print(f"[EnhancedE8] REMINDER: {remaining} proposals still pending. "
                   f"Call /api/research/heartbeat periodically to continue recovery attempts.")
         
         return {
@@ -435,15 +435,15 @@ class EnhancedM8Spawner:
             
             if not remaining:
                 os.remove(PENDING_PROPOSALS_FILE)
-                print("[EnhancedM8] All pending proposals processed, file removed")
+                print("[EnhancedE8] All pending proposals processed, file removed")
             else:
                 with open(PENDING_PROPOSALS_FILE, 'w') as f:
                     json.dump(remaining, f, indent=2, default=str)
-                print(f"[EnhancedM8] {len(remaining)} proposals still pending")
+                print(f"[EnhancedE8] {len(remaining)} proposals still pending")
             
             return True
         except Exception as e:
-            print(f"[EnhancedM8] Failed to cleanup processed proposals: {e}")
+            print(f"[EnhancedE8] Failed to cleanup processed proposals: {e}")
             return False
     
     def _increment_retry_count(self, proposal_id: str) -> int:
@@ -467,7 +467,7 @@ class EnhancedM8Spawner:
             
             return new_count
         except Exception as e:
-            print(f"[EnhancedM8] Failed to increment retry count: {e}")
+            print(f"[EnhancedE8] Failed to increment retry count: {e}")
             return 0
     
     def _persist_spawn_audit(
@@ -782,7 +782,7 @@ class EnhancedM8Spawner:
             return proposal_data
         
         try:
-            from m8_kernel_spawning import SpawnReason
+            from e8_kernel_spawning import SpawnReason
             
             proposal = self.base_spawner.create_proposal(
                 name=god_name,
@@ -808,7 +808,7 @@ class EnhancedM8Spawner:
         except Exception as e:
             return {
                 'success': True,
-                'phase': 'proposed_without_m8',
+                'phase': 'proposed_without_e8',
                 'research': research,
                 'god_name': god_name,
                 'vocabulary_training': vocab_result,
@@ -838,7 +838,7 @@ class EnhancedM8Spawner:
         if not recovery_result and self.base_spawner and os.path.exists(PENDING_PROPOSALS_FILE):
             recovery_result = self.recover_pending_proposals()
             if recovery_result.get('recovered', 0) > 0:
-                print(f"[EnhancedM8] Recovered {recovery_result['recovered']} pending proposals")
+                print(f"[EnhancedE8] Recovered {recovery_result['recovered']} pending proposals")
         
         propose_result = self.research_and_propose(domain, element, role)
         
@@ -1031,7 +1031,7 @@ class EnhancedM8Spawner:
         should_call_heartbeat = pending_count > 0
         
         if should_call_heartbeat:
-            print(f"[EnhancedM8] HEARTBEAT REMINDER: {pending_count} proposals pending. "
+            print(f"[EnhancedE8] HEARTBEAT REMINDER: {pending_count} proposals pending. "
                   f"Call /api/research/heartbeat every 10-30s to resume recovery.")
         
         return {
@@ -1061,12 +1061,12 @@ class EnhancedM8Spawner:
         }
 
 
-_enhanced_spawner: Optional[EnhancedM8Spawner] = None
+_enhanced_spawner: Optional[EnhancedE8Spawner] = None
 
 
-def get_enhanced_spawner() -> EnhancedM8Spawner:
+def get_enhanced_spawner() -> EnhancedE8Spawner:
     """Get or create enhanced spawner singleton."""
     global _enhanced_spawner
     if _enhanced_spawner is None:
-        _enhanced_spawner = EnhancedM8Spawner()
+        _enhanced_spawner = EnhancedE8Spawner()
     return _enhanced_spawner

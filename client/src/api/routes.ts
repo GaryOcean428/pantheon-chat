@@ -214,16 +214,16 @@ export const API_ROUTES = {
     kernelGraduate: (kernelId: string) => `/api/olympus/kernels/${kernelId}/graduate`,
     kernelsObserving: '/api/olympus/kernels/observing',
     kernelsAll: '/api/olympus/kernels/all',
-    // M8 Kernel Spawning
-    m8: {
-      status: '/api/olympus/m8/status',
-      kernels: '/api/olympus/m8/kernels',
-      kernel: (id: string) => `/api/olympus/m8/kernel/${id}`,
-      cannibalize: '/api/olympus/m8/kernel/cannibalize',
-      autoCannibalize: '/api/olympus/m8/kernel/auto-cannibalize',
-      merge: '/api/olympus/m8/kernels/merge',
-      autoMerge: '/api/olympus/m8/kernels/auto-merge',
-      idleKernels: '/api/olympus/m8/kernels/idle',
+    // E8 Kernel Spawning
+    e8: {
+      status: '/api/olympus/e8/status',
+      kernels: '/api/olympus/e8/kernels',
+      kernel: (id: string) => `/api/olympus/e8/kernel/${id}`,
+      cannibalize: '/api/olympus/e8/kernel/cannibalize',
+      autoCannibalize: '/api/olympus/e8/kernel/auto-cannibalize',
+      merge: '/api/olympus/e8/kernels/merge',
+      autoMerge: '/api/olympus/e8/kernels/auto-merge',
+      idleKernels: '/api/olympus/e8/kernels/idle',
     },
     // Shadow Pantheon
     shadow: {
@@ -555,9 +555,9 @@ export const QUERY_KEYS = {
     kernels: () => [API_ROUTES.olympus.kernels] as const,
     kernelsObserving: () => [API_ROUTES.olympus.kernelsObserving] as const,
     kernelsAll: () => [API_ROUTES.olympus.kernelsAll] as const,
-    m8Status: () => [API_ROUTES.olympus.m8.status] as const,
-    m8Kernels: () => [API_ROUTES.olympus.m8.kernels] as const,
-    m8IdleKernels: () => [API_ROUTES.olympus.m8.idleKernels] as const,
+    e8Status: () => [API_ROUTES.olympus.e8.status] as const,
+    e8Kernels: () => [API_ROUTES.olympus.e8.kernels] as const,
+    e8IdleKernels: () => [API_ROUTES.olympus.e8.idleKernels] as const,
     // Tool Factory
     toolsList: () => [API_ROUTES.olympus.tools.list] as const,
     toolsStats: () => [API_ROUTES.olympus.tools.stats] as const,

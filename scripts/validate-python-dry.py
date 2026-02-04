@@ -34,7 +34,7 @@ class Violation:
 REQUIRED_SINGLETONS = {
     'qig-backend/qig_tokenizer.py': 'get_tokenizer',
     'qig-backend/pantheon_kernel_orchestrator.py': 'get_orchestrator',
-    'qig-backend/m8_kernel_spawning.py': 'get_spawner',
+    'qig-backend/e8_kernel_spawning.py': 'get_spawner',
     'qig-backend/autonomous_debate_service.py': 'get_autonomous_debate_service',
     'qig-backend/vocabulary_coordinator.py': 'get_vocabulary_coordinator',
 }

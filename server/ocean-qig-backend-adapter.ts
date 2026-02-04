@@ -2566,7 +2566,7 @@ export class OceanQIGBackend {
 
   // =========================================================================
   // KERNEL SPAWNING METHODS
-  // M8 structure kernel genesis
+  // E8 structure kernel genesis
   // =========================================================================
 
   /**

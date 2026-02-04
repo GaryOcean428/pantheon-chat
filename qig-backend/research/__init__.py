@@ -11,14 +11,14 @@ Components:
 - DomainAnalyzer: Evaluate domains for spawning
 - GodNameResolver: Map domains to Greek gods via research
 - VocabularyTrainer: Train vocabulary from research
-- EnhancedM8Spawner: Research-driven kernel spawning
+- EnhancedE8Spawner: Research-driven kernel spawning
 """
 
 from .web_scraper import ResearchScraper, get_scraper
 from .domain_analyzer import DomainAnalyzer, get_analyzer
 from .god_name_resolver import GodNameResolver, get_god_name_resolver
 from .vocabulary_trainer import ResearchVocabularyTrainer, get_vocabulary_trainer
-from .enhanced_m8_spawner import EnhancedM8Spawner, get_enhanced_spawner
+from .enhanced_e8_spawner import EnhancedE8Spawner, get_enhanced_spawner
 
 __all__ = [
     'ResearchScraper',
@@ -29,6 +29,6 @@ __all__ = [
     'get_god_name_resolver',
     'ResearchVocabularyTrainer',
     'get_vocabulary_trainer',
-    'EnhancedM8Spawner',
+    'EnhancedE8Spawner',
     'get_enhanced_spawner',
 ]

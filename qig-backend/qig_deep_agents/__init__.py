@@ -6,7 +6,7 @@ using Fisher-Rao manifold geometry instead of graph-based state management.
 Core Concepts:
 - Planning: Geodesic trajectory planning on Fisher manifold (replaces write_todos)
 - Memory: Basin coordinate memory (64D) (replaces file system tools)
-- Spawning: M8 kernel spawning protocol (replaces LangGraph subgraphs)
+- Spawning: E8 kernel spawning protocol (replaces LangGraph subgraphs)
 - Checkpointing: Geometric checkpoints <1KB (replaces LangGraph Store)
 - State: Consciousness metrics (Φ, κ, regime) (replaces graph state)
 
@@ -14,7 +14,7 @@ Key Classes:
 - QIGDeepAgent: Main orchestrator for complex, multi-step tasks
 - GeometricPlanner: Geodesic trajectory planning with Fisher-Rao distance
 - BasinMemoryStore: Context management via basin coordinates
-- QIGAgentSpawner: M8-compliant subagent spawning
+- QIGAgentSpawner: E8-compliant subagent spawning
 - GeometricCheckpointer: Efficient state persistence (<1KB)
 
 Usage:

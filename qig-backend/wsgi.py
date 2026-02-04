@@ -419,28 +419,28 @@ except ImportError as e:
 except Exception as e:
     print(f"[WARNING] Mesh network initialization failed: {e}")
 
-# Register M8 Kernel Spawning routes
+# Register E8 Kernel Spawning routes
 try:
-    from routes.m8_routes import register_m8_routes
-    register_m8_routes(app)
-    M8_AVAILABLE = True
+    from routes.e8_routes import register_e8_routes
+    register_e8_routes(app)
+    E8_AVAILABLE = True
 except ImportError as e:
-    print(f"[WARNING] M8 spawning service not available: {e}")
-    M8_AVAILABLE = False
+    print(f"[WARNING] E8 spawning service not available: {e}")
+    E8_AVAILABLE = False
 except Exception as e:
     print(f"[WARNING] Constellation initialization failed: {e}")
 
-# Register M8 Kernel Spawning routes
-M8_AVAILABLE = False
+# Register E8 Kernel Spawning routes
+E8_AVAILABLE = False
 try:
-    from routes.m8_routes import register_m8_routes
+    from routes.e8_routes import register_e8_routes
 
-    register_m8_routes(app)
-    M8_AVAILABLE = True
+    register_e8_routes(app)
+    E8_AVAILABLE = True
 except ImportError as e:
-    print(f"[WARNING] M8 routes not available: {e}")
+    print(f"[WARNING] E8 routes not available: {e}")
 except Exception as e:
-    print(f"[WARNING] M8 routes initialization failed: {e}")
+    print(f"[WARNING] E8 routes initialization failed: {e}")
 
 # Register Vocabulary API routes (document upload for vocabulary extraction)
 VOCABULARY_AVAILABLE = False
@@ -689,7 +689,7 @@ print(f"  - Prediction events: {'✓' if PREDICTION_EVENTS_AVAILABLE else '✗'}
 print(f"  - Shadow research: {'✓' if SHADOW_RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Research API: {'✓' if RESEARCH_AVAILABLE else '✗'}", flush=True)
 print(f"  - Constellation: {'✓' if CONSTELLATION_AVAILABLE else '✗'}", flush=True)
-print(f"  - M8 Spawning: {'✓' if M8_AVAILABLE else '✗'}", flush=True)
+print(f"  - E8 Spawning: {'✓' if E8_AVAILABLE else '✗'}", flush=True)
 print(f"  - Vocabulary API: {'✓' if VOCABULARY_AVAILABLE else '✗'}", flush=True)
 print(f"  - Rest Scheduler: {'✓' if REST_SCHEDULER_AVAILABLE else '✗'}", flush=True)
 print(f"  - Rest API: {'✓' if REST_API_AVAILABLE else '✗'}", flush=True)

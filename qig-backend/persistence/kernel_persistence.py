@@ -598,11 +598,11 @@ class KernelPersistence(BasePersistence):
         parent_gods: List[str],
         basin_coords: List[float],
         phi: float = 0.0,
-        m8_position: Optional[Dict] = None,
+        e8_position: Optional[Dict] = None,
         genesis_votes: Optional[Dict] = None,
         metadata: Optional[Dict] = None
     ) -> bool:
-        """Record an M8 kernel spawn event."""
+        """Record an E8 kernel spawn event."""
         # First save the kernel snapshot
         self.save_kernel_snapshot(
             kernel_id=kernel_id,
@@ -612,13 +612,13 @@ class KernelPersistence(BasePersistence):
             basin_coords=basin_coords,
             phi=phi,
             kappa=0.0,
-            regime='m8_spawned',
+            regime='e8_spawned',
             parent_ids=parent_gods,
             kernel_kind=KERNEL_KIND_GOD,
             lifecycle_state="protected",
             metadata={
                 'spawn_reason': spawn_reason,
-                'm8_position': m8_position,
+                'e8_position': e8_position,
                 'genesis_votes': genesis_votes,
                 **(metadata or {})
             }
@@ -638,10 +638,10 @@ class KernelPersistence(BasePersistence):
         event_context = {
             'spawn_reason': spawn_reason,
             'parent_gods': parent_gods,
-            'operation': 'm8_kernel_spawn'
+            'operation': 'e8_kernel_spawn'
         }
         event_details = {
-            'm8_position': m8_position,
+            'e8_position': e8_position,
             'genesis_votes': genesis_votes,
             **(metadata or {})
         }
@@ -650,9 +650,9 @@ class KernelPersistence(BasePersistence):
             self.execute_query(
                 query,
                 (
-                    event_id, 'm8_spawn', kernel_id, phi,
-                    0.0,  # kappa - initial M8 kernel state
-                    'm8_kernel',  # source
+                    event_id, 'e8_spawn', kernel_id, phi,
+                    0.0,  # kappa - initial E8 kernel state
+                    'e8_kernel',  # source
                     kernel_id,  # instance_id = spawned kernel ID
                     json.dumps(event_details),
                     json.dumps(event_context),
@@ -662,7 +662,7 @@ class KernelPersistence(BasePersistence):
             )
             return True
         except Exception as e:
-            print(f"[KernelPersistence] Failed to record M8 spawn: {e}")
+            print(f"[KernelPersistence] Failed to record E8 spawn: {e}")
             return False
 
     def record_proposal_event(
@@ -676,7 +676,7 @@ class KernelPersistence(BasePersistence):
         votes: Optional[Dict] = None,
         metadata: Optional[Dict] = None
     ) -> bool:
-        """Record an M8 kernel proposal event."""
+        """Record an E8 kernel proposal event."""
         import uuid
         event_id = f"prop_{uuid.uuid4().hex}"
         query = """
@@ -693,7 +693,7 @@ class KernelPersistence(BasePersistence):
             'reason': reason,
             'parent_gods': parent_gods,
             'status': status,
-            'operation': 'm8_kernel_proposal'
+            'operation': 'e8_kernel_proposal'
         }
         event_details = {
             'votes': votes,
@@ -704,9 +704,9 @@ class KernelPersistence(BasePersistence):
             self.execute_query(
                 query,
                 (
-                    event_id, 'm8_proposal', proposal_id, 0.0,
+                    event_id, 'e8_proposal', proposal_id, 0.0,
                     0.0,  # kappa - proposal stage
-                    'm8_kernel',  # source
+                    'e8_kernel',  # source
                     proposal_id,  # instance_id = proposal ID
                     json.dumps(event_details),
                     json.dumps(event_context),
@@ -716,14 +716,14 @@ class KernelPersistence(BasePersistence):
             )
             return True
         except Exception as e:
-            print(f"[KernelPersistence] Failed to record M8 proposal: {e}")
+            print(f"[KernelPersistence] Failed to record E8 proposal: {e}")
             return False
 
-    def load_m8_spawn_history(self, limit: int = 100) -> List[Dict]:
-        """Load M8 spawn history for recovery on restart."""
+    def load_e8_spawn_history(self, limit: int = 100) -> List[Dict]:
+        """Load E8 spawn history for recovery on restart."""
         query = """
             SELECT * FROM learning_events
-            WHERE event_type = 'm8_spawn'
+            WHERE event_type = 'e8_spawn'
             ORDER BY created_at DESC
             LIMIT %s
         """
@@ -902,8 +902,8 @@ class KernelPersistence(BasePersistence):
                 spawn_rationale = metadata.get('spawn_reason', 'genesis')
 
             # Extract position rationale
-            m8_position = metadata.get('m8_position', {})
-            position_rationale = m8_position.get('position_name', '') if m8_position else ''
+            e8_position = metadata.get('e8_position', {})
+            position_rationale = e8_position.get('position_name', '') if e8_position else ''
 
             # Convert basin_coordinates if needed
             basin_coords = row.get('basin_coordinates')

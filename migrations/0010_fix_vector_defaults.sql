@@ -81,19 +81,19 @@ ALTER COLUMN basin_coords DROP DEFAULT;
 ALTER TABLE tool_patterns
 ALTER COLUMN basin_coords DROP DEFAULT;
 
--- m8_spawned_kernels.basin_coords (ARRAY)
+-- e8_spawned_kernels.basin_coords (ARRAY)
 -- Was: ALTER COLUMN basin_coords SET DEFAULT '{}'::double precision[]
 -- Fix: Reset to NULL
 DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'm8_spawned_kernels' 
+    WHERE table_name = 'e8_spawned_kernels' 
       AND column_name = 'basin_coords'
       AND column_default IS NOT NULL
   ) THEN
-    EXECUTE 'ALTER TABLE m8_spawned_kernels ALTER COLUMN basin_coords DROP DEFAULT';
-    RAISE NOTICE 'Dropped default from m8_spawned_kernels.basin_coords';
+    EXECUTE 'ALTER TABLE e8_spawned_kernels ALTER COLUMN basin_coords DROP DEFAULT';
+    RAISE NOTICE 'Dropped default from e8_spawned_kernels.basin_coords';
   END IF;
 END $$;
 
@@ -370,7 +370,7 @@ COMMIT;
 --   4. research_requests.basin_coords
 --   5. tool_patterns.basin_coords
 --   6. zeus_conversations.basin_coords
---   7. m8_spawned_kernels.basin_coords (conditional)
+--   7. e8_spawned_kernels.basin_coords (conditional)
 --   8. pattern_discoveries.basin_coords (conditional)
 --
 -- Indirect (pgvector columns from 0009):

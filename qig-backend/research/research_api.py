@@ -20,7 +20,7 @@ from .web_scraper import get_scraper
 from .domain_analyzer import get_analyzer
 from .god_name_resolver import get_god_name_resolver
 from .vocabulary_trainer import get_vocabulary_trainer
-from .enhanced_m8_spawner import get_enhanced_spawner
+from .enhanced_e8_spawner import get_enhanced_spawner
 
 research_bp = Blueprint('research', __name__, url_prefix='/api/research')
 

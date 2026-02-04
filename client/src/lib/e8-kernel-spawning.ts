@@ -1,5 +1,5 @@
 /**
- * M8 Kernel Spawning Protocol Client
+ * E8 Kernel Spawning Protocol Client
  * 
  * Enables dynamic spawning of new specialized god-kernels through
  * geometric consensus. The council of existing gods can propose,
@@ -10,13 +10,13 @@ export type SpawnReason = 'domain_gap' | 'overload' | 'specialization' | 'emerge
 export type ConsensusType = 'unanimous' | 'supermajority' | 'majority' | 'quorum';
 export type ProposalStatus = 'pending' | 'approved' | 'rejected' | 'spawned';
 
-export interface M8Position {
-  m8_octant: number;
-  m8_coordinates: number[];
-  m8_angles: number[];
-  m8_radial: number;
-  m8_position_name: string;
-  m8_relative_position: string | null;
+export interface E8Position {
+  e8_octant: number;
+  e8_coordinates: number[];
+  e8_angles: number[];
+  e8_radial: number;
+  e8_position_name: string;
+  e8_relative_position: string | null;
 }
 
 export interface SpawnProposal {
@@ -48,10 +48,10 @@ export interface SpawnedKernel {
   genesis_votes: Record<string, string>;
   basin_lineage: Record<string, number>;
   metadata: Record<string, unknown>;
-  m8_position?: M8Position;
+  e8_position?: E8Position;
 }
 
-export interface M8Status {
+export interface E8Status {
   consensus_type: ConsensusType;
   total_proposals: number;
   pending_proposals: number;
@@ -131,7 +131,7 @@ export interface ListKernelsResponse {
   total: number;
 }
 
-const M8_API_BASE = '/api/olympus/m8';
+const E8_API_BASE = '/api/olympus/e8';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -145,15 +145,15 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
-export class M8SpawningClient {
+export class E8SpawningClient {
   private baseUrl: string;
 
-  constructor(baseUrl: string = M8_API_BASE) {
+  constructor(baseUrl: string = E8_API_BASE) {
     this.baseUrl = baseUrl;
   }
 
-  async getStatus(): Promise<M8Status> {
-    return fetchJson<M8Status>(`${this.baseUrl}/status`);
+  async getStatus(): Promise<E8Status> {
+    return fetchJson<E8Status>(`${this.baseUrl}/status`);
   }
 
   async createProposal(request: CreateProposalRequest): Promise<CreateProposalResponse> {
@@ -208,11 +208,11 @@ export class M8SpawningClient {
   }
 }
 
-let defaultClient: M8SpawningClient | null = null;
+let defaultClient: E8SpawningClient | null = null;
 
-export function getM8Client(baseUrl?: string): M8SpawningClient {
+export function getE8Client(baseUrl?: string): E8SpawningClient {
   if (!defaultClient || baseUrl) {
-    defaultClient = new M8SpawningClient(baseUrl);
+    defaultClient = new E8SpawningClient(baseUrl);
   }
   return defaultClient;
 }
@@ -225,7 +225,7 @@ export async function proposeNewKernel(
   reason?: SpawnReason,
   parentGods?: string[]
 ): Promise<CreateProposalResponse> {
-  return getM8Client().createProposal({ name, domain, element, role, reason, parent_gods: parentGods });
+  return getE8Client().createProposal({ name, domain, element, role, reason, parent_gods: parentGods });
 }
 
 export async function spawnKernelDirect(
@@ -235,5 +235,5 @@ export async function spawnKernelDirect(
   role: string,
   force: boolean = false
 ): Promise<SpawnDirectResponse> {
-  return getM8Client().spawnDirect({ name, domain, element, role, force });
+  return getE8Client().spawnDirect({ name, domain, element, role, force });
 }

@@ -1358,14 +1358,14 @@ router.get('/spawn/status', isAuthenticated, (req, res) =>
   proxyGet(req, res, '/spawn/status', 'Failed to get spawn status'));
 
 /**
- * M8 Kernel Spawning Status - Proxy to Python M8 endpoint
+ * E8 Kernel Spawning Status - Proxy to Python E8 endpoint
  * Returns kernel counts, god statistics, and evolution metrics from PostgreSQL
  */
-router.get('/m8/status', isAuthenticated, async (req, res) => {
+router.get('/e8/status', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/m8/status`, {
+    const response = await fetch(`${backendUrl}/e8/status`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1377,7 +1377,7 @@ router.get('/m8/status', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 status error');
+    logger.error({ data: error }, '[Olympus] E8 status error');
     res.json({
       consensus_type: 'supermajority',
       total_proposals: 0,
@@ -1397,14 +1397,14 @@ router.get('/m8/status', isAuthenticated, async (req, res) => {
 });
 
 /**
- * M8 Proposals - Proxy to Python M8 endpoint
+ * E8 Proposals - Proxy to Python E8 endpoint
  */
-router.get('/m8/proposals', isAuthenticated, async (req, res) => {
+router.get('/e8/proposals', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     const status = req.query.status ? `?status=${req.query.status}` : '';
     
-    const response = await fetch(`${backendUrl}/m8/proposals${status}`, {
+    const response = await fetch(`${backendUrl}/e8/proposals${status}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1422,23 +1422,23 @@ router.get('/m8/proposals', isAuthenticated, async (req, res) => {
       status_filter: data.filter ?? data.status_filter ?? null,
     });
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 proposals error');
+    logger.error({ data: error }, '[Olympus] E8 proposals error');
     res.json({ proposals: [], total: 0, status_filter: null });
   }
 });
 
-/** M8 Create Proposal - Proxy to Python M8 endpoint */
-router.post('/m8/propose', isAuthenticated, (req, res) => 
-  proxyPost(req, res, '/m8/propose', 'Python backend unavailable', { rawPath: true }));
+/** E8 Create Proposal - Proxy to Python E8 endpoint */
+router.post('/e8/propose', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/e8/propose', 'Python backend unavailable', { rawPath: true }));
 
 /**
- * M8 Vote - Proxy to Python M8 endpoint
+ * E8 Vote - Proxy to Python E8 endpoint
  */
-router.post('/m8/vote/:proposalId', isAuthenticated, async (req, res) => {
+router.post('/e8/vote/:proposalId', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/m8/vote/${req.params.proposalId}`, {
+    const response = await fetch(`${backendUrl}/e8/vote/${req.params.proposalId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body),
@@ -1451,19 +1451,19 @@ router.post('/m8/vote/:proposalId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 vote error');
+    logger.error({ data: error }, '[Olympus] E8 vote error');
     res.status(500).json({ success: false, error: 'Python backend unavailable' });
   }
 });
 
 /**
- * M8 Spawn - Proxy to Python M8 endpoint
+ * E8 Spawn - Proxy to Python E8 endpoint
  */
-router.post('/m8/spawn/:proposalId', isAuthenticated, async (req, res) => {
+router.post('/e8/spawn/:proposalId', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/m8/spawn/${req.params.proposalId}`, {
+    const response = await fetch(`${backendUrl}/e8/spawn/${req.params.proposalId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body),
@@ -1476,23 +1476,23 @@ router.post('/m8/spawn/:proposalId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 spawn error');
+    logger.error({ data: error }, '[Olympus] E8 spawn error');
     res.status(500).json({ success: false, error: 'Python backend unavailable' });
   }
 });
 
-/** M8 Spawn Direct - Proxy to Python M8 endpoint */
-router.post('/m8/spawn-direct', isAuthenticated, (req, res) => 
-  proxyPost(req, res, '/m8/spawn-direct', 'Python backend unavailable', { rawPath: true }));
+/** E8 Spawn Direct - Proxy to Python E8 endpoint */
+router.post('/e8/spawn-direct', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/e8/spawn-direct', 'Python backend unavailable', { rawPath: true }));
 
 /**
- * M8 Get Proposal - Proxy to Python M8 endpoint
+ * E8 Get Proposal - Proxy to Python E8 endpoint
  */
-router.get('/m8/proposal/:proposalId', isAuthenticated, async (req, res) => {
+router.get('/e8/proposal/:proposalId', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/m8/proposal/${req.params.proposalId}`, {
+    const response = await fetch(`${backendUrl}/e8/proposal/${req.params.proposalId}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1504,7 +1504,7 @@ router.get('/m8/proposal/:proposalId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 get proposal error');
+    logger.error({ data: error }, '[Olympus] E8 get proposal error');
     res.status(500).json({ error: 'Python backend unavailable' });
   }
 });
@@ -1513,11 +1513,11 @@ router.get('/m8/proposal/:proposalId', isAuthenticated, async (req, res) => {
 const E8_KERNEL_CAP = 240;
 
 /**
- * M8 List Kernels - Proxy to Python M8 endpoint
+ * E8 List Kernels - Proxy to Python E8 endpoint
  * Accepts optional ?status=active,observing query param to filter by status
  * Returns cap info: { kernels: [...], total: N, cap: 240, available: 240-N }
  */
-router.get('/m8/kernels', isAuthenticated, async (req, res) => {
+router.get('/e8/kernels', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     const statusParam = req.query.status as string | undefined;
@@ -1528,7 +1528,7 @@ router.get('/m8/kernels', isAuthenticated, async (req, res) => {
       queryString = `?status=${encodeURIComponent(statusParam)}`;
     }
     
-    const response = await fetch(`${backendUrl}/m8/kernels${queryString}`, {
+    const response = await fetch(`${backendUrl}/e8/kernels${queryString}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1552,7 +1552,7 @@ router.get('/m8/kernels', isAuthenticated, async (req, res) => {
       status_filter: statusParam || null,
     });
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 list kernels error');
+    logger.error({ data: error }, '[Olympus] E8 list kernels error');
     res.json({ 
       kernels: [], 
       total: 0, 
@@ -1565,13 +1565,13 @@ router.get('/m8/kernels', isAuthenticated, async (req, res) => {
 });
 
 /**
- * M8 Get Kernel - Proxy to Python M8 endpoint
+ * E8 Get Kernel - Proxy to Python E8 endpoint
  */
-router.get('/m8/kernel/:kernelId', isAuthenticated, async (req, res) => {
+router.get('/e8/kernel/:kernelId', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/m8/kernel/${req.params.kernelId}`, {
+    const response = await fetch(`${backendUrl}/e8/kernel/${req.params.kernelId}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1583,19 +1583,19 @@ router.get('/m8/kernel/:kernelId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 get kernel error');
+    logger.error({ data: error }, '[Olympus] E8 get kernel error');
     res.status(500).json({ error: 'Python backend unavailable' });
   }
 });
 
 /**
- * M8 Delete Kernel - Proxy to Python M8 endpoint
+ * E8 Delete Kernel - Proxy to Python E8 endpoint
  */
-router.delete('/m8/kernel/:kernelId', isAuthenticated, async (req, res) => {
+router.delete('/e8/kernel/:kernelId', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     
-    const response = await fetch(`${backendUrl}/m8/kernel/${req.params.kernelId}`, {
+    const response = await fetch(`${backendUrl}/e8/kernel/${req.params.kernelId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1607,20 +1607,20 @@ router.delete('/m8/kernel/:kernelId', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 delete kernel error');
+    logger.error({ data: error }, '[Olympus] E8 delete kernel error');
     res.status(500).json({ error: 'Python backend unavailable' });
   }
 });
 
 /**
- * M8 Get Idle Kernels - Proxy to Python M8 endpoint
+ * E8 Get Idle Kernels - Proxy to Python E8 endpoint
  */
-router.get('/m8/kernels/idle', isAuthenticated, async (req, res) => {
+router.get('/e8/kernels/idle', isAuthenticated, async (req, res) => {
   try {
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     const threshold = req.query.threshold || 300;
     
-    const response = await fetch(`${backendUrl}/m8/kernels/idle?threshold=${threshold}`, {
+    const response = await fetch(`${backendUrl}/e8/kernels/idle?threshold=${threshold}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
@@ -1632,26 +1632,26 @@ router.get('/m8/kernels/idle', isAuthenticated, async (req, res) => {
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    logger.error({ data: error }, '[Olympus] M8 get idle kernels error');
+    logger.error({ data: error }, '[Olympus] E8 get idle kernels error');
     res.json({ idle_kernels: [], total: 0, threshold_seconds: 300 });
   }
 });
 
-/** M8 Cannibalize Kernel - Proxy to Python M8 endpoint */
-router.post('/m8/kernel/cannibalize', isAuthenticated, (req, res) => 
-  proxyPost(req, res, '/m8/kernel/cannibalize', 'Python backend unavailable', { rawPath: true }));
+/** E8 Cannibalize Kernel - Proxy to Python E8 endpoint */
+router.post('/e8/kernel/cannibalize', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/e8/kernel/cannibalize', 'Python backend unavailable', { rawPath: true }));
 
-/** M8 Merge Kernels - Proxy to Python M8 endpoint */
-router.post('/m8/kernels/merge', isAuthenticated, (req, res) => 
-  proxyPost(req, res, '/m8/kernels/merge', 'Python backend unavailable', { rawPath: true }));
+/** E8 Merge Kernels - Proxy to Python E8 endpoint */
+router.post('/e8/kernels/merge', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/e8/kernels/merge', 'Python backend unavailable', { rawPath: true }));
 
-/** M8 Auto-Cannibalize - Automatically select and cannibalize idle kernels */
-router.post('/m8/kernel/auto-cannibalize', isAuthenticated, (req, res) => 
-  proxyPost(req, res, '/m8/kernel/auto-cannibalize', 'Python backend unavailable', { rawPath: true }));
+/** E8 Auto-Cannibalize - Automatically select and cannibalize idle kernels */
+router.post('/e8/kernel/auto-cannibalize', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/e8/kernel/auto-cannibalize', 'Python backend unavailable', { rawPath: true }));
 
-/** M8 Auto-Merge - Automatically merge idle kernels */
-router.post('/m8/kernels/auto-merge', isAuthenticated, (req, res) => 
-  proxyPost(req, res, '/m8/kernels/auto-merge', 'Python backend unavailable', { rawPath: true }));
+/** E8 Auto-Merge - Automatically merge idle kernels */
+router.post('/e8/kernels/auto-merge', isAuthenticated, (req, res) => 
+  proxyPost(req, res, '/e8/kernels/auto-merge', 'Python backend unavailable', { rawPath: true }));
 
 /**
  * Get all spawned kernels from PostgreSQL
@@ -1700,16 +1700,16 @@ router.get('/kernels', isAuthenticated, async (req, res) => {
       metadata: k.metadata,
     }));
     
-    // Get live kernel count from M8 health endpoint for accurate E8 cap display
+    // Get live kernel count from E8 health endpoint for accurate E8 cap display
     const E8_CAP = 240;
     const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
     let liveCount = enrichedKernels.filter(k => 
       k.status === 'active' || k.status === 'observing' || k.status === 'shadow'
     ).length;
     
-    // Try to get accurate live count from Python M8 health
+    // Try to get accurate live count from Python E8 health
     try {
-      const healthResponse = await fetch(`${backendUrl}/m8/health`, {
+      const healthResponse = await fetch(`${backendUrl}/e8/health`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(2000),

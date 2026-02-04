@@ -1795,7 +1795,7 @@ export const observationStatusTypes = [
 export type ObservationStatus = (typeof observationStatusTypes)[number];
 
 /**
- * M8 KERNEL GEOMETRY - Tracks geometric placement of spawned kernels
+ * E8 KERNEL GEOMETRY - Tracks geometric placement of spawned kernels
  * Records basin coordinates, parent lineage, and position rationale
  */
 export const kernelGeometry = pgTable(
@@ -1832,7 +1832,7 @@ export const kernelGeometry = pgTable(
     targetFunction: varchar("target_function", { length: 128 }),
     valence: integer("valence"),
     breedingTarget: varchar("breeding_target", { length: 64 }),
-    // Observation period tracking (M8 kernel graduation system)
+    // Observation period tracking (E8 kernel graduation system)
     observationStatus: varchar("observation_status", { length: 32 }).default("observing"), // observing, graduated, active, suspended, failed
     observationStart: timestamp("observation_start").defaultNow(),
     observationEnd: timestamp("observation_end"),
@@ -4252,10 +4252,10 @@ export const federationPeers = pgTable("federation_peers", {
  */
 
 /**
- * M8_SPAWN_HISTORY - History of M8 kernel spawning events
+ * E8_SPAWN_HISTORY - History of E8 kernel spawning events
  * Tracks when kernels are spawned, their parent, and spawn conditions
  */
-export const m8SpawnHistory = pgTable("m8_spawn_history", {
+export const e8SpawnHistory = pgTable("e8_spawn_history", {
   id: serial("id").primaryKey(),
   parentKernelId: varchar("parent_kernel_id", { length: 64 }).notNull(),
   spawnedKernelId: varchar("spawned_kernel_id", { length: 64 }).notNull(),
@@ -4267,19 +4267,19 @@ export const m8SpawnHistory = pgTable("m8_spawn_history", {
   spawnedAt: timestamp("spawned_at").defaultNow().notNull(),
   metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
 }, (table) => [
-  index("idx_m8_spawn_parent").on(table.parentKernelId),
-  index("idx_m8_spawn_spawned").on(table.spawnedKernelId),
-  index("idx_m8_spawn_time").on(table.spawnedAt),
+  index("idx_e8_spawn_parent").on(table.parentKernelId),
+  index("idx_e8_spawn_spawned").on(table.spawnedKernelId),
+  index("idx_e8_spawn_time").on(table.spawnedAt),
 ]);
 
-export type M8SpawnHistoryRow = typeof m8SpawnHistory.$inferSelect;
-export type InsertM8SpawnHistory = typeof m8SpawnHistory.$inferInsert;
+export type E8SpawnHistoryRow = typeof e8SpawnHistory.$inferSelect;
+export type InsertE8SpawnHistory = typeof e8SpawnHistory.$inferInsert;
 
 /**
- * M8_SPAWN_PROPOSALS - Governance proposals for M8 kernel spawning
+ * E8_SPAWN_PROPOSALS - Governance proposals for E8 kernel spawning
  * Democratic voting system for spawning new kernels
  */
-export const m8SpawnProposals = pgTable("m8_spawn_proposals", {
+export const e8SpawnProposals = pgTable("e8_spawn_proposals", {
   id: serial("id").primaryKey(),
   proposalId: varchar("proposal_id", { length: 64 }).notNull().unique(),
   proposerGodName: varchar("proposer_god_name", { length: 64 }).notNull(),
@@ -4294,23 +4294,23 @@ export const m8SpawnProposals = pgTable("m8_spawn_proposals", {
   spawnedKernelId: varchar("spawned_kernel_id", { length: 64 }), // OK: Nullable until spawned
   metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
 }, (table) => [
-  index("idx_m8_proposals_status").on(table.status),
-  index("idx_m8_proposals_proposer").on(table.proposerGodName),
-  index("idx_m8_proposals_created").on(table.createdAt),
+  index("idx_e8_proposals_status").on(table.status),
+  index("idx_e8_proposals_proposer").on(table.proposerGodName),
+  index("idx_e8_proposals_created").on(table.createdAt),
 ]);
 
-export type M8SpawnProposalRow = typeof m8SpawnProposals.$inferSelect;
-export type InsertM8SpawnProposal = typeof m8SpawnProposals.$inferInsert;
+export type E8SpawnProposalRow = typeof e8SpawnProposals.$inferSelect;
+export type InsertE8SpawnProposal = typeof e8SpawnProposals.$inferInsert;
 
 /**
- * M8_SPAWNED_KERNELS - Registry of all M8-spawned kernel instances
+ * E8_SPAWNED_KERNELS - Registry of all E8-spawned kernel instances
  * Tracks active spawned kernels and their lifecycle
  */
-export const m8SpawnedKernels = pgTable("m8_spawned_kernels", {
+export const e8SpawnedKernels = pgTable("e8_spawned_kernels", {
   id: serial("id").primaryKey(),
   kernelId: varchar("kernel_id", { length: 64 }).notNull().unique(),
   kernelName: varchar("kernel_name", { length: 128 }).notNull(),
-  parentKernelId: varchar("parent_kernel_id", { length: 64 }).notNull(), // FIXED: All M8 spawns have parents
+  parentKernelId: varchar("parent_kernel_id", { length: 64 }).notNull(), // FIXED: All E8 spawns have parents
   specialization: varchar("specialization", { length: 64 }), // OK: Nullable (not all kernels specialize)
   status: varchar("status", { length: 32 }).notNull().default("active"), // active, dormant, terminated
   basinCoords: vector("basin_coords", { dimensions: 64 }).notNull(), // FIXED: All kernels have coordinates
@@ -4322,14 +4322,14 @@ export const m8SpawnedKernels = pgTable("m8_spawned_kernels", {
   terminatedAt: timestamp("terminated_at"), // OK: Nullable until terminated
   metadata: jsonb("metadata").default({}), // FIXED: Add empty object default
 }, (table) => [
-  index("idx_m8_kernels_kernel_id").on(table.kernelId),
-  index("idx_m8_kernels_parent").on(table.parentKernelId),
-  index("idx_m8_kernels_status").on(table.status),
-  index("idx_m8_kernels_spawned").on(table.spawnedAt),
+  index("idx_e8_kernels_kernel_id").on(table.kernelId),
+  index("idx_e8_kernels_parent").on(table.parentKernelId),
+  index("idx_e8_kernels_status").on(table.status),
+  index("idx_e8_kernels_spawned").on(table.spawnedAt),
 ]);
 
-export type M8SpawnedKernelRow = typeof m8SpawnedKernels.$inferSelect;
-export type InsertM8SpawnedKernel = typeof m8SpawnedKernels.$inferInsert;
+export type E8SpawnedKernelRow = typeof e8SpawnedKernels.$inferSelect;
+export type InsertE8SpawnedKernel = typeof e8SpawnedKernels.$inferInsert;
 
 /**
  * PANTHEON_PROPOSALS - Pantheon-level governance proposals

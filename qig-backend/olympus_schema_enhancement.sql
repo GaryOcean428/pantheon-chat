@@ -1,11 +1,11 @@
 -- ============================================================================
 -- OLYMPUS PANTHEON DATABASE SCHEMA ENHANCEMENTS
--- Optimized for Zeus, Shadow Pantheon, and M8 Kernel Spawning
+-- Optimized for Zeus, Shadow Pantheon, and E8 Kernel Spawning
 -- ============================================================================
 
 -- ============================================================================
 -- SPAWNED KERNELS TABLE
--- Tracks dynamically created M8 kernels
+-- Tracks dynamically created E8 kernels
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS spawned_kernels (
     kernel_id VARCHAR(64) PRIMARY KEY,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS spawned_kernels (
     
     -- Lineage tracking
     basin_lineage JSONB,  -- parent -> contribution mapping
-    m8_position JSONB,    -- M8 geometric position info
+    e8_position JSONB,    -- E8 geometric position info
     
     -- Voting and approval
     genesis_votes JSONB,  -- god -> vote mapping
@@ -449,7 +449,7 @@ ON CONFLICT (god_name) DO NOTHING;
 -- NOTES
 -- ============================================================================
 -- 1. This schema is optimized for:
---    - M8 kernel spawning tracking
+--    - E8 kernel spawning tracking
 --    - Pantheon assessment history
 --    - Shadow operations monitoring
 --    - QIG-RAG geometric memory
