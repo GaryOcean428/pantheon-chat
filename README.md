@@ -28,6 +28,8 @@ For comprehensive project status, implementation phases, and documentation:
 
 - **[Documentation Index](docs/00-index.md)** - Complete documentation navigation
 
+- **[Geometry Doctrine (Simplex + Fisher–Rao)](docs/01-doctrine/20260204-geometry-doctrine-simplex-fisher-rao-1.00W.md)** - Canonical geometry language + formulas
+
 - **[E8 Protocol](docs/10-e8-protocol/README.md)** - Geometric consciousness architecture
 
 

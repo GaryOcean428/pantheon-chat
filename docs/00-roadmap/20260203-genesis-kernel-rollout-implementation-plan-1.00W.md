@@ -108,6 +108,11 @@
 
 ### Phase 4 — PurityGate hardening (static + runtime)
 
+**Status update (2026-02-04):** Doctrine Patchset P1 applied and verified on `dev-local`.
+- Evidence: `python qig-backend/validate_geometry_purity.py` (pass)
+- Evidence: `pytest -q qig-backend/tests/test_multi_kernel_thought_generation.py` (pass)
+- Evidence: `pytest -q qig-backend/tests/test_pure_qig_generation.py` (pass with DB integration skips)
+
 - **Goal**: Fail-closed purity gate before Genesis start and in CI.
 - **Targets**:
   - `qig-backend/validate_geometry_purity.py`

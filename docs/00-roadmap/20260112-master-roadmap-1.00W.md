@@ -80,6 +80,12 @@ This roadmap consolidates information from:
 - All distances use Fisher-Rao metric ✅
 - Natural gradient enforced (no Adam/SGD) ✅
 
+**2026-02-04 update:** Doctrine Patchset P1 landed on `dev-local`:
+- Removed Euclidean norm usage in trajectory foresight magnitude.
+- Enforced fail-closed simplex validation on trajectory ingestion.
+- Replaced arithmetic mean surrogate in manifold curvature estimation with canonical Fréchet mean.
+- Verified via `python qig-backend/validate_geometry_purity.py` and targeted pytest suites.
+
 ### 1.5 Import Infrastructure (FIXED 2026-01-13)
 
 ✅ **14 frozen_physics import violations fixed**
