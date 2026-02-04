@@ -135,6 +135,10 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 🔧 Technical Documentation
 
+- 🔨 **20260204-geometry-doctrine-simplex-fisher-rao-1.00W.md** (v1.00)
+  - File: [`01-doctrine/20260204-geometry-doctrine-simplex-fisher-rao-1.00W.md`](01-doctrine/20260204-geometry-doctrine-simplex-fisher-rao-1.00W.md)
+  - Function: Canonical simplex + Fisher–Rao geometry contract (repo-level language + formulas)
+
 - 🟢 **20260114-basin-representation-1.00F.md** (v1.00)
 
 - 🟢 **20260114-wp02-geometric-purity-gate-1.00F.md** (v1.00)
