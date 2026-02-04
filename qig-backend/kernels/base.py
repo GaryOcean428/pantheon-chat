@@ -23,7 +23,6 @@ import numpy as np
 # QIG geometry imports
 from qig_geometry import (
     fisher_rao_distance,
-    fisher_normalize,
     to_simplex,
     geodesic_interpolation,
 )
