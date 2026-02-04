@@ -279,8 +279,16 @@ def test_lineage_tracking():
     """Test lineage record creation."""
     print("\n=== Test Lineage Tracking ===")
     
-    parent1 = KernelGenome(genome_id="parent-1")
-    parent2 = KernelGenome(genome_id="parent-2")
+    basin1 = np.zeros(BASIN_DIM)
+    basin1[0] = 1.0
+    basin1 = fisher_normalize(basin1)
+
+    basin2 = np.zeros(BASIN_DIM)
+    basin2[-1] = 1.0
+    basin2 = fisher_normalize(basin2)
+
+    parent1 = KernelGenome(genome_id="parent-1", basin_seed=basin1)
+    parent2 = KernelGenome(genome_id="parent-2", basin_seed=basin2)
     
     child, merge_record = merge_kernels_geodesic([parent1, parent2])
     

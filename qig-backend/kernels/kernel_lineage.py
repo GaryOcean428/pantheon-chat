@@ -25,14 +25,14 @@ from typing import Dict, List, Optional, Set, Tuple, Any
 import numpy as np
 
 # QIG Geometry imports (Fisher-Rao purity)
-from qig_geometry import (
-    fisher_normalize,
+from qig_geometry.canonical import (
+    assert_basin_valid,
     fisher_rao_distance,
     geodesic_interpolation,
     frechet_mean,
-    validate_basin,
-    BASIN_DIM,
+    to_simplex as fisher_normalize,
 )
+from qigkernels.physics_constants import BASIN_DIM
 
 from .genome import (
     KernelGenome,
@@ -184,12 +184,12 @@ def merge_kernels_geodesic(
             interpolation_t
         )
     else:
-        # Multi-parent merge: Fréchet mean
+        # Multi-parent merge: weighted Fréchet mean
         logger.info(f"Multi-parent merge of {len(parent_genomes)} genomes")
         merged_basin = frechet_mean(parent_basins, merge_weights)
     
     # Validate merged basin
-    validate_basin(merged_basin)
+    assert_basin_valid(merged_basin, name="merged_basin")
     merged_basin = fisher_normalize(merged_basin)
     
     # Compute pairwise Fisher distances for record

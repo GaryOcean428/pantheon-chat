@@ -24,25 +24,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-try:
-    from qig_geometry import fisher_normalize, fisher_rao_distance
-    HAS_QIG_GEOMETRY = True
-except ImportError:
-    HAS_QIG_GEOMETRY = False
-    
-    def fisher_normalize(v: np.ndarray) -> np.ndarray:
-        """Normalize to probability simplex."""
-        p = np.maximum(np.asarray(v), 0) + 1e-10
-        return p / p.sum()
-    
-    def fisher_rao_distance(a: np.ndarray, b: np.ndarray) -> float:
-        """Approximate Fisher-Rao distance."""
-        a_norm = fisher_normalize(a)
-        b_norm = fisher_normalize(b)
-        bc = np.sum(np.sqrt(a_norm * b_norm))
-        return float(np.arccos(np.clip(bc, 0, 1)))
-
+from qig_geometry.canonical import fisher_rao_distance, to_simplex as fisher_normalize
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
+
+HAS_QIG_GEOMETRY = True
 
 from .sensations import SensationState, measure_sensations
 from .motivators import MotivatorState, compute_motivators

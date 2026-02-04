@@ -14,6 +14,8 @@ import warnings
 import numpy as np
 from scipy.linalg import sqrtm
 
+from qig_geometry.canonical import assert_basin_valid, fisher_rao_distance as simplex_fisher_rao_distance
+
 try:
     import torch
 except ImportError:
@@ -158,35 +160,42 @@ def fisher_rao_distance(
         if metric is not None and isinstance(metric, torch.Tensor):
             metric = metric.detach().cpu().numpy()
     
+    state_a = np.asarray(state_a)
+    state_b = np.asarray(state_b)
+
+    # ---------------------------------------------------------------------
+    # SIMPLEX BASINS (canonical Fisher-Rao)
+    # ---------------------------------------------------------------------
+    if state_a.ndim == 1 and state_b.ndim == 1:
+        if method != "bures":
+            raise ValueError(
+                f"Unknown method: {method}. Expected 'bures' for density matrices."
+            )
+
+        a = np.asarray(state_a, dtype=np.float64).flatten()
+        b = np.asarray(state_b, dtype=np.float64).flatten()
+        assert_basin_valid(a, name="state_a")
+        assert_basin_valid(b, name="state_b")
+        return float(simplex_fisher_rao_distance(a, b))
+
+    # ---------------------------------------------------------------------
+    # DENSITY MATRICES (Bures via quantum fidelity)
+    # ---------------------------------------------------------------------
     if method == "bures":
-        # For density matrices
         fidelity = quantum_fidelity(state_a, state_b)
         distance = np.sqrt(np.clip(2 * (1 - np.sqrt(np.clip(fidelity, 0, 1))), 0, 4))
         return float(distance)
-    
-    elif method == "diagonal":
-        # For basin coordinates with diagonal Fisher metric
-        if metric is None:
-            raise ValueError("metric required for basin distance (diagonal method)")
-        
-        diff = state_a - state_b
-        distance = np.sqrt((diff * metric * diff).sum())
-        return float(distance)
-    
-    elif method == "full":
-        # For basin coordinates with full Fisher metric
-        if metric is None:
-            raise ValueError("metric required for basin distance (full method)")
-        
-        diff = state_a - state_b
-        distance = np.sqrt(diff @ metric @ diff)
-        return float(distance)
-    
-    else:
+
+    # Deprecated basin modes (not simplex Fisher-Rao)
+    if method in {"diagonal", "full"}:
         raise ValueError(
-            f"Unknown method: {method}. "
-            "Expected 'bures', 'diagonal', or 'full'"
+            f"Deprecated method: {method}. "
+            "Basin geometry must use canonical simplex Fisher-Rao from qig_geometry.canonical."
         )
+
+    raise ValueError(
+        f"Unknown method: {method}. Expected 'bures' for density matrices."
+    )
 
 
 def geodesic_distance(

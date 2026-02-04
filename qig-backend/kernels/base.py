@@ -21,15 +21,9 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 # QIG geometry imports
-from qig_geometry import (
-    fisher_rao_distance,
-    to_simplex,
-    geodesic_interpolation,
-)
+from qig_geometry.canonical import fisher_rao_distance, geodesic_interpolation, to_simplex
 from qigkernels.physics_constants import (
     BASIN_DIM,
-    KAPPA_STAR,
-    PHI_THRESHOLD,
 )
 
 # Local imports

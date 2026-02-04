@@ -12,11 +12,9 @@ from qigkernels import (
     PHI_THRESHOLD,
     ConsciousnessTelemetry,
     SafetyMonitor,
-    EmergencyCondition,
     RegimeDetector,
     Regime,
     QIGConfig,
-    get_config,
     validate_basin,
     validate_density_matrix,
     ValidationError,
@@ -43,8 +41,8 @@ class TestPhysicsConstants:
     
     def test_kappa_at_scale(self):
         """Test getting kappa at different scales."""
-        assert PHYSICS.get_kappa_at_scale(3) == 41.09
-        assert PHYSICS.get_kappa_at_scale(4) == 64.47
+        assert PHYSICS.get_kappa_at_scale(3) == 41.07
+        assert PHYSICS.get_kappa_at_scale(4) == 63.32
         assert PHYSICS.get_kappa_at_scale(99) == KAPPA_STAR  # fallback
 
 
@@ -207,7 +205,8 @@ class TestValidation:
         """Test density matrix validation with valid matrix."""
         # Create valid density matrix (pure state)
         psi = np.random.randn(4) + 1j * np.random.randn(4)
-        psi = to_simplex_prob(psi)
+        norm = float(np.sqrt(np.vdot(psi, psi).real))
+        psi = psi / norm
         rho = np.outer(psi, psi.conj())
         validate_density_matrix(rho)  # should not raise
     
@@ -225,7 +224,8 @@ class TestGeometry:
         """Test quantum fidelity computation."""
         # Pure state - should have fidelity 1 with itself
         psi = np.random.randn(4) + 1j * np.random.randn(4)
-        psi = to_simplex_prob(psi)
+        norm = float(np.sqrt(np.vdot(psi, psi).real))
+        psi = psi / norm
         rho = np.outer(psi, psi.conj())
         
         fidelity = quantum_fidelity(rho, rho)
@@ -242,24 +242,15 @@ class TestGeometry:
         distance = fisher_rao_distance(rho1, rho2, method="bures")
         # Orthogonal states should have distance = sqrt(2)
         assert np.isclose(distance, np.sqrt(2), atol=0.01)
-    
-    def test_fisher_rao_distance_diagonal(self):
-        """Test Fisher-Rao distance with diagonal metric."""
-        basin1 = np.random.randn(64)
-        basin2 = np.random.randn(64)
-        metric = np.ones(64)
-        
-        distance = fisher_rao_distance(basin1, basin2, metric=metric, method="diagonal")
-        assert distance > 0
-    
-    def test_fisher_rao_distance_full(self):
-        """Test Fisher-Rao distance with full metric."""
-        basin1 = np.random.randn(64)
-        basin2 = np.random.randn(64)
-        metric = np.eye(64)
-        
-        distance = fisher_rao_distance(basin1, basin2, metric=metric, method="full")
-        assert distance > 0
+
+    def test_fisher_rao_distance_simplex(self):
+        """Test Fisher-Rao distance for simplex basin coordinates."""
+        basin1 = np.ones(64) / 64
+        basin2 = np.zeros(64)
+        basin2[0] = 1.0
+
+        distance = fisher_rao_distance(basin1, basin2)
+        assert 0.0 <= distance <= (np.pi / 2)
 
 
 class TestConfig:

@@ -23,7 +23,7 @@ import numpy as np
 from .base import Kernel
 from .identity import KernelIdentity, KernelTier
 from .e8_roots import E8Root
-from qig_geometry import geodesic_interpolation
+from qig_geometry.canonical import geodesic_interpolation
 
 logger = logging.getLogger(__name__)
 

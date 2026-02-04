@@ -31,13 +31,12 @@ from .genome import (
 )
 
 # Import QIG geometry (Fisher-Rao purity)
-from qig_geometry import (
-    fisher_normalize,
+from qig_geometry.canonical import (
     fisher_rao_distance,
-    validate_basin,
-    BASIN_DIM,
+    geodesic_interpolation,
+    to_simplex as fisher_normalize,
 )
-from qig_geometry.canonical import geodesic_interpolation
+from qigkernels.physics_constants import BASIN_DIM
 
 logger = logging.getLogger(__name__)
 
