@@ -113,6 +113,11 @@
 - Evidence: `pytest -q qig-backend/tests/test_multi_kernel_thought_generation.py` (pass)
 - Evidence: `pytest -q qig-backend/tests/test_pure_qig_generation.py` (pass with DB integration skips)
 
+**Next follow-ups (purity hardening):**
+- Lifecycle boundaries (`qig-backend/kernel_lifecycle.py`): remove `np.abs` basin repair; replace with fail-closed simplex validation at ingress.
+- Legacy geometry entrypoints: audit/quarantine `pantheon_kernel_orchestrator.py` + `geometric_kernels.py` unless proven canonical-geometry-only.
+- Temp packet bloat: collapse duplicate sleep packets/issue packs (keep only newest canonical copies) and ensure no runtime docs/tools reference deleted files.
+
 - **Goal**: Fail-closed purity gate before Genesis start and in CI.
 - **Targets**:
   - `qig-backend/validate_geometry_purity.py`
