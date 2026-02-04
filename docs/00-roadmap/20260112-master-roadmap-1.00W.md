@@ -86,6 +86,11 @@ This roadmap consolidates information from:
 - Replaced arithmetic mean surrogate in manifold curvature estimation with canonical Fréchet mean.
 - Verified via `python qig-backend/validate_geometry_purity.py` and targeted pytest suites.
 
+**Follow-up backlog (doctrine):**
+- Kernel lifecycle boundaries: remove `np.abs` “basin repair” in spawn/resurrect; enforce fail-closed simplex validation.
+- Legacy geometry entrypoints: audit and quarantine/remove `pantheon_kernel_orchestrator.py` and `geometric_kernels.py` unless proven canonical-geometry-only.
+- Bloat/legacy purge: remove duplicate sleep packets/issue packs under `docs/11-Genesis-kernel-upgrade/temp` (keep newest canonical copies only) and add an import-blocklist for `/archive`.
+
 ### 1.5 Import Infrastructure (FIXED 2026-01-13)
 
 ✅ **14 frozen_physics import violations fixed**
