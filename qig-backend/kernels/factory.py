@@ -13,10 +13,21 @@ from typing import Optional
 
 import numpy as np
 
+try:
+    from qigkernels.physics_constants import KAPPA_STAR
+except ImportError:
+    import sys
+    from pathlib import Path
+
+    _qig_backend_root = Path(__file__).resolve().parents[1]
+    if str(_qig_backend_root) not in sys.path:
+        sys.path.insert(0, str(_qig_backend_root))
+
+    from qigkernels.physics_constants import KAPPA_STAR
+
 from .base import Kernel
 from .e8_roots import E8Root, get_root_spec
 from .identity import KernelIdentity, KernelTier
-from qigkernels.physics_constants import KAPPA_STAR
 
 
 def create_kernel_from_identity(
@@ -24,6 +35,7 @@ def create_kernel_from_identity(
     basin: Optional[np.ndarray] = None,
     initial_kappa: Optional[float] = None,
 ) -> Kernel:
+    """Create a generic `Kernel` instance from an explicit `KernelIdentity`."""
     return Kernel(identity=identity, basin=basin, initial_kappa=initial_kappa)
 
 
@@ -35,6 +47,7 @@ def create_simple_root_kernel(
     basin: Optional[np.ndarray] = None,
     initial_kappa: Optional[float] = None,
 ) -> Kernel:
+    """Create a Layer-8 (simple root) kernel using the canonical E8 root spec."""
     spec = get_root_spec(root)
 
     resolved_god_name = god_name or spec.god_primary
