@@ -553,7 +553,7 @@ class ExplorationHistoryPersistence:
             return False
         try:
             with conn.cursor() as cur:
-                cur.execute("""
+                cur.execute(r"""
                     SELECT 1 FROM exploration_history
                     WHERE LOWER(TRIM(regexp_replace(topic, '\s*\(cycle\s*\d+[^)]*\)\s*$', '', 'i'))) = %s
                     AND LOWER(TRIM(regexp_replace(query, '\s*\(cycle\s*\d+[^)]*\)\s*$', '', 'i'))) = %s
@@ -652,7 +652,7 @@ class ExplorationHistoryPersistence:
             return candidate_topics[:limit]
         try:
             with conn.cursor() as cur:
-                cur.execute("""
+                cur.execute(r"""
                     SELECT LOWER(TRIM(regexp_replace(topic, '\s*\(cycle\s*\d+[^)]*\)\s*$', '', 'i'))) 
                     FROM exploration_history
                     WHERE created_at > NOW() - INTERVAL '7 days'
