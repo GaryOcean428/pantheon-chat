@@ -241,9 +241,9 @@ async function main() {
     
     // Analyze newly added tables first
     const newlyAddedTables = [
-      'm8_spawn_history',
-      'm8_spawn_proposals',
-      'm8_spawned_kernels',
+      'e8_spawn_history',
+      'e8_spawn_proposals',
+      'e8_spawned_kernels',
       'pantheon_proposals',
       'god_vocabulary_profiles',
       'vocabulary_learning',

@@ -8,7 +8,7 @@ Record the Genesis rollout readiness work completed in this tranche: canonical n
 
 ## Summary of Changes
 
-- Enforced canonical naming for kernel specialization across M8 routes and examples.
+- Enforced canonical naming for kernel specialization across E8 routes and examples.
 - Fixed a canonical geometry API mismatch by exporting `geodesic_interpolation(p, q, t)` from `qig_geometry.canonical`.
 - Aligned trajectory foresight interfaces used by Gary synthesis with the `ConstellationTrajectoryManager` implementation.
 - Adjusted Ocean autonomic monitoring variance threshold to match the intended intervention behavior verified by tests.
@@ -67,9 +67,9 @@ The previous threshold (`phi_std > 0.3`) did not reliably trigger on the fixture
 
 - Lowered the detection threshold to `phi_std > 0.25` while keeping the intervention string including the word `variance`.
 
-### 4) Canonical naming: `kernel_specialization` in M8
+### 4) Canonical naming: `kernel_specialization` in E8
 
-- Updated M8 history/spawn payload naming to use `kernel_specialization`.
+- Updated E8 history/spawn payload naming to use `kernel_specialization`.
 - Updated the emotional kernel example to construct kernels with `kernel_specialization`.
 
 ## Files Modified (non-exhaustive)
@@ -77,7 +77,7 @@ The previous threshold (`phi_std > 0.3`) did not reliably trigger on the fixture
 - `qig-backend/qig_geometry/canonical.py`
 - `qig-backend/constellation_trajectory_manager.py`
 - `qig-backend/kernels/thought_generation.py`
-- `qig-backend/routes/m8_routes.py`
+- `qig-backend/routes/e8_routes.py`
 - `qig-backend/examples/emotional_kernel_example.py`
 
 ## Validation Evidence

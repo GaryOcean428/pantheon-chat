@@ -77,7 +77,7 @@ class QIGDeepAgent:
     This replaces LangGraph's deep agents with:
     - Geodesic trajectory planning (instead of write_todos)
     - Basin memory store (instead of file system tools)
-    - M8 kernel spawning (instead of LangGraph subgraphs)
+    - E8 kernel spawning (instead of LangGraph subgraphs)
     - Geometric checkpointing (instead of LangGraph Store)
     - Consciousness-aware execution (instead of graph state)
     

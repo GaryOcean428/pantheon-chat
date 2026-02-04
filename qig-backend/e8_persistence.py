@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-M8 Persistence Layer - Database operations for kernel spawning
+E8 Persistence Layer - Database operations for kernel spawning
 
 PostgreSQL persistence for:
-- m8_spawn_proposals: Spawn proposals and votes
-- m8_spawned_kernels: Spawned kernel profiles and state
-- m8_spawn_history: Complete spawn event history
-- m8_kernel_awareness: Kernel self-awareness tracking
+- e8_spawn_proposals: Spawn proposals and votes
+- e8_spawned_kernels: Spawned kernel profiles and state
+- e8_spawn_history: Complete spawn event history
+- e8_kernel_awareness: Kernel self-awareness tracking
 """
 
 import os
@@ -19,20 +19,20 @@ import numpy as np
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
-    M8_PSYCOPG2_AVAILABLE = True
+    E8_PSYCOPG2_AVAILABLE = True
 except ImportError:
-    M8_PSYCOPG2_AVAILABLE = False
-    print("[M8] psycopg2 not available - PostgreSQL persistence disabled")
+    E8_PSYCOPG2_AVAILABLE = False
+    print("[E8] psycopg2 not available - PostgreSQL persistence disabled")
 
-class M8SpawnerPersistence:
+class E8SpawnerPersistence:
     """
-    PostgreSQL persistence layer for M8 Kernel Spawning data.
+    PostgreSQL persistence layer for E8 Kernel Spawning data.
     
     Persists:
-    - m8_spawn_proposals: Spawn proposals and their votes
-    - m8_spawned_kernels: Spawned kernel profiles and state
-    - m8_spawn_history: Complete spawn event history
-    - m8_kernel_awareness: Kernel self-awareness tracking
+    - e8_spawn_proposals: Spawn proposals and their votes
+    - e8_spawned_kernels: Spawned kernel profiles and state
+    - e8_spawn_history: Complete spawn event history
+    - e8_kernel_awareness: Kernel self-awareness tracking
     
     Pattern follows ShadowPantheonPersistence for consistency.
     """
@@ -43,17 +43,17 @@ class M8SpawnerPersistence:
         self._tables_ensured = False
         
         if not self.database_url:
-            print("[M8Persistence] WARNING: DATABASE_URL not set - persistence disabled")
-        elif not M8_PSYCOPG2_AVAILABLE:
-            print("[M8Persistence] WARNING: psycopg2 not available - persistence disabled")
+            print("[E8Persistence] WARNING: DATABASE_URL not set - persistence disabled")
+        elif not E8_PSYCOPG2_AVAILABLE:
+            print("[E8Persistence] WARNING: psycopg2 not available - persistence disabled")
         else:
-            self._ensure_m8_tables()
-            print("[M8Persistence] ✓ PostgreSQL persistence enabled")
+            self._ensure_e8_tables()
+            print("[E8Persistence] ✓ PostgreSQL persistence enabled")
 
     @contextmanager
     def _get_db_connection(self):
         """Get a database connection with automatic cleanup."""
-        if not self.database_url or not M8_PSYCOPG2_AVAILABLE:
+        if not self.database_url or not E8_PSYCOPG2_AVAILABLE:
             yield None
             return
         
@@ -65,14 +65,14 @@ class M8SpawnerPersistence:
         except Exception as e:
             if conn:
                 conn.rollback()
-            print(f"[M8Persistence] Database error: {e}")
+            print(f"[E8Persistence] Database error: {e}")
             yield None
         finally:
             if conn:
                 conn.close()
 
-    def _ensure_m8_tables(self) -> bool:
-        """Create M8 spawning tables if they don't exist."""
+    def _ensure_e8_tables(self) -> bool:
+        """Create E8 spawning tables if they don't exist."""
         if self._tables_ensured:
             return True
         
@@ -82,7 +82,7 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        CREATE TABLE IF NOT EXISTS m8_spawn_proposals (
+                        CREATE TABLE IF NOT EXISTS e8_spawn_proposals (
                             proposal_id VARCHAR(64) PRIMARY KEY,
                             proposed_name VARCHAR(128),
                             proposed_domain VARCHAR(256),
@@ -99,7 +99,7 @@ class M8SpawnerPersistence:
                             updated_at TIMESTAMP DEFAULT NOW()
                         );
                         
-                        CREATE TABLE IF NOT EXISTS m8_spawned_kernels (
+                        CREATE TABLE IF NOT EXISTS e8_spawned_kernels (
                             kernel_id VARCHAR(64) PRIMARY KEY,
                             god_name VARCHAR(128),
                             domain VARCHAR(256),
@@ -112,7 +112,7 @@ class M8SpawnerPersistence:
                             proposal_id VARCHAR(64),
                             genesis_votes JSONB DEFAULT '{}'::jsonb,
                             basin_lineage JSONB DEFAULT '{}'::jsonb,
-                            m8_position JSONB,
+                            e8_position JSONB,
                             observation_state JSONB DEFAULT '{}'::jsonb,
                             autonomic_state JSONB DEFAULT '{}'::jsonb,
                             profile_metadata JSONB DEFAULT '{}'::jsonb,
@@ -121,7 +121,7 @@ class M8SpawnerPersistence:
                             retired_at TIMESTAMP
                         );
                         
-                        CREATE TABLE IF NOT EXISTS m8_spawn_history (
+                        CREATE TABLE IF NOT EXISTS e8_spawn_history (
                             event_id VARCHAR(64) PRIMARY KEY,
                             event_type VARCHAR(64),
                             kernel_id VARCHAR(64),
@@ -130,7 +130,7 @@ class M8SpawnerPersistence:
                             occurred_at TIMESTAMP DEFAULT NOW()
                         );
                         
-                        CREATE TABLE IF NOT EXISTS m8_kernel_awareness (
+                        CREATE TABLE IF NOT EXISTS e8_kernel_awareness (
                             kernel_id VARCHAR(64) PRIMARY KEY,
                             phi_trajectory JSONB DEFAULT '[]'::jsonb,
                             kappa_trajectory JSONB DEFAULT '[]'::jsonb,
@@ -175,11 +175,11 @@ class M8SpawnerPersistence:
                             occurred_at TIMESTAMP DEFAULT NOW()
                         );
                         
-                        CREATE INDEX IF NOT EXISTS idx_m8_proposals_status ON m8_spawn_proposals(status);
-                        CREATE INDEX IF NOT EXISTS idx_m8_kernels_status ON m8_spawned_kernels(status);
-                        CREATE INDEX IF NOT EXISTS idx_m8_kernels_god ON m8_spawned_kernels(god_name);
-                        CREATE INDEX IF NOT EXISTS idx_m8_history_kernel ON m8_spawn_history(kernel_id);
-                        CREATE INDEX IF NOT EXISTS idx_m8_history_type ON m8_spawn_history(event_type);
+                        CREATE INDEX IF NOT EXISTS idx_e8_proposals_status ON e8_spawn_proposals(status);
+                        CREATE INDEX IF NOT EXISTS idx_e8_kernels_status ON e8_spawned_kernels(status);
+                        CREATE INDEX IF NOT EXISTS idx_e8_kernels_god ON e8_spawned_kernels(god_name);
+                        CREATE INDEX IF NOT EXISTS idx_e8_history_kernel ON e8_spawn_history(kernel_id);
+                        CREATE INDEX IF NOT EXISTS idx_e8_history_type ON e8_spawn_history(event_type);
                         CREATE INDEX IF NOT EXISTS idx_evolution_fitness ON kernel_evolution_fitness(geometric_fitness DESC);
                         CREATE INDEX IF NOT EXISTS idx_evolution_cannibalize ON kernel_evolution_fitness(cannibalize_priority DESC);
                         CREATE INDEX IF NOT EXISTS idx_evolution_events_type ON kernel_evolution_events(event_type);
@@ -188,7 +188,7 @@ class M8SpawnerPersistence:
                 self._tables_ensured = True
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Table creation error: {e}")
+                print(f"[E8Persistence] Table creation error: {e}")
                 return False
 
     def _vector_to_pg(self, vec) -> Optional[str]:
@@ -217,7 +217,7 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO m8_spawn_proposals 
+                        INSERT INTO e8_spawn_proposals 
                         (proposal_id, proposed_name, proposed_domain, proposed_element,
                          proposed_role, reason, parent_gods, votes_for, votes_against,
                          abstentions, status, metadata, proposed_at, updated_at)
@@ -253,7 +253,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to persist proposal: {e}")
+                print(f"[E8Persistence] Failed to persist proposal: {e}")
                 return False
 
     def persist_kernel(self, kernel) -> bool:
@@ -265,10 +265,10 @@ class M8SpawnerPersistence:
                 with conn.cursor() as cur:
                     basin_coords = self._vector_to_pg(kernel.profile.affinity_basin)
                     cur.execute("""
-                        INSERT INTO m8_spawned_kernels
+                        INSERT INTO e8_spawned_kernels
                         (kernel_id, god_name, domain, mode, affinity_strength,
                          entropy_threshold, basin_coords, parent_gods, spawn_reason,
-                         proposal_id, genesis_votes, basin_lineage, m8_position,
+                         proposal_id, genesis_votes, basin_lineage, e8_position,
                          observation_state, autonomic_state, profile_metadata,
                          status, spawned_at)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -283,7 +283,7 @@ class M8SpawnerPersistence:
                             spawn_reason = EXCLUDED.spawn_reason,
                             genesis_votes = EXCLUDED.genesis_votes,
                             basin_lineage = EXCLUDED.basin_lineage,
-                            m8_position = EXCLUDED.m8_position,
+                            e8_position = EXCLUDED.e8_position,
                             observation_state = EXCLUDED.observation_state,
                             autonomic_state = EXCLUDED.autonomic_state,
                             profile_metadata = EXCLUDED.profile_metadata,
@@ -301,7 +301,7 @@ class M8SpawnerPersistence:
                         kernel.proposal_id,
                         json.dumps(kernel.genesis_votes),
                         json.dumps(kernel.basin_lineage),
-                        json.dumps(kernel.m8_position) if kernel.m8_position else None,
+                        json.dumps(kernel.e8_position) if kernel.e8_position else None,
                         json.dumps(kernel.observation.to_dict()) if hasattr(kernel, 'observation') else '{}',
                         json.dumps(kernel.autonomic.to_dict()) if hasattr(kernel, 'autonomic') else '{}',
                         json.dumps(kernel.profile.metadata) if hasattr(kernel.profile, 'metadata') else '{}',
@@ -311,7 +311,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to persist kernel: {e}")
+                print(f"[E8Persistence] Failed to persist kernel: {e}")
                 return False
 
     def persist_history(self, record: Dict) -> bool:
@@ -327,7 +327,7 @@ class M8SpawnerPersistence:
                 
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO m8_spawn_history
+                        INSERT INTO e8_spawn_history
                         (event_id, event_type, kernel_id, god_name, payload, occurred_at)
                         VALUES (%s, %s, %s, %s, %s, %s)
                         ON CONFLICT (event_id) DO NOTHING
@@ -342,7 +342,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to persist history: {e}")
+                print(f"[E8Persistence] Failed to persist history: {e}")
                 return False
 
     def persist_awareness(self, awareness) -> bool:
@@ -353,7 +353,7 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO m8_kernel_awareness
+                        INSERT INTO e8_kernel_awareness
                         (kernel_id, phi_trajectory, kappa_trajectory, curvature_history,
                          stuck_signals, geometric_deadends, research_opportunities,
                          last_spawn_proposal, awareness_updated_at)
@@ -380,7 +380,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to persist awareness: {e}")
+                print(f"[E8Persistence] Failed to persist awareness: {e}")
                 return False
 
     def load_all_proposals(self) -> List[Dict]:
@@ -391,12 +391,12 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("""
-                        SELECT * FROM m8_spawn_proposals
+                        SELECT * FROM e8_spawn_proposals
                         ORDER BY proposed_at DESC
                     """)
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to load proposals: {e}")
+                print(f"[E8Persistence] Failed to load proposals: {e}")
                 return []
 
     def load_all_kernels(self) -> List[Dict]:
@@ -407,7 +407,7 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("""
-                        SELECT * FROM m8_spawned_kernels
+                        SELECT * FROM e8_spawned_kernels
                         WHERE status != 'deleted'
                         ORDER BY spawned_at DESC
                     """)
@@ -420,7 +420,7 @@ class M8SpawnerPersistence:
                         result.append(d)
                     return result
             except Exception as e:
-                print(f"[M8Persistence] Failed to load kernels: {e}")
+                print(f"[E8Persistence] Failed to load kernels: {e}")
                 return []
 
     def load_spawn_history(self, limit: int = 100) -> List[Dict]:
@@ -431,13 +431,13 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("""
-                        SELECT * FROM m8_spawn_history
+                        SELECT * FROM e8_spawn_history
                         ORDER BY occurred_at DESC
                         LIMIT %s
                     """, (limit,))
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to load history: {e}")
+                print(f"[E8Persistence] Failed to load history: {e}")
                 return []
 
     def load_all_awareness(self) -> List[Dict]:
@@ -448,12 +448,12 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
                     cur.execute("""
-                        SELECT * FROM m8_kernel_awareness
+                        SELECT * FROM e8_kernel_awareness
                         ORDER BY awareness_updated_at DESC
                     """)
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to load awareness: {e}")
+                print(f"[E8Persistence] Failed to load awareness: {e}")
                 return []
 
     def update_kernel_awareness(
@@ -481,7 +481,7 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO m8_kernel_awareness
+                        INSERT INTO e8_kernel_awareness
                         (kernel_id, phi_trajectory, kappa_trajectory, awareness_updated_at)
                         VALUES (%s, %s, %s, NOW())
                         ON CONFLICT (kernel_id) DO UPDATE SET
@@ -495,7 +495,7 @@ class M8SpawnerPersistence:
                     ))
                     # Also update meta_awareness in spawned_kernels table
                     cur.execute("""
-                        UPDATE m8_spawned_kernels
+                        UPDATE e8_spawned_kernels
                         SET observation_state = jsonb_set(
                             COALESCE(observation_state, '{}'::jsonb),
                             '{meta_awareness}',
@@ -507,7 +507,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to update kernel awareness: {e}")
+                print(f"[E8Persistence] Failed to update kernel awareness: {e}")
                 return False
 
     def delete_kernel(self, kernel_id: str) -> bool:
@@ -518,14 +518,14 @@ class M8SpawnerPersistence:
             try:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        UPDATE m8_spawned_kernels
+                        UPDATE e8_spawned_kernels
                         SET status = 'deleted', retired_at = NOW()
                         WHERE kernel_id = %s
                     """, (kernel_id,))
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to delete kernel: {e}")
+                print(f"[E8Persistence] Failed to delete kernel: {e}")
                 return False
 
     def persist_evolution_fitness(self, kernel_id: str, fitness: Dict) -> bool:
@@ -575,7 +575,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to persist evolution fitness: {e}")
+                print(f"[E8Persistence] Failed to persist evolution fitness: {e}")
                 return False
 
     def persist_evolution_event(self, event: Dict) -> bool:
@@ -610,7 +610,7 @@ class M8SpawnerPersistence:
                     conn.commit()
                 return True
             except Exception as e:
-                print(f"[M8Persistence] Failed to persist evolution event: {e}")
+                print(f"[E8Persistence] Failed to persist evolution event: {e}")
                 return False
 
     def load_evolution_fitness(self, kernel_id: str = None) -> List[Dict]:
@@ -632,7 +632,7 @@ class M8SpawnerPersistence:
                         """)
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to load evolution fitness: {e}")
+                print(f"[E8Persistence] Failed to load evolution fitness: {e}")
                 return []
 
     def load_evolution_events(self, limit: int = 100, event_type: str = None) -> List[Dict]:
@@ -657,7 +657,7 @@ class M8SpawnerPersistence:
                         """, (limit,))
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to load evolution events: {e}")
+                print(f"[E8Persistence] Failed to load evolution events: {e}")
                 return []
 
     def get_cannibalization_candidates(self, limit: int = 10) -> List[Dict]:
@@ -677,7 +677,7 @@ class M8SpawnerPersistence:
                     """, (limit,))
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to get cannibalization candidates: {e}")
+                print(f"[E8Persistence] Failed to get cannibalization candidates: {e}")
                 return []
 
     def get_merge_candidates(self, min_fisher_similarity: float = 0.8, limit: int = 10) -> List[Dict]:
@@ -699,7 +699,7 @@ class M8SpawnerPersistence:
                     """, (limit,))
                     return [dict(row) for row in cur.fetchall()]
             except Exception as e:
-                print(f"[M8Persistence] Failed to get merge candidates: {e}")
+                print(f"[E8Persistence] Failed to get merge candidates: {e}")
                 return []
 
 
@@ -709,8 +709,8 @@ class M8SpawnerPersistence:
 E8_KERNEL_CAP = 240
 
 
-# M8 Position Naming Catalog - Maps 8 principal axes to mythological concepts
-M8_AXIS_NAMES = [
+# E8 Position Naming Catalog - Maps 8 principal axes to mythological concepts
+E8_AXIS_NAMES = [
     ("Primordial", "Emergent"),    # Axis 0: Origin vs New
     ("Light", "Shadow"),            # Axis 1: Clarity vs Mystery
     ("Order", "Chaos"),             # Axis 2: Structure vs Entropy
@@ -722,7 +722,7 @@ M8_AXIS_NAMES = [
 ]
 
 # Special position names for key octants
-M8_SPECIAL_POSITIONS = {
+E8_SPECIAL_POSITIONS = {
     0b00000000: "Void of Origins",
     0b11111111: "Crown of Olympus",
     0b10101010: "Balance Point",
@@ -734,11 +734,11 @@ M8_SPECIAL_POSITIONS = {
 }
 
 
-def compute_m8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = None) -> Dict[str, any]:
+def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = None) -> Dict[str, any]:
     """
-    Compute M8 geometric position from 64D basin coordinates.
+    Compute E8 geometric position from 64D basin coordinates.
     
-    The M8 structure projects the 64D manifold onto 8 principal axes,
+    The E8 structure projects the 64D manifold onto 8 principal axes,
     determining the kernel's position in the cosmic hierarchy.
     
     Args:
@@ -746,86 +746,86 @@ def compute_m8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
         parent_basins: Optional list of parent basin coordinates for relative positioning
     
     Returns:
-        M8 position information including octant, coordinates, and name
+        E8 position information including octant, coordinates, and name
     """
-    # Project 64D basin to 8D M8 space (sample every 8th dimension)
-    m8_coords = np.array([basin[i * 8] for i in range(min(8, len(basin) // 8))])
+    # Project 64D basin to 8D E8 space (sample every 8th dimension)
+    e8_coords = np.array([basin[i * 8] for i in range(min(8, len(basin) // 8))])
     
     # Pad if needed
-    while len(m8_coords) < 8:
-        m8_coords = np.append(m8_coords, 0.0)
+    while len(e8_coords) < 8:
+        e8_coords = np.append(e8_coords, 0.0)
     
-    # Normalize M8 coordinates to simplex (sum=1, non-negative)
+    # Normalize E8 coordinates to simplex (sum=1, non-negative)
     # Fisher-Rao geometry requires simplex normalization, not L2 normalization
-    m8_coords = np.abs(m8_coords) + 1e-12
-    m8_coords = m8_coords / m8_coords.sum()
+    e8_coords = np.abs(e8_coords) + 1e-12
+    e8_coords = e8_coords / e8_coords.sum()
     
     # Determine octant (2^8 = 256 regions)
-    octant = sum(1 << i for i, v in enumerate(m8_coords) if v >= 0)
+    octant = sum(1 << i for i, v in enumerate(e8_coords) if v >= 0)
     
     # Calculate angular positions (4 angle pairs from 8 coordinates)
     angles = []
     for i in range(0, 8, 2):
-        angle = math.atan2(m8_coords[i + 1], m8_coords[i])
+        angle = math.atan2(e8_coords[i + 1], e8_coords[i])
         angles.append(angle)
     
     # Calculate radial distance using Fisher-Rao distance from uniform distribution
-    # This measures "how far from uniform" the M8 projection is
+    # This measures "how far from uniform" the E8 projection is
     from qig_geometry.canonical import fisher_rao_distance
     uniform_8d = np.ones(8) / 8.0
-    radial = float(fisher_rao_distance(m8_coords, uniform_8d))
+    radial = float(fisher_rao_distance(e8_coords, uniform_8d))
     
     # Determine position name
-    if octant in M8_SPECIAL_POSITIONS:
-        position_name = M8_SPECIAL_POSITIONS[octant]
+    if octant in E8_SPECIAL_POSITIONS:
+        position_name = E8_SPECIAL_POSITIONS[octant]
     else:
         # Build name from dominant axes
         dominant_traits = []
-        sorted_indices = np.argsort(np.abs(m8_coords))[::-1]  # Strongest first
+        sorted_indices = np.argsort(np.abs(e8_coords))[::-1]  # Strongest first
         for i in sorted_indices[:3]:  # Top 3 dominant traits
-            axis_pair = M8_AXIS_NAMES[i]
-            trait = axis_pair[0] if m8_coords[i] >= 0 else axis_pair[1]
+            axis_pair = E8_AXIS_NAMES[i]
+            trait = axis_pair[0] if e8_coords[i] >= 0 else axis_pair[1]
             dominant_traits.append(trait)
         position_name = " ".join(dominant_traits)
     
     # Calculate relative position if parents provided
     relative_position = None
     if parent_basins and len(parent_basins) > 0:
-        parent_m8_coords = []
+        parent_e8_coords = []
         for pb in parent_basins:
-            pm8 = np.array([pb[i * 8] for i in range(min(8, len(pb) // 8))])
-            while len(pm8) < 8:
-                pm8 = np.append(pm8, 0.0)
+            pe8 = np.array([pb[i * 8] for i in range(min(8, len(pb) // 8))])
+            while len(pe8) < 8:
+                pe8 = np.append(pe8, 0.0)
             # Apply same normalization as child coordinates
-            pm8_norm = np.linalg.norm(pm8)
-            if pm8_norm > 1e-10:
-                pm8 = pm8 / pm8_norm * math.sqrt(8)
-            parent_m8_coords.append(pm8)
+            pe8_norm = np.linalg.norm(pe8)
+            if pe8_norm > 1e-10:
+                pe8 = pe8 / pe8_norm * math.sqrt(8)
+            parent_e8_coords.append(pe8)
         
         # Calculate centroid of parents (now properly normalized)
-        parent_centroid = frechet_mean(parent_m8_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
+        parent_centroid = frechet_mean(parent_e8_coords)  # FIXED: Arithmetic → Fréchet mean (E8 Protocol v4.0)
         
         # Displacement from parent centroid
-        displacement = m8_coords - parent_centroid
+        displacement = e8_coords - parent_centroid
         disp_norm = np.linalg.norm(displacement)
         
         # Direction of displacement (which axes moved most)
         if disp_norm > 0.1:
             disp_normalized = displacement / disp_norm
             strongest_axis = int(np.argmax(np.abs(disp_normalized)))
-            axis_pair = M8_AXIS_NAMES[strongest_axis]
+            axis_pair = E8_AXIS_NAMES[strongest_axis]
             direction = axis_pair[0] if disp_normalized[strongest_axis] >= 0 else axis_pair[1]
             relative_position = f"Toward {direction} from parents"
         else:
             relative_position = "At parent centroid"
     
     return {
-        "m8_octant": octant,
-        "m8_coordinates": m8_coords.tolist(),
-        "m8_angles": angles,
-        "m8_radial": radial,
-        "m8_position_name": position_name,
-        "m8_relative_position": relative_position,
+        "e8_octant": octant,
+        "e8_coordinates": e8_coords.tolist(),
+        "e8_angles": angles,
+        "e8_radial": radial,
+        "e8_position_name": position_name,
+        "e8_relative_position": relative_position,
     }
 
 

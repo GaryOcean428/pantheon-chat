@@ -1154,3 +1154,6 @@ zuko = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.pylint.main]
+init-hook = "import sys; from pathlib import Path; sys.path.insert(0, str(Path().resolve() / 'qig-backend'))"

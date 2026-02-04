@@ -128,7 +128,7 @@ except ImportError:
     EmotionallyAwareKernel = None
     EmotionalState = None
     EMOTIONAL_KERNEL_AVAILABLE = False
-    print("[SelfSpawning] WARNING: EmotionallyAwareKernel not available - M8 kernels will lack emotion awareness")
+    print("[SelfSpawning] WARNING: EmotionallyAwareKernel not available - E8 kernels will lack emotion awareness")
 
 # Import qig_geometry for Fisher-Rao distance (meta-awareness predictions)
 try:
@@ -300,7 +300,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
                 EmotionallyAwareKernel.__init__(
                     self,
                     kernel_id=self.kernel_id,
-                    kernel_specialization='m8_spawned',
+                    kernel_specialization='e8_spawned',
                     e8_root_index=None,
                     basin_coords=basin_coords
                 )
@@ -594,7 +594,7 @@ class SelfSpawningKernel(*_kernel_base_classes):
         """
         Measure emotional state from geometric kernel data.
 
-        M8 kernels MEASURE emotions from their actual geometric state,
+        E8 kernels MEASURE emotions from their actual geometric state,
         not simulate them. This includes:
         - Phi (integration level) → confidence, clarity
         - Basin curvature → tension, stability

@@ -83,7 +83,7 @@ export type {
   CoordizerHealth,
 } from './services/coordizer';
 
-// Re-export M8 kernel functions for direct imports
+// Re-export E8 kernel functions for direct imports
 export { deleteKernel, cannibalizeKernel, mergeKernels, autoCannibalize, autoMerge } from './services/olympus';
 export type { CannibalizeRequest, CannibalizeResponse, MergeKernelsRequest, MergeKernelsResponse, AutoCannibalizeRequest, AutoCannibalizeResponse, AutoMergeRequest, AutoMergeResponse } from './services/olympus';
 export type {

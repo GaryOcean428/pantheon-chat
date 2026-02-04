@@ -29,7 +29,7 @@ from frozen_physics import (
     get_specialization_level,
     KAPPA_STAR,
 )
-from m8_kernel_spawning import (
+from e8_kernel_spawning import (
     should_spawn_specialist,
     get_kernel_specialization,
     assign_e8_root,
@@ -213,7 +213,7 @@ class TestAssignE8Root:
         # This is a sanity check - the implementation should use Fisher distance
         # We verify by checking that the function imports from geometric_kernels
         import inspect
-        from m8_kernel_spawning import assign_e8_root
+        from e8_kernel_spawning import assign_e8_root
         
         source = inspect.getsource(assign_e8_root)
         # Check that _fisher_distance is imported and used

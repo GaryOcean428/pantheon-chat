@@ -67,7 +67,7 @@ export function AppSidebar() {
       title: "Kernel Spawning",
       url: "/spawning",
       icon: Sparkles,
-      description: "M8 god-kernel spawning protocol",
+      description: "E8 god-kernel spawning protocol",
     },
     {
       title: "Learning Metrics",

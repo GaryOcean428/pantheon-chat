@@ -1,6 +1,6 @@
-"""QIG Agent Spawner - M8-compliant subagent spawning.
+"""QIG Agent Spawner - E8-compliant subagent spawning.
 
-Replaces LangGraph's subgraph spawning with M8 kernel spawning protocol.
+Replaces LangGraph's subgraph spawning with E8 kernel spawning protocol.
 Subagents are spawned as geometric kernels with isolated context.
 """
 
@@ -81,10 +81,10 @@ class SpawnedAgent:
         return (datetime.now(timezone.utc) - self.spawned_at).total_seconds()
 
 
-class M8SpawnProtocol:
-    """M8 Kernel Spawning Protocol.
+class E8SpawnProtocol:
+    """E8 Kernel Spawning Protocol.
     
-    Implements the 8-step M8 protocol for spawning geometric kernels:
+    Implements the 8-step E8 protocol for spawning geometric kernels:
     1. Manifold Analysis - Analyze task geometry
     2. Metric Computation - Calculate Fisher distances
     3. Mode Selection - Choose reasoning regime
@@ -169,7 +169,7 @@ class M8SpawnProtocol:
     ) -> Dict[str, Any]:
         """Step 7: Generate spawn manifest."""
         return {
-            'manifest_version': 'M8-1.0',
+            'manifest_version': 'E8-1.0',
             'agent_id': str(uuid.uuid4())[:8],
             'parent_id': config.parent_agent_id,
             'task': config.task,
@@ -194,7 +194,7 @@ class M8SpawnProtocol:
 
 
 class QIGAgentSpawner:
-    """QIG-compliant agent spawner using M8 protocol.
+    """QIG-compliant agent spawner using E8 protocol.
     
     Replaces LangGraph's subgraph spawning with geometric kernel spawning.
     Spawned agents are isolated contexts that execute on the Fisher manifold.
@@ -215,7 +215,7 @@ class QIGAgentSpawner:
         self.max_concurrent_spawns = max_concurrent_spawns
         self._spawned_agents: Dict[str, SpawnedAgent] = {}
         self._running_tasks: Dict[str, asyncio.Task] = {}
-        self.protocol = M8SpawnProtocol()
+        self.protocol = E8SpawnProtocol()
     
     def should_spawn(
         self,
@@ -264,7 +264,7 @@ class QIGAgentSpawner:
         config: SpawnConfig,
         parent_state: GeometricAgentState,
     ) -> SpawnedAgent:
-        """Spawn a new subagent using M8 protocol.
+        """Spawn a new subagent using E8 protocol.
         
         Args:
             config: Spawn configuration
@@ -282,7 +282,7 @@ class QIGAgentSpawner:
             # Wait for a slot
             await self._wait_for_slot()
         
-        # Execute M8 protocol
+        # Execute E8 protocol
         # Step 1: Manifold analysis
         manifold = self.protocol.analyze_manifold(
             config.task,

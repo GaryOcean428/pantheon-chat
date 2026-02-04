@@ -130,7 +130,7 @@ Files over 2000 lines that may contain dead code or need refactoring:
 |------|-------|
 | ocean_qig_core.py | 8552 |
 | olympus/base_god.py | 4787 |
-| m8_kernel_spawning.py | 4715 |
+| e8_kernel_spawning.py | 4715 |
 | olympus/zeus.py | 4605 |
 | olympus/shadow_research.py | 4265 |
 | olympus/zeus_chat.py | 3742 |

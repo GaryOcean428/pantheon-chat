@@ -59,10 +59,10 @@ except AssertionError as e:
     print(f"  ❌ FAILED: {e}")
     sys.exit(1)
 
-# Test 4: Import m8_kernel_spawning functions
-print("\n✓ Test 4: Import m8_kernel_spawning functions")
+# Test 4: Import e8_kernel_spawning functions
+print("\n✓ Test 4: Import e8_kernel_spawning functions")
 try:
-    from m8_kernel_spawning import (
+    from e8_kernel_spawning import (
         should_spawn_specialist,
         get_kernel_specialization,
         assign_e8_root,

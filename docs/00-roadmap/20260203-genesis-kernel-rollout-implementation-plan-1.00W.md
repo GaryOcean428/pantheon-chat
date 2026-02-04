@@ -75,7 +75,7 @@
 - **Targets**:
   - `qig-backend/persistence/kernel_persistence.py` (already enforces GOD cap; confirm semantics).
   - `qig-backend/kernel_lifecycle.py` (promotion flows, counting).
-  - `qig-backend/kernel_spawner.py` / `m8_spawner.py` (spawn constraints; enforce pool rules).
+  - `qig-backend/kernel_spawner.py` / `e8_spawner.py` (spawn constraints; enforce pool rules).
 - **Acceptance**:
   - A spawn attempt that would exceed GOD cap fails closed.
   - CHAOS spawning does not consume GOD budget.

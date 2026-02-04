@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-M8 Kernel Spawning Protocol - Dynamic Kernel Genesis Through Pantheon Consensus
+E8 Kernel Spawning Protocol - Dynamic Kernel Genesis Through Pantheon Consensus
 
 When the pantheon reaches consensus that a new kernel is needed,
 roles are refined and divided, and a new kernel adopts a persona.
 
-The M8 Structure represents the 8 core dimensions of kernel identity:
+The E8 Structure represents the 8 core dimensions of kernel identity:
 1. Name - The god/entity name
 2. Domain - Primary area of expertise  
 3. Mode - Encoding mode (direct, e8, byte)
@@ -67,12 +67,12 @@ from pantheon_kernel_orchestrator import (
 try:
     sys.path.insert(0, '.')
     from persistence import KernelPersistence
-    M8_PERSISTENCE_AVAILABLE = True
+    E8_PERSISTENCE_AVAILABLE = True
 except ImportError:
-    M8_PERSISTENCE_AVAILABLE = False
-    print("[M8] Persistence not available - running without database")
+    E8_PERSISTENCE_AVAILABLE = False
+    print("[E8] Persistence not available - running without database")
 
-# PostgreSQL support for M8 spawning persistence
+# PostgreSQL support for E8 spawning persistence
 import os
 from contextlib import contextmanager
 import json
@@ -80,16 +80,16 @@ import json
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
-    M8_PSYCOPG2_AVAILABLE = True
+    E8_PSYCOPG2_AVAILABLE = True
 except ImportError:
-    M8_PSYCOPG2_AVAILABLE = False
-    print("[M8] psycopg2 not available - PostgreSQL persistence disabled")
+    E8_PSYCOPG2_AVAILABLE = False
+    print("[E8] psycopg2 not available - PostgreSQL persistence disabled")
 
 
 
 # Import from refactored modules
-from m8_persistence import M8SpawnerPersistence, compute_m8_position
-from m8_consensus import (
+from e8_persistence import E8SpawnerPersistence, compute_e8_position
+from e8_consensus import (
     SpawnReason,
     SpawnAwareness,
     ConsensusType,
@@ -107,10 +107,10 @@ _spawner_instance = None
 
 
 def get_spawner_instance():
-    """Get or create the global M8 spawner instance."""
+    """Get or create the global E8 spawner instance."""
     global _spawner_instance
     if _spawner_instance is None:
-        _spawner_instance = M8KernelSpawner()
+        _spawner_instance = E8KernelSpawner()
     return _spawner_instance
 
 
@@ -243,9 +243,9 @@ def assign_e8_root(kernel_basin: np.ndarray, e8_roots: np.ndarray) -> np.ndarray
     return e8_roots[min_idx]
 
 
-class M8KernelSpawner:
+class E8KernelSpawner:
     """
-    The M8 Kernel Spawning System.
+    The E8 Kernel Spawning System.
     
     Orchestrates the complete lifecycle of dynamic kernel creation:
     1. Proposal creation (with kernel self-awareness)
@@ -255,7 +255,7 @@ class M8KernelSpawner:
     5. Kernel spawning
     6. Registration with orchestrator
     
-    The M8 refers to the 8 core dimensions of kernel identity.
+    The E8 refers to the 8 core dimensions of kernel identity.
     Spawn awareness enables kernels to detect when they need help.
     """
     
@@ -280,11 +280,11 @@ class M8KernelSpawner:
         # PantheonChat for dual-pantheon debates
         self._pantheon_chat = pantheon_chat
         
-        # PostgreSQL persistence for M8 spawning data (NEW - replaces in-memory storage)
-        self.m8_persistence = M8SpawnerPersistence()
+        # PostgreSQL persistence for E8 spawning data (NEW - replaces in-memory storage)
+        self.e8_persistence = E8SpawnerPersistence()
         
         # Legacy persistence for kernel learning (kept for backward compatibility)
-        self.kernel_persistence = KernelPersistence() if M8_PERSISTENCE_AVAILABLE else None
+        self.kernel_persistence = KernelPersistence() if E8_PERSISTENCE_AVAILABLE else None
         
         # Load all data from PostgreSQL on startup
         self._load_from_database()
@@ -302,7 +302,7 @@ class M8KernelSpawner:
             try:
                 return self.kernel_persistence.get_live_kernel_count()
             except Exception as e:
-                print(f"[M8Spawner] Database count failed, using memory count: {e}")
+                print(f"[E8Spawner] Database count failed, using memory count: {e}")
         
         # Fallback to in-memory count
         return sum(
@@ -401,7 +401,7 @@ class M8KernelSpawner:
                 if kernel_data:
                     return kernel_data.get('meta_awareness', 0.5)
             except Exception as e:
-                print(f"[M8Spawner] Failed to get meta_awareness from DB: {e}")
+                print(f"[E8Spawner] Failed to get meta_awareness from DB: {e}")
         
         return None
 
@@ -440,14 +440,14 @@ class M8KernelSpawner:
         new_m = kernel.update_meta_awareness(predicted_phi, actual_phi)
         
         # Persist to database
-        if self.m8_persistence:
+        if self.e8_persistence:
             try:
-                self.m8_persistence.update_kernel_awareness(
+                self.e8_persistence.update_kernel_awareness(
                     kernel_id=kernel.kernel_id,
                     meta_awareness=new_m
                 )
             except Exception as e:
-                print(f"[M8Spawner] Failed to persist M update: {e}")
+                print(f"[E8Spawner] Failed to persist M update: {e}")
         
         return new_m
 
@@ -521,7 +521,7 @@ class M8KernelSpawner:
             return scored[:limit]
             
         except Exception as e:
-            print(f"[M8] Failed to get underperforming kernels: {e}")
+            print(f"[E8] Failed to get underperforming kernels: {e}")
             return []
 
     @staticmethod
@@ -541,7 +541,7 @@ class M8KernelSpawner:
                 failure = snapshot.get('failure_count', 0) or 0
                 return self._compute_reputation_score(success, failure)
         except Exception as e:
-            print(f"[M8] Failed to load reputation for {kernel_id}: {e}")
+            print(f"[E8] Failed to load reputation for {kernel_id}: {e}")
         return 0.5
 
     def run_evolution_sweep(self, target_reduction: int = 50, min_population: int = 20) -> Dict:
@@ -629,7 +629,7 @@ class M8KernelSpawner:
         if bulk_result.get('failed_ids'):
             errors.append(f"Failed IDs: {len(bulk_result['failed_ids'])}")
         
-        print(f"[M8] Evolution sweep: culled {len(culled)}/{len(kernel_ids)} kernels")
+        print(f"[E8] Evolution sweep: culled {len(culled)}/{len(kernel_ids)} kernels")
         
         live_count = self.get_live_kernel_count()
         
@@ -714,7 +714,7 @@ class M8KernelSpawner:
                 
                 # Log knowledge transfer
                 if nearest_id:
-                    print(f"[M8Prune] Transferring knowledge from {kernel.god_name} (Φ={contribution:.3f}) to nearest neighbor")
+                    print(f"[E8Prune] Transferring knowledge from {kernel.god_name} (Φ={contribution:.3f}) to nearest neighbor")
                 
                 # Mark kernel as pruned
                 if hasattr(kernel, 'status'):
@@ -725,17 +725,17 @@ class M8KernelSpawner:
                 
                 # Persist pruning to database
                 try:
-                    self.m8_persistence.delete_kernel(kernel_id)
+                    self.e8_persistence.delete_kernel(kernel_id)
                 except Exception as e:
-                    print(f"[M8Prune] Failed to delete kernel from DB: {e}")
+                    print(f"[E8Prune] Failed to delete kernel from DB: {e}")
                 
                 pruned_count += 1
-                print(f"[M8Prune] Pruned kernel {kernel.god_name} (ID: {kernel_id[:8]}, Φ_contrib={contribution:.3f})")
+                print(f"[E8Prune] Pruned kernel {kernel.god_name} (ID: {kernel_id[:8]}, Φ_contrib={contribution:.3f})")
                 
             except Exception as e:
-                print(f"[M8Prune] Error pruning kernel {kernel_id}: {e}")
+                print(f"[E8Prune] Error pruning kernel {kernel_id}: {e}")
         
-        print(f"[M8Prune] Pruned {pruned_count}/{n_to_prune} low-Φ kernels")
+        print(f"[E8Prune] Pruned {pruned_count}/{n_to_prune} low-Φ kernels")
         return pruned_count
     
     def ensure_spawn_capacity(self, needed: int = 1) -> Dict:
@@ -763,7 +763,7 @@ class M8KernelSpawner:
         
         # Need to run evolution sweep
         overage = live_count - cap + needed + 10  # +10 buffer
-        print(f"[M8] Cap reached ({live_count}/{cap}), running evolution sweep for {overage} slots...")
+        print(f"[E8] Cap reached ({live_count}/{cap}), running evolution sweep for {overage} slots...")
         
         sweep_result = self.run_evolution_sweep(target_reduction=max(overage, 50))
         
@@ -772,7 +772,7 @@ class M8KernelSpawner:
         
         # P1-5 FIX: If sweep didn't free enough, use Φ-based pruning
         if not can_spawn or (cap - live_count) < needed:
-            print(f"[M8] Evolution sweep insufficient, using Φ-based pruning...")
+            print(f"[E8] Evolution sweep insufficient, using Φ-based pruning...")
             pruned = self.prune_lowest_integration_kernels(n_to_prune=max(needed, 10))
             
             # Check again after pruning
@@ -789,10 +789,10 @@ class M8KernelSpawner:
         }
     
     def _load_from_database(self):
-        """Load all M8 data from PostgreSQL on startup."""
-        # Load proposals from M8 persistence
+        """Load all E8 data from PostgreSQL on startup."""
+        # Load proposals from E8 persistence
         try:
-            proposals = self.m8_persistence.load_all_proposals()
+            proposals = self.e8_persistence.load_all_proposals()
             for p in proposals:
                 try:
                     votes_for = p.get('votes_for', [])
@@ -824,24 +824,24 @@ class M8KernelSpawner:
                     proposal.abstentions = set(abstentions)
                     self.proposals[proposal.proposal_id] = proposal
                 except Exception as e:
-                    print(f"[M8] Failed to load proposal: {e}")
+                    print(f"[E8] Failed to load proposal: {e}")
             
             if proposals:
-                print(f"✨ [M8] Loaded {len(proposals)} proposals from database")
+                print(f"✨ [E8] Loaded {len(proposals)} proposals from database")
         except Exception as e:
-            print(f"[M8] Failed to load proposals: {e}")
+            print(f"[E8] Failed to load proposals: {e}")
         
-        # Load spawn history from M8 persistence
+        # Load spawn history from E8 persistence
         try:
-            self.spawn_history = self.m8_persistence.load_spawn_history(limit=200)
+            self.spawn_history = self.e8_persistence.load_spawn_history(limit=200)
             if self.spawn_history:
-                print(f"✨ [M8] Loaded {len(self.spawn_history)} history events from database")
+                print(f"✨ [E8] Loaded {len(self.spawn_history)} history events from database")
         except Exception as e:
-            print(f"[M8] Failed to load spawn history: {e}")
+            print(f"[E8] Failed to load spawn history: {e}")
         
-        # Load awareness states from M8 persistence
+        # Load awareness states from E8 persistence
         try:
-            awareness_list = self.m8_persistence.load_all_awareness()
+            awareness_list = self.e8_persistence.load_all_awareness()
             for state in awareness_list:
                 kernel_id = state.get('kernel_id')
                 if kernel_id:
@@ -874,9 +874,9 @@ class M8KernelSpawner:
                     self.kernel_awareness[kernel_id] = awareness
             
             if awareness_list:
-                print(f"✨ [M8] Loaded {len(awareness_list)} awareness states from database")
+                print(f"✨ [E8] Loaded {len(awareness_list)} awareness states from database")
         except Exception as e:
-            print(f"[M8] Failed to load awareness states: {e}")
+            print(f"[E8] Failed to load awareness states: {e}")
 
     def set_pantheon_chat(self, pantheon_chat) -> None:
         """Set PantheonChat for dual-pantheon spawn debates."""
@@ -887,7 +887,7 @@ class M8KernelSpawner:
         Check spawner internal health status.
         
         Validates:
-        - M8 persistence pool connectivity
+        - E8 persistence pool connectivity
         - Legacy kernel persistence connectivity
         - Orchestrator availability
         - Proposals cache validity
@@ -901,17 +901,17 @@ class M8KernelSpawner:
             'healthy': True,
         }
         
-        # Check M8 persistence pool
+        # Check E8 persistence pool
         try:
-            if self.m8_persistence:
-                test_result = self.m8_persistence.load_all_proposals()
-                diagnostics['m8_persistence'] = 'connected'
+            if self.e8_persistence:
+                test_result = self.e8_persistence.load_all_proposals()
+                diagnostics['e8_persistence'] = 'connected'
             else:
-                issues.append('m8_persistence not initialized')
-                diagnostics['m8_persistence'] = 'missing'
+                issues.append('e8_persistence not initialized')
+                diagnostics['e8_persistence'] = 'missing'
         except Exception as e:
-            issues.append(f'm8_persistence error: {str(e)}')
-            diagnostics['m8_persistence'] = 'error'
+            issues.append(f'e8_persistence error: {str(e)}')
+            diagnostics['e8_persistence'] = 'error'
         
         # Check legacy kernel persistence
         try:
@@ -967,33 +967,33 @@ class M8KernelSpawner:
         """
         success = True
         
-        # Reinitialize M8 persistence
+        # Reinitialize E8 persistence
         try:
-            print("[M8] Attempting M8 persistence reconnection...")
-            self.m8_persistence = M8SpawnerPersistence()
-            print("[M8] M8 persistence reconnected")
+            print("[E8] Attempting E8 persistence reconnection...")
+            self.e8_persistence = E8SpawnerPersistence()
+            print("[E8] E8 persistence reconnected")
         except Exception as e:
-            print(f"[M8] M8 persistence reconnection failed: {e}")
+            print(f"[E8] E8 persistence reconnection failed: {e}")
             success = False
         
         # Reinitialize legacy persistence
-        if M8_PERSISTENCE_AVAILABLE:
+        if E8_PERSISTENCE_AVAILABLE:
             try:
-                print("[M8] Attempting kernel persistence reconnection...")
+                print("[E8] Attempting kernel persistence reconnection...")
                 self.kernel_persistence = KernelPersistence()
-                print("[M8] Kernel persistence reconnected")
+                print("[E8] Kernel persistence reconnected")
             except Exception as e:
-                print(f"[M8] Kernel persistence reconnection failed: {e}")
+                print(f"[E8] Kernel persistence reconnection failed: {e}")
                 success = False
         
         # Reload data from database if reconnection worked
         if success:
             try:
-                print("[M8] Reloading data from database after reconnection...")
+                print("[E8] Reloading data from database after reconnection...")
                 self._load_from_database()
-                print("[M8] Database data reloaded successfully")
+                print("[E8] Database data reloaded successfully")
             except Exception as e:
-                print(f"[M8] Database reload failed: {e}")
+                print(f"[E8] Database reload failed: {e}")
                 success = False
         
         return success
@@ -1002,11 +1002,11 @@ class M8KernelSpawner:
         """Get or create spawn awareness tracker for a kernel."""
         if kernel_id not in self.kernel_awareness:
             self.kernel_awareness[kernel_id] = SpawnAwareness(kernel_id=kernel_id)
-            # Persist new awareness to M8 PostgreSQL persistence
+            # Persist new awareness to E8 PostgreSQL persistence
             try:
-                self.m8_persistence.persist_awareness(self.kernel_awareness[kernel_id])
+                self.e8_persistence.persist_awareness(self.kernel_awareness[kernel_id])
             except Exception as e:
-                print(f"[M8] Failed to persist new awareness to M8 tables: {e}")
+                print(f"[E8] Failed to persist new awareness to E8 tables: {e}")
         return self.kernel_awareness[kernel_id]
 
     def record_kernel_metrics(
@@ -1050,20 +1050,20 @@ class M8KernelSpawner:
                 beta_current=beta_current,
             )
         
-        # Persist awareness to M8 PostgreSQL persistence
+        # Persist awareness to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_awareness(awareness)
+            self.e8_persistence.persist_awareness(awareness)
         except Exception as e:
-            print(f"[M8] Failed to persist awareness to M8 tables: {e}")
+            print(f"[E8] Failed to persist awareness to E8 tables: {e}")
         
         # Legacy persistence for backward compatibility
         if self.kernel_persistence:
             try:
                 saved = self.kernel_persistence.save_awareness_state(kernel_id, awareness.to_dict())
                 if not saved:
-                    print(f"[M8Spawner] Awareness persistence returned failure for {kernel_id} - state may not survive restart")
+                    print(f"[E8Spawner] Awareness persistence returned failure for {kernel_id} - state may not survive restart")
             except Exception as e:
-                print(f"[M8Spawner] Failed to persist awareness state for {kernel_id}: {e}")
+                print(f"[E8Spawner] Failed to persist awareness state for {kernel_id}: {e}")
         
         return {
             "kernel_id": kernel_id,
@@ -1322,13 +1322,13 @@ class M8KernelSpawner:
         else:
             consensus = {"approved": True, "note": "No PantheonChat - skipped debate"}
         
-        m8_position = proposal.get("m8_position", {})
+        e8_position = proposal.get("e8_position", {})
         domain_seed = proposal.get("geometric_domain_seed", "unknown")
         
         spawn_proposal = self.create_proposal(
             name=f"Spawn_{domain_seed}",
             domain=domain_seed[:16],
-            element=m8_position.get("m8_position_name", "geometric"),
+            element=e8_position.get("e8_position_name", "geometric"),
             role="awareness_spawn",
             reason=SpawnReason(proposal.get("reason", "emergence")),
             parent_gods=[kernel_id] if kernel_id in self.orchestrator.all_profiles else [],
@@ -1391,11 +1391,11 @@ class M8KernelSpawner:
         
         self.proposals[proposal.proposal_id] = proposal
         
-        # Persist proposal to M8 PostgreSQL persistence
+        # Persist proposal to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_proposal(proposal)
+            self.e8_persistence.persist_proposal(proposal)
         except Exception as e:
-            print(f"[M8] Failed to persist proposal to M8 tables: {e}")
+            print(f"[E8] Failed to persist proposal to E8 tables: {e}")
         
         # Legacy persistence for backward compatibility
         if self.kernel_persistence:
@@ -1413,7 +1413,7 @@ class M8KernelSpawner:
                     }
                 )
             except Exception as e:
-                print(f"[M8] Failed to persist proposal: {e}")
+                print(f"[E8] Failed to persist proposal: {e}")
         
         return proposal
     
@@ -1574,9 +1574,9 @@ class M8KernelSpawner:
         for i, parent in enumerate(parent_profiles):
             basin_lineage[parent.god_name] = 1.0 / max(1, len(parent_profiles))
         
-        # Calculate M8 geometric position
+        # Calculate E8 geometric position
         parent_basins = [p.affinity_basin for p in parent_profiles]
-        m8_position = compute_m8_position(new_profile.affinity_basin, parent_basins)
+        e8_position = compute_e8_position(new_profile.affinity_basin, parent_basins)
         
         # CRITICAL: Spawned kernel will use RUNNING COUPLING during training
         # κ evolves via β-function (not constant) - see BETA_FUNCTION_COMPLETE_REFERENCE.md
@@ -1591,7 +1591,7 @@ class M8KernelSpawner:
             spawned_at=datetime.now().isoformat(),
             genesis_votes=genesis_votes,
             basin_lineage=basin_lineage,
-            m8_position=m8_position,
+            e8_position=e8_position,
         )
         
         # Get E8 specialization level for logging
@@ -1613,11 +1613,11 @@ class M8KernelSpawner:
         self.spawned_kernels[spawned.kernel_id] = spawned
         proposal.status = "spawned"
         
-        # Persist spawned kernel to M8 PostgreSQL persistence
+        # Persist spawned kernel to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_kernel(spawned)
+            self.e8_persistence.persist_kernel(spawned)
         except Exception as e:
-            print(f"[M8] Failed to persist kernel to M8 tables: {e}")
+            print(f"[E8] Failed to persist kernel to E8 tables: {e}")
         
         spawn_record = {
             "event": "kernel_spawned",
@@ -1627,11 +1627,11 @@ class M8KernelSpawner:
         }
         self.spawn_history.append(spawn_record)
         
-        # Persist history to M8 PostgreSQL persistence
+        # Persist history to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_history(spawn_record)
+            self.e8_persistence.persist_history(spawn_record)
         except Exception as e:
-            print(f"[M8] Failed to persist history to M8 tables: {e}")
+            print(f"[E8] Failed to persist history to E8 tables: {e}")
         
         # Legacy persistence for backward compatibility
         if self.kernel_persistence:
@@ -1644,7 +1644,7 @@ class M8KernelSpawner:
                     parent_gods=proposal.parent_gods,
                     basin_coords=new_profile.affinity_basin.tolist(),
                     phi=spawned.phi,  # CRITICAL: Initialize with PHI_INIT_SPAWNED (0.25)
-                    m8_position=m8_position,
+                    e8_position=e8_position,
                     genesis_votes=genesis_votes,
                     metadata={
                         'element': proposal.proposed_element,
@@ -1655,7 +1655,7 @@ class M8KernelSpawner:
                     }
                 )
             except Exception as e:
-                print(f"[M8] Failed to persist spawn event: {e}")
+                print(f"[E8] Failed to persist spawn event: {e}")
         
         return {
             "success": True,
@@ -1843,7 +1843,7 @@ class M8KernelSpawner:
                     }
                 )
             except Exception as e:
-                print(f"[M8] Failed to persist graduation: {e}")
+                print(f"[E8] Failed to persist graduation: {e}")
         
         return {
             "success": True,
@@ -2026,12 +2026,12 @@ class M8KernelSpawner:
         """Get spawner status - reads from PostgreSQL for real kernel counts."""
         # Get real kernel stats from PostgreSQL
         db_stats = {}
-        if M8_PERSISTENCE_AVAILABLE:
+        if E8_PERSISTENCE_AVAILABLE:
             try:
                 persistence = KernelPersistence()
                 db_stats = persistence.get_evolution_stats()
             except Exception as e:
-                print(f"[M8] Could not load DB stats: {e}")
+                print(f"[E8] Could not load DB stats: {e}")
         
         total_kernels = int(db_stats.get('total_kernels', 0) or 0)
         live_gods = int(db_stats.get('live_gods', 0) or 0)
@@ -2110,12 +2110,12 @@ class M8KernelSpawner:
         }
         self.spawn_history.append(deletion_record)
         
-        # Persist deletion to M8 PostgreSQL persistence
+        # Persist deletion to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_history(deletion_record)
-            self.m8_persistence.delete_kernel(kernel_id)
+            self.e8_persistence.persist_history(deletion_record)
+            self.e8_persistence.delete_kernel(kernel_id)
         except Exception as e:
-            print(f"[M8] Failed to persist deletion to M8 tables: {e}")
+            print(f"[E8] Failed to persist deletion to E8 tables: {e}")
         
         if self.kernel_persistence:
             try:
@@ -2127,7 +2127,7 @@ class M8KernelSpawner:
                     parent_gods=[],
                     basin_coords=[0.0] * BASIN_DIM,
                     phi=0.0,
-                    m8_position=None,
+                    e8_position=None,
                     genesis_votes={},
                     metadata={
                         "deleted": True,
@@ -2136,9 +2136,9 @@ class M8KernelSpawner:
                     }
                 )
             except Exception as e:
-                print(f"[M8] Failed to persist deletion: {e}")
+                print(f"[E8] Failed to persist deletion: {e}")
         
-        print(f"[M8] Deleted kernel {kernel_id} ({god_name}): {reason}")
+        print(f"[E8] Deleted kernel {kernel_id} ({god_name}): {reason}")
         
         return {
             "success": True,
@@ -2223,12 +2223,12 @@ class M8KernelSpawner:
         }
         self.spawn_history.append(cannibalization_record)
         
-        # Persist cannibalization to M8 PostgreSQL persistence
+        # Persist cannibalization to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_history(cannibalization_record)
-            self.m8_persistence.persist_awareness(target_awareness)
+            self.e8_persistence.persist_history(cannibalization_record)
+            self.e8_persistence.persist_awareness(target_awareness)
         except Exception as e:
-            print(f"[M8] Failed to persist cannibalization to M8 tables: {e}")
+            print(f"[E8] Failed to persist cannibalization to E8 tables: {e}")
         
         if self.kernel_persistence:
             try:
@@ -2243,14 +2243,14 @@ class M8KernelSpawner:
                     metadata={'fisher_distance': float(fisher_distance)}
                 )
             except Exception as e:
-                print(f"[M8] Failed to persist cannibalization awareness: {e}")
+                print(f"[E8] Failed to persist cannibalization awareness: {e}")
         
         deletion_result = self.delete_kernel(source_id, reason=f"cannibalized_by_{target_id}")
         
         avg_phi = float(np.mean(target_awareness.phi_trajectory[-20:])) if target_awareness.phi_trajectory else 0.0
         avg_kappa = float(np.mean(target_awareness.kappa_trajectory[-20:])) if target_awareness.kappa_trajectory else 0.0
         
-        print(f"[M8] Cannibalized {source_id} into {target_id}, distance={fisher_distance:.4f}")
+        print(f"[E8] Cannibalized {source_id} into {target_id}, distance={fisher_distance:.4f}")
         
         return {
             "success": True,
@@ -2278,7 +2278,7 @@ class M8KernelSpawner:
         - Basin coordinates interpolated from all source kernels
         - Combined phi/kappa trajectories
         - Merged domains and metadata
-        - M8 position computed from parent basins
+        - E8 position computed from parent basins
         
         Original kernels are deleted after successful merge.
         
@@ -2337,7 +2337,7 @@ class M8KernelSpawner:
         if len(merged_research) > 30:
             merged_research = merged_research[-30:]
         
-        m8_position = compute_m8_position(merged_basin, basins)
+        e8_position = compute_e8_position(merged_basin, basins)
         
         mode = kernels[0].profile.mode
         mode_counts = {}
@@ -2382,7 +2382,7 @@ class M8KernelSpawner:
             spawned_at=datetime.now().isoformat(),
             genesis_votes={},
             basin_lineage={k.profile.god_name: 1.0/len(kernels) for k in kernels},
-            m8_position=m8_position,
+            e8_position=e8_position,
         )
         
         new_kernel.observation.status = KernelObservationStatus.ACTIVE
@@ -2397,12 +2397,12 @@ class M8KernelSpawner:
         new_awareness.research_opportunities = merged_research
         self.kernel_awareness[new_kernel_id] = new_awareness
         
-        # Persist merged kernel and awareness to M8 PostgreSQL persistence
+        # Persist merged kernel and awareness to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_kernel(new_kernel)
-            self.m8_persistence.persist_awareness(new_awareness)
+            self.e8_persistence.persist_kernel(new_kernel)
+            self.e8_persistence.persist_awareness(new_awareness)
         except Exception as e:
-            print(f"[M8] Failed to persist merged kernel to M8 tables: {e}")
+            print(f"[E8] Failed to persist merged kernel to E8 tables: {e}")
         
         merge_record = {
             "event": "kernels_merged",
@@ -2414,11 +2414,11 @@ class M8KernelSpawner:
         }
         self.spawn_history.append(merge_record)
         
-        # Persist merge history to M8 PostgreSQL persistence
+        # Persist merge history to E8 PostgreSQL persistence
         try:
-            self.m8_persistence.persist_history(merge_record)
+            self.e8_persistence.persist_history(merge_record)
         except Exception as e:
-            print(f"[M8] Failed to persist merge history to M8 tables: {e}")
+            print(f"[E8] Failed to persist merge history to E8 tables: {e}")
         
         if self.kernel_persistence:
             try:
@@ -2430,7 +2430,7 @@ class M8KernelSpawner:
                     parent_gods=parent_gods,
                     basin_coords=merged_basin.tolist(),
                     phi=float(np.mean(merged_phi_trajectory)) if merged_phi_trajectory else 0.0,
-                    m8_position=m8_position,
+                    e8_position=e8_position,
                     genesis_votes={},
                     metadata={
                         "merged_from": [k.profile.god_name for k in kernels],
@@ -2447,7 +2447,7 @@ class M8KernelSpawner:
                     metadata={'merged_domains': merged_domain, 'parent_gods': parent_gods}
                 )
             except Exception as e:
-                print(f"[M8] Failed to persist merge: {e}")
+                print(f"[E8] Failed to persist merge: {e}")
         
         deleted_ids = []
         for kid in kernel_ids:
@@ -2455,7 +2455,7 @@ class M8KernelSpawner:
             if result.get("success"):
                 deleted_ids.append(kid)
         
-        print(f"[M8] Merged {len(kernels)} kernels into {new_name} ({new_kernel_id})")
+        print(f"[E8] Merged {len(kernels)} kernels into {new_name} ({new_kernel_id})")
         
         return {
             "success": True,
@@ -2470,7 +2470,7 @@ class M8KernelSpawner:
                 "avg_kappa": float(np.mean(merged_kappa_trajectory)) if merged_kappa_trajectory else 0.0,
             },
             "deleted_originals": deleted_ids,
-            "m8_position": m8_position,
+            "e8_position": e8_position,
         }
 
     def auto_cannibalize(self, use_geometric_fitness: bool = True) -> Dict:
@@ -2508,7 +2508,7 @@ class M8KernelSpawner:
                             'failure_count': k.get('failure_count', 0) or 0,
                         }))
             except Exception as e:
-                print(f"[M8] Failed to load kernels from DB for auto-cannibalize: {e}")
+                print(f"[E8] Failed to load kernels from DB for auto-cannibalize: {e}")
         
         db_ids = {k[0] for k in all_kernels}
         for kid, k in self.spawned_kernels.items():
@@ -2591,7 +2591,7 @@ class M8KernelSpawner:
                 'data': data,
             })
             
-            self.m8_persistence.persist_evolution_fitness(kid, {
+            self.e8_persistence.persist_evolution_fitness(kid, {
                 'phi_current': phi_current,
                 'phi_gradient': phi_gradient,
                 'phi_velocity': phi_velocity,
@@ -2634,7 +2634,7 @@ class M8KernelSpawner:
             "fitness_range": [sorted_by_fitness[0]['geometric_fitness'], sorted_by_fitness[-1]['geometric_fitness']],
         }
         
-        self.m8_persistence.persist_evolution_event({
+        self.e8_persistence.persist_evolution_event({
             'event_type': 'auto_cannibalize',
             'source_kernel_id': source_id,
             'target_kernel_id': target_id,
@@ -2684,7 +2684,7 @@ class M8KernelSpawner:
                             'basin': np.array(basin) if not isinstance(basin, np.ndarray) else basin,
                         })
             except Exception as e:
-                print(f"[M8] Failed to load kernels from DB for auto-merge: {e}")
+                print(f"[E8] Failed to load kernels from DB for auto-merge: {e}")
         
         db_ids = {k['kernel_id'] for k in all_kernels}
         for kid, k in self.spawned_kernels.items():
@@ -2769,7 +2769,7 @@ class M8KernelSpawner:
             "reason": "Merged geometrically similar kernels to consolidate redundant exploration",
         }
         
-        self.m8_persistence.persist_evolution_event({
+        self.e8_persistence.persist_evolution_event({
             'event_type': 'auto_merge',
             'source_kernel_id': merge_cluster[0] if merge_cluster else None,
             'target_kernel_id': merge_cluster[1] if len(merge_cluster) > 1 else None,
@@ -2802,7 +2802,7 @@ class M8KernelSpawner:
             try:
                 db_kernels = self.kernel_persistence.load_all_kernels_for_ui(limit=1000)
             except Exception as e:
-                print(f"[M8] Failed to load kernels from DB for idle check: {e}")
+                print(f"[E8] Failed to load kernels from DB for idle check: {e}")
         
         # Also check in-memory kernels (fallback)
         all_kernel_ids = set(self.spawned_kernels.keys())
@@ -2871,22 +2871,22 @@ class M8KernelSpawner:
         return idle_kernels
 
 
-_default_spawner: Optional[M8KernelSpawner] = None
+_default_spawner: Optional[E8KernelSpawner] = None
 
-def get_spawner() -> M8KernelSpawner:
-    """Get or create the default M8 kernel spawner."""
+def get_spawner() -> E8KernelSpawner:
+    """Get or create the default E8 kernel spawner."""
     global _default_spawner
     if _default_spawner is None:
-        _default_spawner = M8KernelSpawner()
+        _default_spawner = E8KernelSpawner()
     return _default_spawner
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("M8 Kernel Spawning Protocol - Dynamic Kernel Genesis")
+    print("E8 Kernel Spawning Protocol - Dynamic Kernel Genesis")
     print("=" * 60)
     
-    spawner = M8KernelSpawner()
+    spawner = E8KernelSpawner()
     
     print(f"\nInitial gods: {len(spawner.orchestrator.all_profiles)}")
     print(f"Consensus type: {spawner.consensus.consensus_type.value}")
@@ -2924,5 +2924,5 @@ if __name__ == "__main__":
         print(f"  {k}: {v}")
     
     print("\n" + "=" * 60)
-    print("M8 Kernel Spawning Protocol operational!")
+    print("E8 Kernel Spawning Protocol operational!")
     print("=" * 60)

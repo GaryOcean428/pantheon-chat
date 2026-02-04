@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification script for M8 kernel spawning refactoring.
+Verification script for E8 kernel spawning refactoring.
 Checks that all modules are valid and imports work correctly.
 """
 
@@ -40,14 +40,14 @@ def check_exports(filename):
 
 def main():
     print("="*70)
-    print("M8 Kernel Spawning Refactoring Verification")
+    print("E8 Kernel Spawning Refactoring Verification")
     print("="*70)
     
     files = [
-        'm8_persistence.py',
-        'm8_consensus.py', 
-        'm8_spawner.py',
-        'm8_kernel_spawning.py'
+        'e8_persistence.py',
+        'e8_consensus.py', 
+        'e8_spawner.py',
+        'e8_kernel_spawning.py'
     ]
     
     all_valid = True
@@ -66,14 +66,14 @@ def main():
         
         # Count lines
         lines = count_lines(fname)
-        status = "✓" if lines < 2000 or fname == 'm8_kernel_spawning.py' else "⚠"
+        status = "✓" if lines < 2000 or fname == 'e8_kernel_spawning.py' else "⚠"
         print(f"  {status} {lines} lines", end="")
-        if lines >= 2000 and fname != 'm8_kernel_spawning.py':
+        if lines >= 2000 and fname != 'e8_kernel_spawning.py':
             print(f" (OVER by {lines-2000})", end="")
         print()
         
         # Check exports (except for re-export wrapper)
-        if fname != 'm8_kernel_spawning.py':
+        if fname != 'e8_kernel_spawning.py':
             classes, functions = check_exports(fname)
             if classes:
                 print(f"  Exports {len(classes)} classes: {', '.join(classes[:3])}", end="")

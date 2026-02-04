@@ -1,12 +1,12 @@
 """
-M8 Kernel Spawning Routes
+E8 Kernel Spawning Routes
 
 Flask routes for the /spawning page sub-panels:
-- /m8/status - Overview tab (spawning statistics)
-- /m8/proposals - Active spawn proposals
-- /m8/idle-kernels - Idle kernels available for work
-- /m8/history - Spawning history
-- /m8/spawn - Trigger kernel spawn (POST)
+- /e8/status - Overview tab (spawning statistics)
+- /e8/proposals - Active spawn proposals
+- /e8/idle-kernels - Idle kernels available for work
+- /e8/history - Spawning history
+- /e8/spawn - Trigger kernel spawn (POST)
 """
 
 from flask import Blueprint, jsonify, request
@@ -14,34 +14,34 @@ from datetime import datetime, timezone
 import traceback
 
 # Create blueprint
-m8_bp = Blueprint('m8', __name__)
+e8_bp = Blueprint('e8', __name__)
 
 
-def register_m8_routes(app):
-    """Register M8 routes with the Flask app."""
-    app.register_blueprint(m8_bp, url_prefix='/m8')
-    print("[INFO] M8 Kernel Spawning API registered at /m8/*")
+def register_e8_routes(app):
+    """Register E8 routes with the Flask app."""
+    app.register_blueprint(e8_bp, url_prefix='/e8')
+    print("[INFO] E8 Kernel Spawning API registered at /e8/*")
 
-# Import M8 spawner (lazy to avoid circular imports)
-_m8_spawner = None
+# Import E8 spawner (lazy to avoid circular imports)
+_e8_spawner = None
 
-def get_m8_spawner():
-    """Get or create M8KernelSpawner singleton."""
-    global _m8_spawner
-    if _m8_spawner is None:
+def get_e8_spawner():
+    """Get or create E8KernelSpawner singleton."""
+    global _e8_spawner
+    if _e8_spawner is None:
         try:
-            from m8_kernel_spawning import get_spawner
-            _m8_spawner = get_spawner()
+            from e8_kernel_spawning import get_spawner
+            _e8_spawner = get_spawner()
         except Exception as e:
-            print(f"[M8Routes] Failed to get M8KernelSpawner: {e}")
+            print(f"[E8Routes] Failed to get E8KernelSpawner: {e}")
             return None
-    return _m8_spawner
+    return _e8_spawner
 
 
-@m8_bp.route('/status', methods=['GET'])
+@e8_bp.route('/status', methods=['GET'])
 def get_status():
     """
-    Get M8 spawning system status for Overview tab.
+    Get E8 spawning system status for Overview tab.
     
     Returns:
         - total_kernels: Number of active kernels
@@ -51,7 +51,7 @@ def get_status():
         - system_health: Overall health status
     """
     try:
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             # Return mock data if spawner not available
             return jsonify({
@@ -66,7 +66,7 @@ def get_status():
                     'last_spawn': None,
                     'spawn_rate': 0.0,
                     'e8_utilization': 0.15,
-                    'message': 'M8 spawner initializing'
+                    'message': 'E8 spawner initializing'
                 }
             })
         
@@ -86,7 +86,7 @@ def get_status():
                 'e8_utilization': 0.15
             }
         except Exception as e:
-            print(f"[M8Routes] Error building status: {e}")
+            print(f"[E8Routes] Error building status: {e}")
             status = {'error': str(e)}
         
         return jsonify({
@@ -95,7 +95,7 @@ def get_status():
         })
         
     except Exception as e:
-        print(f"[M8Routes] Error getting status: {e}")
+        print(f"[E8Routes] Error getting status: {e}")
         traceback.print_exc()
         return jsonify({
             'success': False,
@@ -103,7 +103,7 @@ def get_status():
         }), 500
 
 
-@m8_bp.route('/proposals', methods=['GET'])
+@e8_bp.route('/proposals', methods=['GET'])
 def get_proposals():
     """
     Get active spawn proposals for Proposals tab.
@@ -117,7 +117,7 @@ def get_proposals():
         - status: pending/approved/rejected
     """
     try:
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             return jsonify({
                 'success': True,
@@ -154,7 +154,7 @@ def get_proposals():
         })
         
     except Exception as e:
-        print(f"[M8Routes] Error getting proposals: {e}")
+        print(f"[E8Routes] Error getting proposals: {e}")
         traceback.print_exc()
         return jsonify({
             'success': False,
@@ -162,7 +162,7 @@ def get_proposals():
         }), 500
 
 
-@m8_bp.route('/idle-kernels', methods=['GET'])
+@e8_bp.route('/idle-kernels', methods=['GET'])
 def get_idle_kernels():
     """
     Get idle kernels for Idle Kernels tab.
@@ -177,7 +177,7 @@ def get_idle_kernels():
         - phi: Current integration level
     """
     try:
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             # Return sample idle kernels data
             return jsonify({
@@ -238,7 +238,7 @@ def get_idle_kernels():
         })
         
     except Exception as e:
-        print(f"[M8Routes] Error getting idle kernels: {e}")
+        print(f"[E8Routes] Error getting idle kernels: {e}")
         traceback.print_exc()
         return jsonify({
             'success': False,
@@ -246,7 +246,7 @@ def get_idle_kernels():
         }), 500
 
 
-@m8_bp.route('/history', methods=['GET'])
+@e8_bp.route('/history', methods=['GET'])
 def get_history():
     """
     Get spawning history for History tab.
@@ -269,7 +269,7 @@ def get_history():
         offset = request.args.get('offset', 0, type=int)
         status_filter = request.args.get('status', 'all')
         
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             # Return sample history
             return jsonify({
@@ -352,7 +352,7 @@ def get_history():
         })
         
     except Exception as e:
-        print(f"[M8Routes] Error getting history: {e}")
+        print(f"[E8Routes] Error getting history: {e}")
         traceback.print_exc()
         return jsonify({
             'success': False,
@@ -360,7 +360,7 @@ def get_history():
         }), 500
 
 
-@m8_bp.route('/spawn', methods=['POST'])
+@e8_bp.route('/spawn', methods=['POST'])
 def spawn_kernel():
     """
     Trigger kernel spawn.
@@ -389,16 +389,16 @@ def spawn_kernel():
                 'error': 'kernel_specialization is required'
             }), 400
         
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             return jsonify({
                 'success': False,
-                'error': 'M8 spawner not available',
+                'error': 'E8 spawner not available',
                 'message': 'Spawning system initializing'
             }), 503
         
-        # Spawn via canonical M8 flow
-        from m8_kernel_spawning import SpawnReason
+        # Spawn via canonical E8 flow
+        from e8_kernel_spawning import SpawnReason
         result = None
         try:
             result = spawner.propose_and_spawn(
@@ -415,7 +415,7 @@ def spawn_kernel():
                 force=bool(priority and float(priority) >= 0.95),
             )
         except Exception as e:
-            print(f"[M8Routes] Spawn error: {e}")
+            print(f"[E8Routes] Spawn error: {e}")
             result = None
         
         if result and result.get('success'):
@@ -433,7 +433,7 @@ def spawn_kernel():
             }), 500
         
     except Exception as e:
-        print(f"[M8Routes] Error spawning kernel: {e}")
+        print(f"[E8Routes] Error spawning kernel: {e}")
         traceback.print_exc()
         return jsonify({
             'success': False,
@@ -441,15 +441,15 @@ def spawn_kernel():
         }), 500
 
 
-@m8_bp.route('/approve/<proposal_id>', methods=['POST'])
+@e8_bp.route('/approve/<proposal_id>', methods=['POST'])
 def approve_proposal(proposal_id: str):
     """Approve a spawn proposal."""
     try:
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             return jsonify({
                 'success': False,
-                'error': 'M8 spawner not available'
+                'error': 'E8 spawner not available'
             }), 503
         
         result = spawner.vote_on_proposal(proposal_id, vote=True) if hasattr(spawner, 'vote_on_proposal') else None
@@ -461,25 +461,25 @@ def approve_proposal(proposal_id: str):
         })
         
     except Exception as e:
-        print(f"[M8Routes] Error approving proposal: {e}")
+        print(f"[E8Routes] Error approving proposal: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 
-@m8_bp.route('/reject/<proposal_id>', methods=['POST'])
+@e8_bp.route('/reject/<proposal_id>', methods=['POST'])
 def reject_proposal(proposal_id: str):
     """Reject a spawn proposal."""
     try:
         data = request.get_json() or {}
         reason = data.get('reason', 'Manual rejection')
         
-        spawner = get_m8_spawner()
+        spawner = get_e8_spawner()
         if spawner is None:
             return jsonify({
                 'success': False,
-                'error': 'M8 spawner not available'
+                'error': 'E8 spawner not available'
             }), 503
         
         result = spawner.vote_on_proposal(proposal_id, vote=False, reason=reason) if hasattr(spawner, 'vote_on_proposal') else None
@@ -491,7 +491,7 @@ def reject_proposal(proposal_id: str):
         })
         
     except Exception as e:
-        print(f"[M8Routes] Error rejecting proposal: {e}")
+        print(f"[E8Routes] Error rejecting proposal: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

@@ -617,8 +617,8 @@ export interface PythonWarStatusResponse {
 // KERNEL SPAWNING RESPONSES
 // =============================================================================
 
-/** M8 position data */
-export interface PythonM8Position {
+/** E8 position data */
+export interface PythonE8Position {
   x: number;
   y: number;
   z: number;
@@ -630,7 +630,7 @@ export interface PythonSpawnKernelResponse extends PythonBaseResponse {
   kernel_id?: string;
   name: string;
   domain: string;
-  m8_position?: PythonM8Position;
+  e8_position?: PythonE8Position;
 }
 
 /** Spawned kernel info */

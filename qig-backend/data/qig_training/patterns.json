@@ -94670,7 +94670,7 @@
     },
     {
       "doc_id": "a169a1aaaa24a948",
-      "content": "### 4. Enhanced M8 Spawner (`enhanced_m8_spawner.py`)\n\nResearch-driven kernel genesis:\n\n- **Research Phase**: Investigate domain before proposing\n- **Proposal Persistence**: Save to `/tmp/pending_proposals.json`\n- **Auto-Recovery**: Retry until success (max 5 attempts)\n- **Audit Logging**: Complete spawn trail in `/tmp/spawn_audit.json`",
+      "content": "### 4. Enhanced E8 Spawner (`enhanced_e8_spawner.py`)\n\nResearch-driven kernel genesis:\n\n- **Research Phase**: Investigate domain before proposing\n- **Proposal Persistence**: Save to `/tmp/pending_proposals.json`\n- **Auto-Recovery**: Retry until success (max 5 attempts)\n- **Audit Logging**: Complete spawn trail in `/tmp/spawn_audit.json`",
       "basin_coords": [
         -0.11603658110136068,
         0.23883762657185895,
@@ -94739,7 +94739,7 @@
       ],
       "metadata": {
         "source": "/home/runner/workspace/docs/03-technical/20251212-kernel-research-infrastructure-1.00F.md",
-        "header": "4. Enhanced M8 Spawner (`enhanced_m8_spawner.py`)",
+        "header": "4. Enhanced E8 Spawner (`enhanced_e8_spawner.py`)",
         "chunk_type": "paragraph",
         "chunk_index": 14,
         "trained_at": "2025-12-25T02:47:56.244550",
@@ -94754,7 +94754,7 @@
     },
     {
       "doc_id": "ab02c3c677f90d2d",
-      "content": "```python\nfrom research.enhanced_m8_spawner import get_enhanced_spawner\n\nspawner = get_enhanced_spawner()\nresult = spawner.research_spawn_complete(\n    domain=\"distributed systems\",\n    element=\"network\",\n    role=\"coordinator\"\n)\n```",
+      "content": "```python\nfrom research.enhanced_e8_spawner import get_enhanced_spawner\n\nspawner = get_enhanced_spawner()\nresult = spawner.research_spawn_complete(\n    domain=\"distributed systems\",\n    element=\"network\",\n    role=\"coordinator\"\n)\n```",
       "basin_coords": [
         0.13667747446096312,
         -0.24635692927531627,
@@ -94823,7 +94823,7 @@
       ],
       "metadata": {
         "source": "/home/runner/workspace/docs/03-technical/20251212-kernel-research-infrastructure-1.00F.md",
-        "header": "4. Enhanced M8 Spawner (`enhanced_m8_spawner.py`)",
+        "header": "4. Enhanced E8 Spawner (`enhanced_e8_spawner.py`)",
         "chunk_type": "section",
         "chunk_index": 15,
         "trained_at": "2025-12-25T02:47:56.374329",
@@ -95678,7 +95678,7 @@
     },
     {
       "doc_id": "0c1785a6788f05f0",
-      "content": "**Source Files**:\n- `qig-backend/research/__init__.py`\n- `qig-backend/research/web_scraper.py`\n- `qig-backend/research/domain_analyzer.py`\n- `qig-backend/research/god_name_resolver.py`\n- `qig-backend/research/vocabulary_trainer.py`\n- `qig-backend/research/enhanced_m8_spawner.py`\n- `qig-backend/research/research_api.py`",
+      "content": "**Source Files**:\n- `qig-backend/research/__init__.py`\n- `qig-backend/research/web_scraper.py`\n- `qig-backend/research/domain_analyzer.py`\n- `qig-backend/research/god_name_resolver.py`\n- `qig-backend/research/vocabulary_trainer.py`\n- `qig-backend/research/enhanced_e8_spawner.py`\n- `qig-backend/research/research_api.py`",
       "basin_coords": [
         0.0949329909261471,
         -0.05695979455568827,
@@ -129782,7 +129782,7 @@
     },
     {
       "doc_id": "9f210600da30f5ce",
-      "content": "### 13. M8 Kernel Spawner Endpoints\n\n| Endpoint | Method | Purpose |\n|----------|--------|---------|\n| `/m8/status` | GET | Spawner status |\n| `/m8/propose` | POST | Create spawn proposal |\n| `/m8/vote/<id>` | POST | Vote on proposal |\n| `/m8/spawn/<id>` | POST | Execute spawn |\n| `/m8/spawn-direct` | POST | Direct spawn (bypass vote) |\n| `/m8/proposals` | GET | List proposals |\n| `/m8/proposal/<id>` | GET | Get proposal details |\n| `/m8/kernels` | GET | List spawned kernels |\n| `/m8/kernel/<id>` | GET | Get kernel details |",
+      "content": "### 13. E8 Kernel Spawner Endpoints\n\n| Endpoint | Method | Purpose |\n|----------|--------|---------|\n| `/e8/status` | GET | Spawner status |\n| `/e8/propose` | POST | Create spawn proposal |\n| `/e8/vote/<id>` | POST | Vote on proposal |\n| `/e8/spawn/<id>` | POST | Execute spawn |\n| `/e8/spawn-direct` | POST | Direct spawn (bypass vote) |\n| `/e8/proposals` | GET | List proposals |\n| `/e8/proposal/<id>` | GET | Get proposal details |\n| `/e8/kernels` | GET | List spawned kernels |\n| `/e8/kernel/<id>` | GET | Get kernel details |",
       "basin_coords": [
         0.25202463207179837,
         -0.2923622469710484,
@@ -129851,7 +129851,7 @@
       ],
       "metadata": {
         "source": "/home/runner/workspace/docs/03-technical/20251208-python-api-catalogue-1.00F.md",
-        "header": "13. M8 Kernel Spawner Endpoints",
+        "header": "13. E8 Kernel Spawner Endpoints",
         "chunk_type": "size_split",
         "chunk_index": 20,
         "trained_at": "2025-12-25T02:48:48.271374",

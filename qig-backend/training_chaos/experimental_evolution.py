@@ -120,14 +120,14 @@ except ImportError:
     PERSISTENCE_AVAILABLE = False
     print("[Chaos] Persistence not available - running without database")
 
-# Import M8SpawnerPersistence for M8 table persistence
+# Import E8SpawnerPersistence for E8 table persistence
 try:
-    from m8_kernel_spawning import M8SpawnerPersistence
-    M8_PERSISTENCE_AVAILABLE = True
+    from e8_kernel_spawning import E8SpawnerPersistence
+    E8_PERSISTENCE_AVAILABLE = True
 except ImportError:
-    M8SpawnerPersistence = None
-    M8_PERSISTENCE_AVAILABLE = False
-    print("[Chaos] M8SpawnerPersistence not available - M8 tables will not be populated")
+    E8SpawnerPersistence = None
+    E8_PERSISTENCE_AVAILABLE = False
+    print("[Chaos] E8SpawnerPersistence not available - E8 tables will not be populated")
 
 
 class ExperimentalKernelEvolution:
@@ -191,14 +191,14 @@ class ExperimentalKernelEvolution:
         if PERSISTENCE_AVAILABLE and KernelPersistence is not None:
             self.kernel_persistence = KernelPersistence()
 
-        # M8 Persistence (m8_spawned_kernels, m8_spawn_history, m8_kernel_awareness tables)
-        self.m8_persistence = None
-        if M8_PERSISTENCE_AVAILABLE and M8SpawnerPersistence is not None:
+        # E8 Persistence (e8_spawned_kernels, e8_spawn_history, e8_kernel_awareness tables)
+        self.e8_persistence = None
+        if E8_PERSISTENCE_AVAILABLE and E8SpawnerPersistence is not None:
             try:
-                self.m8_persistence = M8SpawnerPersistence()
-                print("[Chaos] ✓ M8SpawnerPersistence enabled for M8 table population")
+                self.e8_persistence = E8SpawnerPersistence()
+                print("[Chaos] ✓ E8SpawnerPersistence enabled for E8 table population")
             except Exception as e:
-                print(f"[Chaos] Failed to initialize M8SpawnerPersistence: {e}")
+                print(f"[Chaos] Failed to initialize E8SpawnerPersistence: {e}")
 
         # Evolution thread
         self._evolution_running = False
@@ -841,8 +841,8 @@ class ExperimentalKernelEvolution:
             except Exception as e:
                 print(f"[Chaos] Failed to persist kernel {god_name}: {e}")
 
-        # Persist to M8 tables (m8_spawned_kernels, m8_spawn_history)
-        self._persist_to_m8_tables(
+        # Persist to E8 tables (e8_spawned_kernels, e8_spawn_history)
+        self._persist_to_e8_tables(
             kernel_id=kernel.kernel_id,
             god_name=god_name,
             domain=domain,
@@ -901,8 +901,8 @@ class ExperimentalKernelEvolution:
             except Exception as e:
                 print(f"[Chaos] Failed to persist child {god_name}: {e}")
 
-        # Persist to M8 tables (m8_spawned_kernels, m8_spawn_history)
-        self._persist_to_m8_tables(
+        # Persist to E8 tables (e8_spawned_kernels, e8_spawn_history)
+        self._persist_to_e8_tables(
             kernel_id=child.kernel_id,
             god_name=god_name,
             domain='reproduction',
@@ -1325,7 +1325,7 @@ class ExperimentalKernelEvolution:
             'kernels': [k.get_stats() for k in living],
         }
 
-    def _persist_to_m8_tables(
+    def _persist_to_e8_tables(
         self,
         kernel_id: str,
         god_name: str,
@@ -1336,12 +1336,12 @@ class ExperimentalKernelEvolution:
         spawn_reason: str
     ) -> bool:
         """
-        Persist kernel spawn to M8 tables (m8_spawned_kernels, m8_spawn_history).
+        Persist kernel spawn to E8 tables (e8_spawned_kernels, e8_spawn_history).
         
-        This populates the M8 schema tables that track spawned kernels separately
+        This populates the E8 schema tables that track spawned kernels separately
         from the legacy kernel_persistence tables.
         """
-        if not self.m8_persistence:
+        if not self.e8_persistence:
             return False
         
         try:
@@ -1349,7 +1349,7 @@ class ExperimentalKernelEvolution:
             from datetime import datetime
             import uuid as uuid_mod
             
-            # Build M8-compatible kernel record for m8_spawn_history
+            # Build E8-compatible kernel record for e8_spawn_history
             spawn_record = {
                 'event_id': f"evt_{uuid_mod.uuid4().hex}",
                 'event': 'chaos_kernel_spawned',
@@ -1364,13 +1364,13 @@ class ExperimentalKernelEvolution:
                 'timestamp': datetime.now().isoformat(),
             }
             
-            # Persist to m8_spawn_history
-            self.m8_persistence.persist_history(spawn_record)
+            # Persist to e8_spawn_history
+            self.e8_persistence.persist_history(spawn_record)
             
-            # For m8_spawned_kernels, we need a SpawnedKernel-like object
-            # M8SpawnerPersistence.persist_kernel expects a SpawnedKernel object
+            # For e8_spawned_kernels, we need a SpawnedKernel-like object
+            # E8SpawnerPersistence.persist_kernel expects a SpawnedKernel object
             # So we persist directly via SQL for chaos kernels
-            self._persist_chaos_kernel_to_m8(
+            self._persist_chaos_kernel_to_e8(
                 kernel_id=kernel_id,
                 god_name=god_name,
                 domain=domain,
@@ -1380,14 +1380,14 @@ class ExperimentalKernelEvolution:
                 spawn_reason=spawn_reason
             )
             
-            print(f"[Chaos] ✓ M8 tables updated for {god_name}")
+            print(f"[Chaos] ✓ E8 tables updated for {god_name}")
             return True
             
         except Exception as e:
-            print(f"[Chaos] Failed to persist to M8 tables: {e}")
+            print(f"[Chaos] Failed to persist to E8 tables: {e}")
             return False
     
-    def _persist_chaos_kernel_to_m8(
+    def _persist_chaos_kernel_to_e8(
         self,
         kernel_id: str,
         god_name: str,
@@ -1398,9 +1398,9 @@ class ExperimentalKernelEvolution:
         spawn_reason: str
     ) -> bool:
         """
-        Directly persist chaos kernel to m8_spawned_kernels table.
+        Directly persist chaos kernel to e8_spawned_kernels table.
         """
-        if not self.m8_persistence or not self.m8_persistence.database_url:
+        if not self.e8_persistence or not self.e8_persistence.database_url:
             return False
         
         try:
@@ -1408,17 +1408,17 @@ class ExperimentalKernelEvolution:
             import psycopg2
             from datetime import datetime
             
-            conn = psycopg2.connect(self.m8_persistence.database_url)
+            conn = psycopg2.connect(self.e8_persistence.database_url)
             try:
                 with conn.cursor() as cur:
                     # Convert basin_coords to PostgreSQL array format (uses {} not [])
                     basin_str = '{' + ','.join(str(float(x)) for x in basin_coords) + '}'
                     
                     cur.execute("""
-                        INSERT INTO m8_spawned_kernels
+                        INSERT INTO e8_spawned_kernels
                         (kernel_id, god_name, domain, mode, affinity_strength,
                          entropy_threshold, basin_coords, parent_gods, spawn_reason,
-                         proposal_id, genesis_votes, basin_lineage, m8_position,
+                         proposal_id, genesis_votes, basin_lineage, e8_position,
                          observation_state, autonomic_state, profile_metadata,
                          status, spawned_at)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -1439,7 +1439,7 @@ class ExperimentalKernelEvolution:
                         f"chaos_{kernel_id}",  # proposal_id
                         json.dumps({}),  # genesis_votes
                         json.dumps({g: 1.0/max(1,len(parent_gods)) for g in parent_gods}),  # basin_lineage
-                        json.dumps({'phi': phi}),  # m8_position
+                        json.dumps({'phi': phi}),  # e8_position
                         json.dumps({'status': 'observing'}),  # observation_state
                         json.dumps({'has_autonomic': True}),  # autonomic_state
                         json.dumps({'spawn_type': 'chaos', 'phi': phi}),  # profile_metadata
@@ -1451,7 +1451,7 @@ class ExperimentalKernelEvolution:
             finally:
                 conn.close()
         except Exception as e:
-            print(f"[Chaos] Failed to persist chaos kernel to m8_spawned_kernels: {e}")
+            print(f"[Chaos] Failed to persist chaos kernel to e8_spawned_kernels: {e}")
             return False
 
     def _find_kernel(self, kernel_id: str) -> Optional[SelfSpawningKernel]:
@@ -1512,8 +1512,8 @@ class ExperimentalKernelEvolution:
 
         print(f"⚡ God {god_name} spawned CHAOS kernel {kernel.kernel_id}")
 
-        # Persist to M8 tables (m8_spawned_kernels, m8_spawn_history)
-        self._persist_to_m8_tables(
+        # Persist to E8 tables (e8_spawned_kernels, e8_spawn_history)
+        self._persist_to_e8_tables(
             kernel_id=kernel.kernel_id,
             god_name=god_name,
             domain='god_spawn',

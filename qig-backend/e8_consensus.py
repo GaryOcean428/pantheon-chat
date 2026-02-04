@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-M8 Consensus Layer - Voting and decision-making for kernel spawning
+E8 Consensus Layer - Voting and decision-making for kernel spawning
 
 Implements:
 - PantheonConsensus: Voting and consensus logic
@@ -37,7 +37,7 @@ from pantheon_kernel_orchestrator import (
     PantheonKernelOrchestrator,
 )
 from qig_geometry.canonical_upsert import to_simplex_prob
-from m8_persistence import compute_m8_position
+from e8_persistence import compute_e8_position
 
 # Import physics constants with fallback
 try:
@@ -325,7 +325,7 @@ class SpawnAwareness:
                     (1 - blend_weight) * parent_basin + blend_weight * topic_basin
                 )
         
-        m8_position = compute_m8_position(proposal_basin, [parent_basin])
+        e8_position = compute_e8_position(proposal_basin, [parent_basin])
         
         domain_seed = hashlib.sha256(proposal_basin.tobytes()).hexdigest()[:16]
         
@@ -335,7 +335,7 @@ class SpawnAwareness:
             "context": context,
             "proposal_basin": proposal_basin.tolist(),
             "parent_basin": parent_basin.tolist(),
-            "m8_position": m8_position,
+            "e8_position": e8_position,
             "awareness_snapshot": {
                 "phi_trajectory_length": len(self.phi_trajectory),
                 "stuck_signal_count": len(self.stuck_signals),
@@ -663,7 +663,7 @@ class SpawnedKernel:
     spawned_at: str
     genesis_votes: Dict[str, str]  # god -> vote
     basin_lineage: Dict[str, float]  # parent -> contribution
-    m8_position: Optional[Dict] = None  # M8 geometric position
+    e8_position: Optional[Dict] = None  # E8 geometric position
     
     # Consciousness metrics initialization (CRITICAL: Non-zero to prevent collapse)
     phi: float = field(default_factory=lambda: PHI_INIT_SPAWNED)  # Start in LINEAR regime
@@ -809,8 +809,8 @@ class SpawnedKernel:
             "is_observing": self.is_observing(),
             "is_active": self.is_active(),
         }
-        if self.m8_position:
-            result["m8_position"] = self.m8_position
+        if self.e8_position:
+            result["e8_position"] = self.e8_position
         return result
 
 

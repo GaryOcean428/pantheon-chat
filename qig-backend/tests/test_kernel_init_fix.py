@@ -53,9 +53,9 @@ class TestKernelInitializationFix(unittest.TestCase):
         print(f"  PHI_MIN_ALIVE: {PHI_MIN_ALIVE}")
         print(f"  KAPPA_INIT_SPAWNED: {KAPPA_INIT_SPAWNED}")
     
-    def test_m8_spawned_kernel_phi_initialization(self):
-        """Verify M8 SpawnedKernel initializes with phi >= 0.25."""
-        from m8_kernel_spawning import SpawnedKernel, SpawnReason
+    def test_e8_spawned_kernel_phi_initialization(self):
+        """Verify E8 SpawnedKernel initializes with phi >= 0.25."""
+        from e8_kernel_spawning import SpawnedKernel, SpawnReason
         from pantheon_kernel_orchestrator import KernelProfile, KernelMode
         import numpy as np
         
@@ -90,13 +90,13 @@ class TestKernelInitializationFix(unittest.TestCase):
         self.assertGreater(kernel.kappa, 0, "Spawned kernel kappa must be > 0")
         self.assertAlmostEqual(kernel.kappa, 64.21, delta=1.0, msg="Spawned kernel kappa should be near KAPPA_STAR")
         
-        print(f"✓ M8 SpawnedKernel initialized correctly")
+        print(f"✓ E8 SpawnedKernel initialized correctly")
         print(f"  phi: {kernel.phi:.3f} (>= 0.25)")
         print(f"  kappa: {kernel.kappa:.2f} (≈ KAPPA_STAR)")
     
-    def test_m8_spawned_kernel_to_dict_includes_phi_kappa(self):
+    def test_e8_spawned_kernel_to_dict_includes_phi_kappa(self):
         """Verify SpawnedKernel.to_dict() includes phi and kappa."""
-        from m8_kernel_spawning import SpawnedKernel, SpawnReason
+        from e8_kernel_spawning import SpawnedKernel, SpawnReason
         from pantheon_kernel_orchestrator import KernelProfile, KernelMode
         import numpy as np
         
@@ -173,7 +173,7 @@ class TestKernelInitializationFix(unittest.TestCase):
         min_phis = []
         
         for i in range(num_tests):
-            from m8_kernel_spawning import SpawnedKernel, SpawnReason
+            from e8_kernel_spawning import SpawnedKernel, SpawnReason
             from pantheon_kernel_orchestrator import KernelProfile, KernelMode
             import numpy as np
             

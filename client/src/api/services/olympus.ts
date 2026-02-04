@@ -218,7 +218,7 @@ export async function triggerShadowAct(god: string, params: Record<string, unkno
   return post<ShadowActResponse>(API_ROUTES.olympus.shadow.act(god), params);
 }
 
-// ==================== M8 KERNEL SPAWNING ====================
+// ==================== E8 KERNEL SPAWNING ====================
 
 export interface CannibalizeRequest {
   source_id: string;
@@ -275,21 +275,21 @@ export interface AutoMergeResponse {
 }
 
 export async function deleteKernel(kernelId: string): Promise<{ success: boolean }> {
-  return del<{ success: boolean }>(API_ROUTES.olympus.m8.kernel(kernelId));
+  return del<{ success: boolean }>(API_ROUTES.olympus.e8.kernel(kernelId));
 }
 
 export async function cannibalizeKernel(params: CannibalizeRequest): Promise<CannibalizeResponse> {
-  return post<CannibalizeResponse>(API_ROUTES.olympus.m8.cannibalize, params);
+  return post<CannibalizeResponse>(API_ROUTES.olympus.e8.cannibalize, params);
 }
 
 export async function mergeKernels(params: MergeKernelsRequest): Promise<MergeKernelsResponse> {
-  return post<MergeKernelsResponse>(API_ROUTES.olympus.m8.merge, params);
+  return post<MergeKernelsResponse>(API_ROUTES.olympus.e8.merge, params);
 }
 
 export async function autoCannibalize(params: AutoCannibalizeRequest): Promise<AutoCannibalizeResponse> {
-  return post<AutoCannibalizeResponse>(API_ROUTES.olympus.m8.autoCannibalize, params);
+  return post<AutoCannibalizeResponse>(API_ROUTES.olympus.e8.autoCannibalize, params);
 }
 
 export async function autoMerge(params: AutoMergeRequest): Promise<AutoMergeResponse> {
-  return post<AutoMergeResponse>(API_ROUTES.olympus.m8.autoMerge, params);
+  return post<AutoMergeResponse>(API_ROUTES.olympus.e8.autoMerge, params);
 }

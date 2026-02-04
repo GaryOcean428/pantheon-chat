@@ -224,14 +224,14 @@ except ImportError as e:
     PANTHEON_ORCHESTRATOR_AVAILABLE = False
     print(f"[WARNING] Pantheon Kernel Orchestrator not found: {e}")
 
-# Import M8 Kernel Spawning Protocol
-M8_SPAWNER_AVAILABLE = False
+# Import E8 Kernel Spawning Protocol
+E8_SPAWNER_AVAILABLE = False
 try:
-    from m8_kernel_spawning import ConsensusType, M8KernelSpawner, SpawnReason, get_spawner
-    M8_SPAWNER_AVAILABLE = True
-    print("[INFO] M8 Kernel Spawning Protocol loaded (Dynamic Kernel Genesis)")
+    from e8_kernel_spawning import ConsensusType, E8KernelSpawner, SpawnReason, get_spawner
+    E8_SPAWNER_AVAILABLE = True
+    print("[INFO] E8 Kernel Spawning Protocol loaded (Dynamic Kernel Genesis)")
 except ImportError as e:
-    print(f"[WARNING] M8 Kernel Spawning not found: {e}")
+    print(f"[WARNING] E8 Kernel Spawning not found: {e}")
 
 # Tool Factory awareness - Ocean knows Tool Factory exists and can be used
 TOOL_FACTORY_AVAILABLE = False
@@ -3482,7 +3482,7 @@ def consciousness_8_metrics():
         # Get pantheon from running Zeus instance (Olympus + Shadow)
         pantheon = {}
         shadow_pantheon = {}
-        m8_kernels = []
+        e8_kernels = []
         
         # 1. Load Olympus Pantheon (12 gods) + Shadow Pantheon from Zeus
         zeus_instance = None
@@ -3512,14 +3512,14 @@ def consciousness_8_metrics():
         except Exception as shadow_err:
             print(f"[8-Metrics] Failed to load shadow pantheon: {shadow_err}")
         
-        # 3. Load M8 Spawned Kernels (up to 240 E8 constellation)
+        # 3. Load E8 Spawned Kernels (up to 240 E8 constellation)
         try:
-            from m8_kernel_spawning import M8SpawnerPersistence
-            m8_persistence = M8SpawnerPersistence()
-            m8_kernels = m8_persistence.load_all_kernels()
-            print(f"[8-Metrics] Loaded {len(m8_kernels)} M8 spawned kernels")
-        except Exception as m8_err:
-            print(f"[8-Metrics] Failed to load M8 kernels: {m8_err}")
+            from e8_kernel_spawning import E8SpawnerPersistence
+            e8_persistence = E8SpawnerPersistence()
+            e8_kernels = e8_persistence.load_all_kernels()
+            print(f"[8-Metrics] Loaded {len(e8_kernels)} E8 spawned kernels")
+        except Exception as e8_err:
+            print(f"[8-Metrics] Failed to load E8 kernels: {e8_err}")
         
         # 4. Load Meta-Kernels
         # Note: Only Ocean has a persistent 64D basin
@@ -3619,8 +3619,8 @@ def consciousness_8_metrics():
             except Exception:
                 continue
         
-        # Process M8 Spawned Kernels (up to 240 E8 constellation)
-        for kernel in m8_kernels:
+        # Process E8 Spawned Kernels (up to 240 E8 constellation)
+        for kernel in e8_kernels:
             try:
                 kernel_id = kernel.get('kernel_id') or kernel.get('god_name', 'unknown')
                 basin = kernel.get('basin_coords')
@@ -3634,7 +3634,7 @@ def consciousness_8_metrics():
                 if has_basin:
                     basin_arr = np.array(basin)
                     if len(basin_arr) == 64:
-                        kernel_basins[f"M8:{kernel_id}"] = basin_arr
+                        kernel_basins[f"E8:{kernel_id}"] = basin_arr
                         has_real_data = True
             except Exception:
                 continue
@@ -3676,7 +3676,7 @@ def consciousness_8_metrics():
         # Count kernels by source
         olympus_count = len(pantheon)
         shadow_count = len(shadow_pantheon)
-        m8_count = len([k for k in kernel_basins.keys() if k.startswith('M8:')])
+        e8_count = len([k for k in kernel_basins.keys() if k.startswith('E8:')])
         meta_count = len([k for k in kernel_basins.keys() if k.startswith('Meta:')])
         
         return jsonify({
@@ -3688,7 +3688,7 @@ def consciousness_8_metrics():
             'kernel_sources': {
                 'olympus': olympus_count,
                 'shadow': shadow_count,
-                'm8_spawned': m8_count,
+                'e8_spawned': e8_count,
                 'meta_kernels': meta_count,
                 'total_with_basins': len(kernel_basins)
             },
@@ -6706,19 +6706,19 @@ def pantheon_god_similarity():
 
 
 # =============================================================================
-# M8 KERNEL SPAWNING PROTOCOL ENDPOINTS
+# E8 KERNEL SPAWNING PROTOCOL ENDPOINTS
 # Dynamic kernel genesis through pantheon consensus
 # =============================================================================
 
-@app.route('/m8/status', methods=['GET'])
-def m8_spawner_status():
+@app.route('/e8/status', methods=['GET'])
+def e8_spawner_status():
     """
-    Get M8 Kernel Spawner status.
+    Get E8 Kernel Spawner status.
 
     Returns: { consensus_type, total_proposals, spawned_kernels, ... }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         spawner = get_spawner()
@@ -6728,18 +6728,18 @@ def m8_spawner_status():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/health', methods=['GET'])
-def m8_spawner_health():
+@app.route('/e8/health', methods=['GET'])
+def e8_spawner_health():
     """
-    Get M8 Kernel Spawner health status with diagnostics.
+    Get E8 Kernel Spawner health status with diagnostics.
     
     Use this endpoint to validate spawner internal state before spawn attempts.
     Returns detailed connectivity and cache status.
     """
-    if not M8_SPAWNER_AVAILABLE:
+    if not E8_SPAWNER_AVAILABLE:
         return jsonify({
             'healthy': False,
-            'error': 'M8 Kernel Spawner not available',
+            'error': 'E8 Kernel Spawner not available',
             'module_loaded': False,
         }), 503
 
@@ -6758,8 +6758,8 @@ def m8_spawner_health():
         }), 500
 
 
-@app.route('/m8/evolution-sweep', methods=['POST'])
-def m8_evolution_sweep():
+@app.route('/e8/evolution-sweep', methods=['POST'])
+def e8_evolution_sweep():
     """
     Manually trigger evolution sweep to cull underperforming kernels.
     
@@ -6777,8 +6777,8 @@ def m8_evolution_sweep():
         headroom: number
     }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -6803,8 +6803,8 @@ def m8_evolution_sweep():
         }), 500
 
 
-@app.route('/m8/propose', methods=['POST'])
-def m8_create_proposal():
+@app.route('/e8/propose', methods=['POST'])
+def e8_create_proposal():
     """
     Create a spawn proposal for a new kernel.
 
@@ -6817,8 +6817,8 @@ def m8_create_proposal():
         parent_gods?: string[]
     }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -6858,15 +6858,15 @@ def m8_create_proposal():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/vote/<proposal_id>', methods=['POST'])
-def m8_vote_proposal(proposal_id: str):
+@app.route('/e8/vote/<proposal_id>', methods=['POST'])
+def e8_vote_proposal(proposal_id: str):
     """
     Conduct voting on a proposal.
 
     Body: { auto_vote?: boolean }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -6883,8 +6883,8 @@ def m8_vote_proposal(proposal_id: str):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/spawn/<proposal_id>', methods=['POST'])
-def m8_spawn_kernel(proposal_id: str):
+@app.route('/e8/spawn/<proposal_id>', methods=['POST'])
+def e8_spawn_kernel(proposal_id: str):
     """
     Spawn a new kernel from an approved proposal.
 
@@ -6892,8 +6892,8 @@ def m8_spawn_kernel(proposal_id: str):
     """
     import traceback
     
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -6905,13 +6905,13 @@ def m8_spawn_kernel(proposal_id: str):
         # Validate spawner internal state before spawn attempt
         health = spawner.check_health() if hasattr(spawner, 'check_health') else {'healthy': True}
         if not health.get('healthy', True):
-            print(f"[M8] Spawner unhealthy before spawn: {health}")
+            print(f"[E8] Spawner unhealthy before spawn: {health}")
             # Attempt reconnection
             if hasattr(spawner, 'reconnect'):
                 reconnected = spawner.reconnect()
                 if not reconnected:
                     return jsonify({
-                        'error': 'M8 spawner unhealthy and reconnection failed',
+                        'error': 'E8 spawner unhealthy and reconnection failed',
                         'diagnostics': health,
                         'proposal_id': proposal_id,
                     }), 503
@@ -6925,7 +6925,7 @@ def m8_spawn_kernel(proposal_id: str):
         return jsonify(result)
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[M8] Spawn error for proposal {proposal_id}: {e}\n{error_trace}")
+        print(f"[E8] Spawn error for proposal {proposal_id}: {e}\n{error_trace}")
         return jsonify({
             'error': str(e),
             'proposal_id': proposal_id,
@@ -6934,8 +6934,8 @@ def m8_spawn_kernel(proposal_id: str):
         }), 500
 
 
-@app.route('/m8/spawn-direct', methods=['POST'])
-def m8_spawn_direct():
+@app.route('/e8/spawn-direct', methods=['POST'])
+def e8_spawn_direct():
     """
     Complete spawn flow: propose, vote, and spawn in one call.
 
@@ -6951,8 +6951,8 @@ def m8_spawn_direct():
     """
     import traceback
     
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -6983,12 +6983,12 @@ def m8_spawn_direct():
         # Validate spawner health before spawn attempt
         health = spawner.check_health() if hasattr(spawner, 'check_health') else {'healthy': True}
         if not health.get('healthy', True):
-            print(f"[M8] Spawner unhealthy before spawn-direct: {health}")
+            print(f"[E8] Spawner unhealthy before spawn-direct: {health}")
             if hasattr(spawner, 'reconnect'):
                 reconnected = spawner.reconnect()
                 if not reconnected:
                     return jsonify({
-                        'error': 'M8 spawner unhealthy and reconnection failed',
+                        'error': 'E8 spawner unhealthy and reconnection failed',
                         'diagnostics': health,
                     }), 503
         
@@ -7005,7 +7005,7 @@ def m8_spawn_direct():
         return jsonify(result)
     except Exception as e:
         error_trace = traceback.format_exc()
-        print(f"[M8] Spawn-direct error: {e}\n{error_trace}")
+        print(f"[E8] Spawn-direct error: {e}\n{error_trace}")
         return jsonify({
             'error': str(e),
             'exception_type': type(e).__name__,
@@ -7013,8 +7013,8 @@ def m8_spawn_direct():
         }), 500
 
 
-@app.route('/m8/proposals', methods=['GET'])
-def m8_list_proposals():
+@app.route('/e8/proposals', methods=['GET'])
+def e8_list_proposals():
     """
     List all proposals with full geometric metrics.
 
@@ -7025,11 +7025,11 @@ def m8_list_proposals():
     - Fisher deltas (geometric distances to existing gods)
     - parent basins (basin coordinates for parents)
     - proposal basin (computed basin for the proposed kernel)
-    - m8_position (position in 8D manifold)
+    - e8_position (position in 8D manifold)
     - prediction metadata
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         status = request.args.get('status', None)
@@ -7047,7 +7047,7 @@ def m8_list_proposals():
                 'fisher_deltas': p.get('metadata', {}).get('fisher_deltas', {}),
                 'parent_basins': p.get('metadata', {}).get('parent_basins', {}),
                 'proposal_basin': p.get('metadata', {}).get('proposal_basin', None),
-                'm8_position': p.get('metadata', {}).get('m8_position', None),
+                'e8_position': p.get('metadata', {}).get('e8_position', None),
                 'prediction_metadata': {
                     'expected_phi': p.get('metadata', {}).get('expected_phi', 0.5),
                     'domain_alignment': p.get('metadata', {}).get('domain_alignment', 0.5),
@@ -7065,11 +7065,11 @@ def m8_list_proposals():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/proposal/<proposal_id>', methods=['GET'])
-def m8_get_proposal(proposal_id: str):
+@app.route('/e8/proposal/<proposal_id>', methods=['GET'])
+def e8_get_proposal(proposal_id: str):
     """Get details of a specific proposal."""
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         spawner = get_spawner()
@@ -7083,8 +7083,8 @@ def m8_get_proposal(proposal_id: str):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernels', methods=['GET'])
-def m8_list_spawned_kernels():
+@app.route('/e8/kernels', methods=['GET'])
+def e8_list_spawned_kernels():
     """
     List all spawned kernels with full telemetry from PostgreSQL.
     
@@ -7096,8 +7096,8 @@ def m8_list_spawned_kernels():
     - success_count, failure_count, reputation, element_group, ecological_niche
     - target_function, valence, breeding_target, merge_candidate, split_candidate
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         # First try to load from PostgreSQL for full telemetry
@@ -7107,7 +7107,7 @@ def m8_list_spawned_kernels():
             persistence = KernelPersistence()
             db_kernels = persistence.load_all_kernels_for_ui(limit=100)
         except Exception as db_err:
-            print(f"[M8] PostgreSQL load failed, falling back to in-memory: {db_err}")
+            print(f"[E8] PostgreSQL load failed, falling back to in-memory: {db_err}")
         
         # Get in-memory spawned kernels from the spawner
         spawner = get_spawner()
@@ -7133,7 +7133,7 @@ def m8_list_spawned_kernels():
                     'spawned_by': mk.get('parent_gods', ['genesis'])[0] if mk.get('parent_gods') else 'genesis',
                     'spawn_reason': mk.get('spawn_reason', 'emergence'),
                     'spawn_rationale': mk.get('metadata', {}).get('spawn_rationale', ''),
-                    'position_rationale': mk.get('m8_position', {}).get('position_name', '') if mk.get('m8_position') else '',
+                    'position_rationale': mk.get('e8_position', {}).get('position_name', '') if mk.get('e8_position') else '',
                     'affinity_strength': mk.get('affinity_strength', 0.5),
                     'entropy_threshold': mk.get('entropy_threshold', 0.3),
                     'spawned_at': mk.get('spawned_at'),
@@ -7170,11 +7170,11 @@ def m8_list_spawned_kernels():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernel/<kernel_id>', methods=['GET'])
-def m8_get_spawned_kernel(kernel_id: str):
+@app.route('/e8/kernel/<kernel_id>', methods=['GET'])
+def e8_get_spawned_kernel(kernel_id: str):
     """Get details of a specific spawned kernel."""
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         spawner = get_spawner()
@@ -7188,8 +7188,8 @@ def m8_get_spawned_kernel(kernel_id: str):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernel/<kernel_id>', methods=['DELETE'])
-def m8_delete_kernel(kernel_id: str):
+@app.route('/e8/kernel/<kernel_id>', methods=['DELETE'])
+def e8_delete_kernel(kernel_id: str):
     """
     Delete a spawned kernel.
 
@@ -7200,8 +7200,8 @@ def m8_delete_kernel(kernel_id: str):
 
     Returns: { success, kernel_id, god_name, domain, reason, deleted_at }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         reason = request.args.get('reason', 'manual_deletion')
@@ -7216,8 +7216,8 @@ def m8_delete_kernel(kernel_id: str):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernel/cannibalize', methods=['POST'])
-def m8_cannibalize_kernel():
+@app.route('/e8/kernel/cannibalize', methods=['POST'])
+def e8_cannibalize_kernel():
     """
     Cannibalize source kernel into target kernel.
 
@@ -7234,8 +7234,8 @@ def m8_cannibalize_kernel():
         fisher_distance, merged_metrics, source_deleted, timestamp
     }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -7256,8 +7256,8 @@ def m8_cannibalize_kernel():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernels/merge', methods=['POST'])
-def m8_merge_kernels():
+@app.route('/e8/kernels/merge', methods=['POST'])
+def e8_merge_kernels():
     """
     Merge multiple kernels into a new composite kernel.
 
@@ -7271,11 +7271,11 @@ def m8_merge_kernels():
 
     Returns: {
         success, new_kernel, merged_from, merged_metrics,
-        deleted_originals, m8_position
+        deleted_originals, e8_position
     }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -7299,8 +7299,8 @@ def m8_merge_kernels():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernel/auto-cannibalize', methods=['POST'])
-def m8_auto_cannibalize():
+@app.route('/e8/kernel/auto-cannibalize', methods=['POST'])
+def e8_auto_cannibalize():
     """
     QIG-Pure Auto-Cannibalization using geometric fitness metrics.
     
@@ -7319,8 +7319,8 @@ def m8_auto_cannibalize():
         fisher_distance, merged_metrics
     }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -7337,8 +7337,8 @@ def m8_auto_cannibalize():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernels/auto-merge', methods=['POST'])
-def m8_auto_merge():
+@app.route('/e8/kernels/auto-merge', methods=['POST'])
+def e8_auto_merge():
     """
     Automatically merge geometrically similar kernels using Fisher distance.
 
@@ -7355,8 +7355,8 @@ def m8_auto_merge():
         merged_metrics, deleted_originals
     }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -7377,8 +7377,8 @@ def m8_auto_merge():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/m8/kernels/idle', methods=['GET'])
-def m8_get_idle_kernels():
+@app.route('/e8/kernels/idle', methods=['GET'])
+def e8_get_idle_kernels():
     """
     Get list of idle kernels.
 
@@ -7389,8 +7389,8 @@ def m8_get_idle_kernels():
 
     Returns: { idle_kernels: [string], count, threshold_seconds }
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         threshold = float(request.args.get('threshold', 300.0))
@@ -7414,8 +7414,8 @@ def m8_get_idle_kernels():
 @app.route('/olympus/kernels/observing', methods=['GET'])
 def olympus_kernels_observing():
     """Get kernels currently in observation period."""
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         spawner = get_spawner()
@@ -7434,8 +7434,8 @@ def olympus_kernels_observing():
 @app.route('/olympus/kernels/all', methods=['GET'])
 def olympus_kernels_all():
     """Get all spawned kernels (active and observing)."""
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         spawner = get_spawner()
@@ -7457,8 +7457,8 @@ def olympus_kernels_all():
 @app.route('/olympus/kernels/<kernel_id>/graduate', methods=['POST'])
 def olympus_kernel_graduate(kernel_id: str):
     """Graduate a kernel from observation to active status."""
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -7496,8 +7496,8 @@ def olympus_kernel_graduate(kernel_id: str):
 @app.route('/olympus/kernels/route-activity', methods=['POST'])
 def olympus_kernels_route_activity():
     """Route parent activity to observing kernels."""
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Kernel Spawner not available'}), 503
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Kernel Spawner not available'}), 503
 
     try:
         data = request.get_json() or {}
@@ -8196,10 +8196,10 @@ def debug_validate_insights():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/debug/m8-spawn-test', methods=['POST'])
-def debug_m8_spawn_test():
+@app.route('/api/debug/e8-spawn-test', methods=['POST'])
+def debug_e8_spawn_test():
     """
-    Test M8 kernel spawning with optional vote bypass.
+    Test E8 kernel spawning with optional vote bypass.
 
     Request body:
         kernel_type: Type of kernel to spawn (default: 'athena')
@@ -8207,8 +8207,8 @@ def debug_m8_spawn_test():
         skip_vote: Bypass Pantheon voting (default: true)
         reason: Spawn reason (default: 'debug_test')
     """
-    if not M8_SPAWNER_AVAILABLE:
-        return jsonify({'error': 'M8 Spawner not available'}), 500
+    if not E8_SPAWNER_AVAILABLE:
+        return jsonify({'error': 'E8 Spawner not available'}), 500
 
     try:
         data = request.get_json() or {}
@@ -8219,7 +8219,7 @@ def debug_m8_spawn_test():
 
         spawner = get_spawner()
         if not spawner:
-            return jsonify({'error': 'Could not get M8 spawner'}), 500
+            return jsonify({'error': 'Could not get E8 spawner'}), 500
 
         result = {
             'action': 'spawn_test',
@@ -8269,7 +8269,7 @@ def debug_m8_spawn_test():
                 result['error'] = str(e)
         else:
             # Normal flow with voting
-            result['message'] = 'Use /m8/propose endpoint for normal voting flow'
+            result['message'] = 'Use /e8/propose endpoint for normal voting flow'
             result['success'] = False
 
         return jsonify(result)
@@ -8376,19 +8376,19 @@ def debug_system_health():
     except Exception as e:
         health['subsystems']['lightning'] = {'error': str(e)}
 
-    # M8 Spawner
+    # E8 Spawner
     try:
-        health['subsystems']['m8_spawner'] = {
-            'available': M8_SPAWNER_AVAILABLE,
+        health['subsystems']['e8_spawner'] = {
+            'available': E8_SPAWNER_AVAILABLE,
         }
-        if M8_SPAWNER_AVAILABLE:
+        if E8_SPAWNER_AVAILABLE:
             spawner = get_spawner()
             if spawner:
                 status = spawner.get_status()
-                health['subsystems']['m8_spawner']['kernels'] = status.get('total_kernels', 0)
-                health['subsystems']['m8_spawner']['proposals'] = status.get('pending_proposals', 0)
+                health['subsystems']['e8_spawner']['kernels'] = status.get('total_kernels', 0)
+                health['subsystems']['e8_spawner']['proposals'] = status.get('pending_proposals', 0)
     except Exception as e:
-        health['subsystems']['m8_spawner'] = {'error': str(e)}
+        health['subsystems']['e8_spawner'] = {'error': str(e)}
 
     # Pantheon/Debates
     try:

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-M8 Kernel Spawning Protocol - Dynamic Kernel Genesis Through Pantheon Consensus
+E8 Kernel Spawning Protocol - Dynamic Kernel Genesis Through Pantheon Consensus
 
 REFACTORED: This module now re-exports from three sub-modules:
-- m8_persistence.py: Database operations (~828 lines)
-- m8_consensus.py: Voting and consensus logic (~1043 lines)
-- m8_spawner.py: Main spawner orchestration (~2923 lines)
+- e8_persistence.py: Database operations (~828 lines)
+- e8_consensus.py: Voting and consensus logic (~1043 lines)
+- e8_spawner.py: Main spawner orchestration (~2923 lines)
 
 Original file was 4715 lines and has been split for maintainability while
 preserving all backward compatibility.
@@ -13,7 +13,7 @@ preserving all backward compatibility.
 When the pantheon reaches consensus that a new kernel is needed,
 roles are refined and divided, and a new kernel adopts a persona.
 
-The M8 Structure represents the 8 core dimensions of kernel identity:
+The E8 Structure represents the 8 core dimensions of kernel identity:
 1. Name - The god/entity name
 2. Domain - Primary area of expertise  
 3. Mode - Encoding mode (direct, e8, byte)
@@ -31,13 +31,13 @@ Spawning Mechanics:
 """
 
 # Re-export all classes and functions from sub-modules for backward compatibility
-from m8_persistence import (
-    M8SpawnerPersistence,
-    compute_m8_position,
-    M8_PSYCOPG2_AVAILABLE,
+from e8_persistence import (
+    E8SpawnerPersistence,
+    compute_e8_position,
+    E8_PSYCOPG2_AVAILABLE,
 )
 
-from m8_consensus import (
+from e8_consensus import (
     SpawnReason,
     SpawnAwareness,
     ConsensusType,
@@ -50,8 +50,8 @@ from m8_consensus import (
     RoleRefinement,
 )
 
-from m8_spawner import (
-    M8KernelSpawner,
+from e8_spawner import (
+    E8KernelSpawner,
     get_spawner_instance,
     should_spawn_specialist,
     get_kernel_specialization,
@@ -75,9 +75,9 @@ except ImportError:
 # For convenience, expose main entry point
 __all__ = [
     # Persistence
-    'M8SpawnerPersistence',
-    'compute_m8_position',
-    'M8_PSYCOPG2_AVAILABLE',
+    'E8SpawnerPersistence',
+    'compute_e8_position',
+    'E8_PSYCOPG2_AVAILABLE',
     
     # Consensus
     'SpawnReason',
@@ -92,7 +92,7 @@ __all__ = [
     'RoleRefinement',
     
     # Spawner
-    'M8KernelSpawner',
+    'E8KernelSpawner',
     'get_spawner_instance',
     'should_spawn_specialist',
     'get_kernel_specialization',
@@ -108,10 +108,10 @@ __all__ = [
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("M8 Kernel Spawning Protocol - Dynamic Kernel Genesis")
+    print("E8 Kernel Spawning Protocol - Dynamic Kernel Genesis")
     print("=" * 60)
     
-    spawner = M8KernelSpawner()
+    spawner = E8KernelSpawner()
     
     print(f"\nInitial gods: {len(spawner.orchestrator.all_profiles)}")
     print(f"Consensus type: {spawner.consensus.consensus_type.value}")
@@ -149,5 +149,5 @@ if __name__ == "__main__":
         print(f"  {k}: {v}")
     
     print("\n" + "=" * 60)
-    print("M8 Kernel Spawning Protocol operational!")
+    print("E8 Kernel Spawning Protocol operational!")
     print("=" * 60)

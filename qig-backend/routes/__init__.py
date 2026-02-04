@@ -6,10 +6,10 @@ Flask route blueprints for the QIG backend.
 
 # Import blueprints for easy access
 try:
-    from .m8_routes import m8_bp, register_m8_routes
+    from .e8_routes import e8_bp, register_e8_routes
 except ImportError:
-    m8_bp = None
-    register_m8_routes = None
+    e8_bp = None
+    register_e8_routes = None
 
 try:
     from .upload_routes import upload_bp, register_upload_routes
@@ -62,12 +62,12 @@ def register_all_routes(app):
     """Register all route blueprints with the Flask app."""
     count = 0
     
-    if register_m8_routes:
+    if register_e8_routes:
         try:
-            register_m8_routes(app)
+            register_e8_routes(app)
             count += 1
         except Exception as e:
-            print(f"[WARN] Failed to register m8_routes: {e}")
+            print(f"[WARN] Failed to register e8_routes: {e}")
     
     if register_upload_routes:
         try:
@@ -131,7 +131,7 @@ def register_all_routes(app):
 
 
 __all__ = [
-    'm8_bp', 'register_m8_routes',
+    'e8_bp', 'register_e8_routes',
     'upload_bp', 'register_upload_routes',
     'search_budget_bp', 'register_search_budget_routes',
     'training_monitor_bp',
