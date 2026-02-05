@@ -529,8 +529,15 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.post("/api/search/budget/toggle", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const response = await fetch(`${backendUrl}/api/search/budget/toggle`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: forwardHeaders,
         body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
       if (response.ok) return res.json(await response.json());
@@ -543,8 +550,15 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.post("/api/search/budget/limits", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const response = await fetch(`${backendUrl}/api/search/budget/limits`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: forwardHeaders,
         body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
       if (response.ok) return res.json(await response.json());
@@ -557,8 +571,15 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.post("/api/search/budget/overage", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const response = await fetch(`${backendUrl}/api/search/budget/overage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: forwardHeaders,
         body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
       if (response.ok) return res.json(await response.json());
@@ -593,8 +614,15 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.post("/api/search/budget/override", requireAuthIfEnabled, async (req, res) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const response = await fetch(`${backendUrl}/api/search/budget/override`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: forwardHeaders,
         body: JSON.stringify(req.body), signal: AbortSignal.timeout(10000)
       });
       if (response.ok) return res.json(await response.json());
@@ -651,9 +679,16 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/research", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const fetchOptions: RequestInit = {
         method: req.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: forwardHeaders,
         signal: AbortSignal.timeout(60000),
       };
       if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -674,9 +709,16 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
   app.use("/api/curiosity", async (req: any, res, next) => {
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const fetchOptions: RequestInit = {
         method: req.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: forwardHeaders,
         signal: AbortSignal.timeout(30000),
       };
       if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -698,9 +740,16 @@ setTimeout(() => { window.location.href = '/'; }, 1000);
     try {
       const backendUrl = process.env.PYTHON_BACKEND_URL || 'http://localhost:5001';
       const targetPath = req.originalUrl.replace('/api/python', '/api');
+      const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+        forwardHeaders.Authorization = req.headers.authorization;
+      }
+      if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+        forwardHeaders.Cookie = req.headers.cookie;
+      }
       const fetchOptions: RequestInit = {
         method: req.method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: forwardHeaders,
         signal: AbortSignal.timeout(30000),
       };
       if (req.method !== 'GET' && req.method !== 'HEAD') {

@@ -20,7 +20,7 @@ Based on QIG External Methods Analysis recommendations:
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Deque
+from typing import Deque, Dict, List, Optional
 import numpy as np
 
 from qig_geometry.canonical import assert_basin_valid, exp_map, fisher_rao_distance, log_map
@@ -207,7 +207,7 @@ class ConstellationTrajectoryManager:
 
         # Weighted linear regression in tangent space at endpoint
         # y = tangent vectors, x = time indices
-        t = np.arange(n).astype(float)
+        t = (np.arange(n) - (n - 1)).astype(float)
         t_weighted = t * weights
         y_weighted = tangents * weights[:, np.newaxis]
 

@@ -49,7 +49,12 @@ RUN apt-get update && apt-get install -y \
 
 # Install uv (Python package/dependency manager)
 # NOTE: We intentionally avoid pip-based installs in images.
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV UV_VERSION=0.5.0
+ENV UV_INSTALL_SHA256=992bd895fb8766eecd090d784d14032aafae7b41d087046974be7c0c560c6c39
+RUN curl -fsSL --proto '=https' --tlsv1.2 "https://astral.sh/uv/${UV_VERSION}/install.sh" -o /tmp/uv-install.sh \
+    && echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - \
+    && sh /tmp/uv-install.sh \
+    && rm /tmp/uv-install.sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 RUN uv python install 3.13 --managed-python

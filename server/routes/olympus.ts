@@ -110,9 +110,17 @@ async function proxyGet(
       url += `?${params.toString()}`;
     }
     
+    const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+      forwardHeaders.Authorization = req.headers.authorization;
+    }
+    if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+      forwardHeaders.Cookie = req.headers.cookie;
+    }
+
     const response = await fetch(url, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: forwardHeaders,
     });
     
     if (!response.ok) {
@@ -141,9 +149,17 @@ async function proxyPost(
 ) {
   try {
     const basePath = options.rawPath ? pythonPath : `/olympus${pythonPath}`;
+    const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+      forwardHeaders.Authorization = req.headers.authorization;
+    }
+    if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+      forwardHeaders.Cookie = req.headers.cookie;
+    }
+
     const response = await fetch(`${BACKEND_URL}${basePath}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: forwardHeaders,
       body: JSON.stringify(req.body),
     });
     
@@ -169,9 +185,17 @@ async function proxyDelete(
 ) {
   try {
     const basePath = options.rawPath ? pythonPath : `/olympus${pythonPath}`;
+    const forwardHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+      forwardHeaders.Authorization = req.headers.authorization;
+    }
+    if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+      forwardHeaders.Cookie = req.headers.cookie;
+    }
+
     const response = await fetch(`${BACKEND_URL}${basePath}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: forwardHeaders,
     });
     
     if (!response.ok) {

@@ -14,7 +14,11 @@ from contextlib import contextmanager
 import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+import math
+import uuid
 import numpy as np
+
+from qig_geometry.canonical import fisher_rao_distance, frechet_mean
 
 try:
     import psycopg2
@@ -682,6 +686,14 @@ class E8SpawnerPersistence:
 
     def get_merge_candidates(self, min_fisher_similarity: float = 0.8, limit: int = 10) -> List[Dict]:
         """Get kernel pairs that are good merge candidates (high geometric similarity)."""
+        # NOTE: Currently used only for API compatibility / future filtering.
+        # Normalize to a valid probability-like range to avoid surprising downstream usage.
+        try:
+            min_fisher_similarity = float(min_fisher_similarity)
+        except (TypeError, ValueError):
+            min_fisher_similarity = 0.0
+        min_fisher_similarity = max(0.0, min(1.0, min_fisher_similarity))
+
         with self._get_db_connection() as conn:
             if not conn:
                 return []
@@ -734,7 +746,7 @@ E8_SPECIAL_POSITIONS = {
 }
 
 
-def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = None) -> Dict[str, any]:
+def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = None) -> Dict[str, Any]:
     """
     Compute E8 geometric position from 64D basin coordinates.
     
@@ -771,7 +783,6 @@ def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
     
     # Calculate radial distance using Fisher-Rao distance from uniform distribution
     # This measures "how far from uniform" the E8 projection is
-    from qig_geometry.canonical import fisher_rao_distance
     uniform_8d = np.ones(8) / 8.0
     radial = float(fisher_rao_distance(e8_coords, uniform_8d))
     
@@ -797,9 +808,8 @@ def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
             while len(pe8) < 8:
                 pe8 = np.append(pe8, 0.0)
             # Apply same normalization as child coordinates
-            pe8_norm = np.linalg.norm(pe8)
-            if pe8_norm > 1e-10:
-                pe8 = pe8 / pe8_norm * math.sqrt(8)
+            pe8 = np.abs(pe8) + 1e-12
+            pe8 = pe8 / pe8.sum()
             parent_e8_coords.append(pe8)
         
         # Calculate centroid of parents (now properly normalized)

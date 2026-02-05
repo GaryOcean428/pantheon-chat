@@ -148,41 +148,6 @@ router.get('/stream', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/kernel-activity/:id
- * Get a specific activity by ID
- */
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const database = ensureDb();
-    const result = await database
-      .select()
-      .from(kernelActivity)
-      .where(eq(kernelActivity.id, parseInt(id)))
-      .limit(1);
-
-    if (result.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Activity not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: result[0]
-    });
-  } catch (error) {
-    console.error('[KernelActivity] Error getting activity:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get kernel activity'
-    });
-  }
-});
-
-/**
  * POST /api/kernel-activity
  * Log a new kernel activity
  */
@@ -448,6 +413,41 @@ router.delete('/cleanup', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Failed to clean up old activities'
+    });
+  }
+});
+
+/**
+ * GET /api/kernel-activity/:id
+ * Get a specific activity by ID
+ */
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const database = ensureDb();
+    const result = await database
+      .select()
+      .from(kernelActivity)
+      .where(eq(kernelActivity.id, parseInt(id)))
+      .limit(1);
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Activity not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result[0]
+    });
+  } catch (error) {
+    console.error('[KernelActivity] Error getting activity:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get kernel activity'
     });
   }
 });

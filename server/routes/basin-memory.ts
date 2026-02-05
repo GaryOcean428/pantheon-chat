@@ -16,9 +16,20 @@ async function proxyToPython(req: Request, res: Response) {
   try {
     const url = `${BACKEND_URL}${req.originalUrl}`;
 
+    const forwardHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (typeof req.headers.authorization === 'string' && req.headers.authorization.length > 0) {
+      forwardHeaders.Authorization = req.headers.authorization;
+    }
+    if (typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0) {
+      forwardHeaders.Cookie = req.headers.cookie;
+    }
+
     const init: RequestInit = {
       method: req.method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: forwardHeaders,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     };
 
@@ -47,6 +58,22 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/basin-memory/stats
+ * Get basin memory statistics
+ */
+router.get('/stats/summary', async (req: Request, res: Response) => {
+  return proxyToPython(req, res);
+});
+
+/**
+ * POST /api/basin-memory/nearest
+ * Find nearest basin memories to a query basin (for two-step retrieval)
+ */
+router.post('/nearest', async (req: Request, res: Response) => {
+  return proxyToPython(req, res);
+});
+
+/**
  * GET /api/basin-memory/:id
  * Get a specific basin memory by ID
  */
@@ -67,22 +94,6 @@ router.post('/', async (req: Request, res: Response) => {
  * Delete a basin memory
  */
 router.delete('/:id', async (req: Request, res: Response) => {
-  return proxyToPython(req, res);
-});
-
-/**
- * GET /api/basin-memory/stats
- * Get basin memory statistics
- */
-router.get('/stats/summary', async (req: Request, res: Response) => {
-  return proxyToPython(req, res);
-});
-
-/**
- * POST /api/basin-memory/nearest
- * Find nearest basin memories to a query basin (for two-step retrieval)
- */
-router.post('/nearest', async (req: Request, res: Response) => {
   return proxyToPython(req, res);
 });
 
