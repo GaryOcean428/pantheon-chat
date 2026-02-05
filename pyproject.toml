@@ -1157,3 +1157,9 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.pylint.main]
 init-hook = "import sys; from pathlib import Path; sys.path.insert(0, str(Path().resolve() / 'qig-backend'))"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint.per-file-ignores]
+"qig-backend/e8_persistence.py" = ["BLE001", "E501", "W291"]

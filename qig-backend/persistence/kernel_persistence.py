@@ -2081,7 +2081,7 @@ class KernelPersistence(BasePersistence):
         """
         
         try:
-            result = self._execute_query(query, (kernel_id,), fetch=True)
+            result = self.execute_query(query, (kernel_id,), fetch=True)
             if result and len(result) > 0:
                 return float(result[0][0]) if result[0][0] is not None else None
             return None

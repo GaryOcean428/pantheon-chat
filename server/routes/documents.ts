@@ -132,7 +132,8 @@ router.post('/upload', isAuthenticated, upload.array('files', 10), async (req: R
       
       // Prepare document for Python backend processing
       const formData = new FormData();
-      formData.append('file', new Blob([file.buffer]), file.originalname);
+      const bytes = Uint8Array.from(file.buffer);
+      formData.append('file', new Blob([bytes], { type: file.mimetype }), file.originalname);
       formData.append('doc_id', docId);
       formData.append('content_type', file.mimetype);
       if (metadata.title) formData.append('title', metadata.title);
@@ -247,6 +248,38 @@ router.get('/', isAuthenticated, async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/documents/search
+ * 
+ * Search uploaded documents using Fisher-Rao semantic similarity.
+ */
+router.post('/search', isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { query, limit = 10, domain } = req.body;
+    
+    if (!query || typeof query !== 'string') {
+      res.status(400).json({ error: 'Query string required' });
+      return;
+    }
+    
+    const response = await fetch(`${BACKEND_URL}/api/documents/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, limit, domain }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('[Documents] Search error:', error);
+    res.status(500).json({ error: 'Search failed', results: [] });
+  }
+});
+
+/**
  * GET /api/documents/:id
  * 
  * Get details of a specific document including its Ocean knowledge connections.
@@ -333,38 +366,6 @@ router.post('/:id/resync', isAuthenticated, async (req: Request, res: Response) 
   } catch (error) {
     console.error('[Documents] Resync error:', error);
     res.status(500).json({ error: 'Failed to resync document' });
-  }
-});
-
-/**
- * POST /api/documents/search
- * 
- * Search uploaded documents using Fisher-Rao semantic similarity.
- */
-router.post('/search', isAuthenticated, async (req: Request, res: Response) => {
-  try {
-    const { query, limit = 10, domain } = req.body;
-    
-    if (!query || typeof query !== 'string') {
-      res.status(400).json({ error: 'Query string required' });
-      return;
-    }
-    
-    const response = await fetch(`${BACKEND_URL}/api/documents/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, limit, domain }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Backend returned ${response.status}`);
-    }
-    
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    console.error('[Documents] Search error:', error);
-    res.status(500).json({ error: 'Search failed', results: [] });
   }
 });
 

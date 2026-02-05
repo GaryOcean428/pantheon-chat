@@ -13,7 +13,6 @@ Endpoints:
 """
 
 from flask import Blueprint, request, jsonify
-from typing import Dict, List, Optional
 import numpy as np
 import logging
 
@@ -95,9 +94,9 @@ def coordize_text():
 
         return jsonify(response)
 
-    except Exception as e:
-        logger.exception(f"Coordization error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Coordization error")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @coordizer_api.route('/api/coordize/encode', methods=['POST'])
@@ -134,9 +133,9 @@ def encode_text():
             'magnitude': float(fisher_rao_magnitude(basin)),
         })
 
-    except Exception as e:
-        logger.exception(f"Encode error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Encode error")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @coordizer_api.route('/api/coordize/decode', methods=['POST'])
@@ -170,9 +169,9 @@ def decode_basin():
 
         return jsonify({'tokens': tokens})
 
-    except Exception as e:
-        logger.exception(f"Decode error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Decode error")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @coordizer_api.route('/api/coordize/stats', methods=['GET'])
@@ -199,9 +198,9 @@ def get_stats():
         stats = coordizer.get_stats()
         return jsonify(stats)
 
-    except Exception as e:
-        logger.exception(f"Stats error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Stats error")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @coordizer_api.route('/api/coordize/vocab', methods=['GET'])
@@ -246,9 +245,9 @@ def get_vocab():
             'tokens': tokens,
         })
 
-    except Exception as e:
-        logger.exception(f"Vocab error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Vocab error")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @coordizer_api.route('/api/coordize/generate', methods=['POST'])
@@ -294,6 +293,6 @@ def generate_response():
 
         return jsonify(result)
 
-    except Exception as e:
-        logger.exception(f"Generate error: {e}")
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception("Generate error")
+        return jsonify({'error': 'Internal server error'}), 500

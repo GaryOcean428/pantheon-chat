@@ -52,6 +52,18 @@ def _parse_pgvector(value: Any) -> List[float]:
         return []
 
 
+def _parse_bool(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+    return False
+
+
 def _to_jsonb_param(value: Any) -> Any:
     """Safely adapt Python objects for JSONB parameters."""
     if value is None:
@@ -89,8 +101,16 @@ def list_basin_memory():
     if persistence is None:
         return jsonify({"success": False, "error": "Database persistence unavailable"}), 503
 
-    limit = int(request.args.get("limit", "50"))
-    offset = int(request.args.get("offset", "0"))
+    try:
+        limit = int(request.args.get("limit", "50"))
+        offset = int(request.args.get("offset", "0"))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Invalid pagination parameters"}), 400
+
+    if limit < 1 or limit > 200:
+        return jsonify({"success": False, "error": "limit out of range"}), 400
+    if offset < 0 or offset > 100000:
+        return jsonify({"success": False, "error": "offset out of range"}), 400
 
     regime = request.args.get("regime")
     min_phi = request.args.get("minPhi")
@@ -165,9 +185,9 @@ def list_basin_memory():
                 "offset": offset,
             }
         )
-    except Exception as e:
+    except Exception:
         logger.error("[BasinMemory] Error listing memories", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @basin_memory_bp.route("/<int:memory_id>", methods=["GET"])
@@ -195,9 +215,9 @@ def get_basin_memory(memory_id: int):
                 result = dict(zip(cols, row))
 
         return jsonify({"success": True, "data": _row_to_json(result)})
-    except Exception as e:
+    except Exception:
         logger.error("[BasinMemory] Error getting memory", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @basin_memory_bp.route("/", methods=["POST"])
@@ -294,9 +314,9 @@ def create_basin_memory():
                 result = dict(zip(cols, row))
 
         return jsonify({"success": True, "data": _row_to_json(result)}), 201
-    except Exception as e:
+    except Exception:
         logger.error("[BasinMemory] Error creating memory", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @basin_memory_bp.route("/<int:memory_id>", methods=["DELETE"])
@@ -314,9 +334,9 @@ def delete_basin_memory(memory_id: int):
                     return jsonify({"success": False, "error": "Basin memory not found"}), 404
 
         return jsonify({"success": True, "message": "Basin memory deleted"})
-    except Exception as e:
+    except Exception:
         logger.error("[BasinMemory] Error deleting memory", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @basin_memory_bp.route("/stats/summary", methods=["GET"])
@@ -371,9 +391,9 @@ def basin_memory_stats():
                 },
             }
         )
-    except Exception as e:
+    except Exception:
         logger.error("[BasinMemory] Error getting stats", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 @basin_memory_bp.route("/nearest", methods=["POST"])
@@ -384,8 +404,15 @@ def basin_memory_nearest():
 
     data = request.get_json() or {}
     basin_coordinates = data.get("basinCoordinates")
-    k = int(data.get("k", 10))
-    conscious_only = bool(data.get("consciousOnly", False))
+    try:
+        k = int(data.get("k", 10))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Invalid k"}), 400
+
+    if k < 1 or k > 50:
+        return jsonify({"success": False, "error": "k out of range"}), 400
+
+    conscious_only = _parse_bool(data.get("consciousOnly", False))
 
     if not basin_coordinates or not isinstance(basin_coordinates, list):
         return jsonify({"success": False, "error": "basinCoordinates array required"}), 400
@@ -429,9 +456,9 @@ def basin_memory_nearest():
             out.append(base)
 
         return jsonify({"success": True, "data": out, "total": len(out)})
-    except Exception as e:
+    except Exception:
         logger.error("[BasinMemory] Error finding nearest", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 def register_basin_memory_routes(app):
