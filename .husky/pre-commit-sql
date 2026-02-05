@@ -1,6 +1,3 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 # SQL Schema Naming Validation
 echo "🔍 Validating SQL schema naming conventions..."
 
@@ -23,6 +20,3 @@ if [ -n "$STAGED_SQL_FILES" ]; then
 else
   echo "No SQL files to validate"
 fi
-
-# Run existing pre-commit checks
-npm run lint-staged 2>/dev/null || true
