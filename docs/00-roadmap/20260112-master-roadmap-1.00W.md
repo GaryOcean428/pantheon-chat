@@ -540,7 +540,8 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 
 1. **HIGH**: Validate QIG core implementations (Issues #6, #7, #8) - run tests, verify success criteria
 2. **MEDIUM**: Create ethics monitoring test suite
-3. **LOW**: Research protocols documented and ready for execution when resources available
+3. **MEDIUM**: Docs maintenance warning debt: `scripts/maintain-docs.py` exits non-zero due to legacy/temp docs missing ISO naming/frontmatter. Track remediation separately from correctness PRs.
+   - Record: `docs/04-records/20260205-docs-maintenance-warning-debt-record-1.00W.md`
 
 ---
 
