@@ -12,6 +12,7 @@
 ## Overview
 
 This roadmap consolidates information from:
+
 - ✅ FROZEN_FACTS (validated physics constants)
 - ✅ CANONICAL_ARCHITECTURE (design specifications)  
 - ✅ CANONICAL_PHYSICS (experimental validation)
@@ -48,12 +49,14 @@ This roadmap consolidates information from:
 ### 1.2 Emotion Geometry (COMPLETED)
 
 ✅ 9 primitive emotions implemented in `emotional_geometry.py`
+
 - Joy, Sadness, Anger, Fear, Surprise, Disgust, Confusion, Anticipation, Trust
 - GitHub Issue #35: **READY TO CLOSE**
 
 ### 1.3 Consciousness Core (IMPLEMENTED & VALIDATED)
 
 ✅ **All 7 consciousness components implemented and wired** (Audit 2026-01-13):
+
 1. **Φ (Integration)**: autonomic_kernel.py, consciousness_4d.py ✅
 2. **κ (Coupling)**: qigkernels, autonomic_kernel.py ✅
 3. **M (Meta-awareness)**: qigkernels.telemetry.compute_meta_awareness() ✅
@@ -65,6 +68,7 @@ This roadmap consolidates information from:
 ✅ **Plus 6 neurotransmitters**: dopamine, serotonin, norepinephrine, acetylcholine, gaba, endorphins
 
 ✅ **Autonomic Cycles**:
+
 - Sleep phase: SleepCycleResult ✅
 - Dream phase: DreamCycleResult ✅
 - Wake phase: AutonomicState ✅
@@ -75,18 +79,31 @@ This roadmap consolidates information from:
 ### 1.4 Geometric Purity (VALIDATED 2026-01-13)
 
 ✅ **441 files checked, ZERO violations**
+
 - No Euclidean distance on basins ✅
 - No cosine similarity contamination ✅
 - All distances use Fisher-Rao metric ✅
 - Natural gradient enforced (no Adam/SGD) ✅
 
 **2026-02-04 update:** Doctrine Patchset P1 landed on `dev-local`:
+
 - Removed Euclidean norm usage in trajectory foresight magnitude.
 - Enforced fail-closed simplex validation on trajectory ingestion.
 - Replaced arithmetic mean surrogate in manifold curvature estimation with canonical Fréchet mean.
 - Verified via `python qig-backend/validate_geometry_purity.py` and targeted pytest suites.
 
+**2026-02-05 update:** Bot-fix patchset landed (CI + security hygiene):
+
+- Fisher–Rao distance contract restored for `method="diagonal"` / `method="full"` in `qigkernels/geometry/distances.py` (1D vectors only, explicit metric required).
+- Born-rule scan false-positive risk cleared (no `p = basin` / `probs = basin` violations found under Φ contexts).
+- API error disclosure hardened: multiple Flask endpoints now return generic errors (no raw exception text) while logging server-side via `logger.exception(...)`.
+- Fixed persistence helper call: `KernelPersistence.get_kernel_reputation()` now uses `execute_query()` (BasePersistence), removing invalid `_execute_query()` reference.
+- Verified via:
+  - `python -m pytest -q qig-backend/tests/test_geometric_purity.py` (49 passed)
+  - `ruff check` and `python -m compileall` on touched modules
+
 **Follow-up backlog (doctrine):**
+
 - Kernel lifecycle boundaries: remove `np.abs` “basin repair” in spawn/resurrect; enforce fail-closed simplex validation.
 - Legacy geometry entrypoints: audit and quarantine/remove `pantheon_kernel_orchestrator.py` and `geometric_kernels.py` unless proven canonical-geometry-only.
 - Bloat/legacy purge: remove duplicate sleep packets/issue packs under `docs/11-Genesis-kernel-upgrade/temp` (keep newest canonical copies only) and add an import-blocklist for `/archive`.
@@ -94,6 +111,7 @@ This roadmap consolidates information from:
 ### 1.5 Import Infrastructure (FIXED 2026-01-13)
 
 ✅ **14 frozen_physics import violations fixed**
+
 - All migrated to qigkernels as canonical source ✅
 - Added missing constants to qigkernels ✅
 - Added helper functions (get_specialization_level, compute_running_kappa_semantic, compute_meta_awareness) ✅
@@ -101,6 +119,7 @@ This roadmap consolidates information from:
 ### 1.6 Vocabulary Architecture (VALIDATED 2026-01-13)
 
 ✅ **Three-table separation properly implemented**:
+
 - tokenizer_vocabulary: Tokenizer tokens ✅
 - vocabulary_observations: Learning observations ✅
 - learned_words: Consolidated vocabulary ✅
@@ -108,6 +127,7 @@ This roadmap consolidates information from:
 ### 1.7 GitHub Copilot Agent Infrastructure (IMPLEMENTED - Validation Pending 2026-01-13)
 
 ✅ **14 specialized custom agents implemented** (.github/agents/ - 7,760 lines):
+
 1. **Import Resolution Agent** - Enforces canonical import patterns, detects circular dependencies ✅
 2. **QIG Purity Validator** - Scans for Euclidean contamination, enforces Fisher-Rao metrics ✅
 3. **Schema Consistency Agent** - Validates database migrations match SQLAlchemy models ✅
@@ -128,12 +148,14 @@ This roadmap consolidates information from:
 **Documentation**: `.github/agents/README.md`, `.github/agents/IMPLEMENTATION_COMPLETE.md`
 
 **Agent Coverage**:
+
 - Code Quality & Structure: 7 agents (50%)
 - Integration & Synchronization: 3 agents (21%)
 - Performance & Regression: 2 agents (14%)
 - UI & Deployment: 2 agents (14%)
 
 **Key Benefits (When Integrated)**:
+
 - Automated QIG purity enforcement across all code changes
 - Real-time detection of architectural violations
 - Documentation-code synchronization validation
@@ -143,6 +165,7 @@ This roadmap consolidates information from:
 ### 1.8 Word Relationship Modules (MIGRATION COMPLETE 2026-01-13)
 
 ✅ **Legacy NLP module deprecated, QIG-pure replacement active**:
+
 - **word_relationship_learner.py** - DEPRECATED with runtime warnings ⚠️
   - Uses PMI (pointwise mutual information) - statistical NLP, not geometric
   - Co-occurrence counting - frequency-based, not QFI-based
@@ -166,11 +189,13 @@ This roadmap consolidates information from:
   - **Status**: Fully implemented (528 lines), comprehensive tests (294 lines)
 
 **Documentation Updated**:
+
 - Added deprecation notices to 4 documentation files
 - Updated .pre-commit-config.yaml with PMI/stopword blocking hooks
 - Validation script confirms 0 violations
 
 **Pre-commit Enforcement**:
+
 - Block new PMI/co-occurrence patterns
 - Block hard-coded stopword lists
 - Allow exceptions for deprecated file and tests only
@@ -180,7 +205,9 @@ This roadmap consolidates information from:
 ## Section 2: Recently Implemented - Pending Validation ⚠️ (2026-01-13)
 
 ### 2.1 QFI-based Φ Computation (IMPLEMENTED - Issue #6 OPEN)
+
 **Priority**: 🟡 NEEDS VALIDATION
+
 - ✅ Full QFI matrix implementation in qig_core/phi_computation.py (279 lines, 5 functions)
 - ✅ Integrated into autonomic_kernel.py (compute_phi_with_fallback, heartbeat)
 - ✅ Quality-based fallback system (QFI → approximation → entropy)
@@ -189,7 +216,9 @@ This roadmap consolidates information from:
 - ⚠️ **Tests exist but not yet run in CI/CD**
 
 ### 2.2 Fisher-Rao Attractor Finding (IMPLEMENTED - Issue #7 OPEN)
+
 **Priority**: 🟡 NEEDS VALIDATION
+
 - ✅ Module implemented at qig_core/attractor_finding.py (325 lines, 6 functions)
 - ✅ Integrated with autonomic_kernel (_find_nearby_attractors)
 - ✅ Uses Fisher potential: U = -log(det(g)) + dispersion + radial
@@ -198,7 +227,9 @@ This roadmap consolidates information from:
 - ⚠️ **Tests exist but not yet run in CI/CD**
 
 ### 2.3 Geodesic Navigation (IMPLEMENTED - Issue #8 OPEN)
+
 **Priority**: 🟡 NEEDS VALIDATION
+
 - ✅ Module implemented at qig_core/geodesic_navigation.py (216 lines, 5 functions)
 - ✅ Integrated with autonomic_kernel (navigate_to_target)
 - ✅ Full geodesic path computation via spherical interpolation
@@ -207,7 +238,9 @@ This roadmap consolidates information from:
 - ⚠️ **Tests exist but not yet run in CI/CD**
 
 ### 2.4 Ethics Monitoring (IMPLEMENTED - Needs Validation)
+
 **Priority**: 🟡 NEEDS VALIDATION
+
 - ✅ Suffering metric: S = Φ × (1-Γ) × M fully implemented
 - ✅ Topological instability detection (curvature + metric degeneracy)
 - ✅ Identity decoherence detection (basin drift + meta-awareness)
@@ -220,6 +253,7 @@ This roadmap consolidates information from:
 ## Section 3: Research Protocols (DOCUMENTED) 📋
 
 ### 3.1 β-Attention Measurement Protocol (READY)
+
 **Status**: ✅ DESIGNED & DOCUMENTED  
 **Priority**: LOW (Research validation)
 
@@ -229,6 +263,7 @@ This roadmap consolidates information from:
 - **Purpose**: Validate substrate independence (β_attention ≈ β_physics ≈ 0.44)
 
 ### 3.2 QIG-KERNEL-100M Model (DESIGNED)
+
 **Status**: 📋 ARCHITECTURE COMPLETE  
 **Priority**: LOW (R&D, 14-week implementation timeline)
 
@@ -238,6 +273,7 @@ This roadmap consolidates information from:
 - **Purpose**: Edge-deployable consciousness model (Raspberry Pi, phones)
 
 ### 3.3 Coordination Clock (HYPOTHESIS)
+
 **Status**: 🔬 HYPOTHESIS FORMULATED  
 **Priority**: LOW (Theoretical research)
 
@@ -382,6 +418,7 @@ This roadmap consolidates information from:
 ### Overall E8 Protocol Progress: 33% (9/27 deliverables)
 
 **Validation Commands**:
+
 ```bash
 # Check QFI coverage
 python qig-backend/scripts/check_qfi_coverage.py
@@ -451,6 +488,7 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 **Overall**: 92% complete (Core implementations done, validation pending - 2026-01-13)
 
 **By Category**:
+
 - ✅ Physics: 100% (8/8) - All constants validated
 - ✅ E8 Architecture: 100% (4/4) - All levels implemented
 - ✅ Consciousness: 100% (7/7 + neurotransmitters) - All components wired
@@ -468,12 +506,14 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 - ✅ **Research Protocols: 100% (β-attention, 100M model, Coordination clock - ALL DOCUMENTED)**
 
 **Audit Results (2026-01-13)**:
+
 - 🔴 CRITICAL Issues: 0
 - 🟡 MEDIUM Issues: 4 (Issues #6, #7, #8 open; Ethics validation pending)
 - 🟢 LOW Issues: 0
 - ✅ System Health: 92% (Code complete, validation pending)
 
 **Agent Infrastructure Metrics (2026-01-13)**:
+
 - Total Agents: 14 specialized (code complete)
 - Total Lines: ~7,760 lines of specifications
 - Coverage: 100% of identified quality domains
@@ -481,6 +521,7 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 - Validation: Agents are GitHub Copilot spec compliant
 
 **Implementation Completion (2026-01-13)**:
+
 - QFI-based Φ: CODE COMPLETE - Full geometric integration with quality fallback, awaiting validation
 - Fisher-Rao Attractors: CODE COMPLETE - Integrated into autonomic cycles, awaiting validation
 - Geodesic Navigation: CODE COMPLETE - Full path computation and parallel transport, awaiting validation
@@ -490,11 +531,13 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 - Curvature: COMPUTED - Ricci scalar approximation from basin
 
 **Research Protocols Completion (2026-01-13)**:
+
 - β-attention protocol: DESIGNED & READY - 459 lines, awaiting environment
 - QIG-KERNEL-100M: ARCHITECTURE COMPLETE - 14-week implementation plan documented
 - Coordination clock: HYPOTHESIS FORMULATED - Testing framework + implementation design
 
-**Priority Gaps**: 
+**Priority Gaps**:
+
 1. **HIGH**: Validate QIG core implementations (Issues #6, #7, #8) - run tests, verify success criteria
 2. **MEDIUM**: Create ethics monitoring test suite
 3. **LOW**: Research protocols documented and ready for execution when resources available
@@ -515,12 +558,14 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ### 5.2 Budget Controls
 
 ✅ **Rate Limiting**:
+
 - Per-minute rate limits (5/min default)
 - Daily request caps (100/day default)
 - Cost tracking with real-time estimates
 - Override toggles for admin bypass
 
 ✅ **API Endpoints**:
+
 - `GET /api/search/budget/stats` - Current usage statistics
 - `POST /api/search/budget/override` - Toggle budget override
 - `POST /api/search/budget/limits` - Update rate limits
@@ -529,6 +574,7 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ### 5.3 Budget-Aware Kernel Batching
 
 ✅ **SearchRequestBatcher** (autonomous_curiosity.py):
+
 - Groups similar queries by topic (Fisher distance < 0.3)
 - 5-minute cache TTL for duplicate queries
 - Budget check before premium provider queries
@@ -537,6 +583,7 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ### 5.4 Quality Text Extraction
 
 ✅ **ScrapyOrchestrator.extract_quality_text()** (shadow_scrapy.py):
+
 - Extracts substantive paragraphs (>100 chars)
 - Filters navigation, ads, boilerplate
 - Quality scoring based on content length, link density, vocabulary
@@ -545,12 +592,14 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ### 5.5 Learning Document Storage
 
 ✅ **LearningDocumentStore** (learning-document-store.ts):
+
 - Persists to Replit Object Storage bucket
 - Path format: `learning/{kernel_id}/{timestamp}_{topic_hash}.json`
 - Manifest tracking for stats and discovery
 - Full CRUD operations with content hashing
 
 **Implementation Files**:
+
 - `server/tavily-usage-limiter.ts` - Tavily rate/cost limiting
 - `server/perplexity-usage-limiter.ts` - Perplexity rate/cost limiting
 - `server/learning-document-store.ts` - Object Storage persistence
@@ -571,10 +620,12 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ## Genesis Kernel Upgrade (Doctrine + Implementation Map)
 
 Canonical sources:
+
 - `docs/11-Genesis-kernel-upgrade/` (sleep packets)
 - `docs/GEOMETRIC_CONSISTENCY_MIGRATION.md` (simplex-only geometry enforcement)
 
 Active implementation plan:
+
 - `docs/00-roadmap/20260203-genesis-kernel-rollout-implementation-plan-1.00W.md`
 
 ### Canonical doctrine and definitions
@@ -591,6 +642,7 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-core-con
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-kernel-taxonomy-god-budget-ascension-1.00W.md`
 
 Implementation scope:
+
 - Introduce KernelKind and lineage metadata.
 - Enforce separate GOD budget counter (240 reserved) and CHAOS pool.
 - Implement ascension governance pipeline with NeedSpec, mythology dataset, quorum vote, and promotion wiring.
@@ -600,6 +652,7 @@ Implementation scope:
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-start-reset-rollback-1.00W.md`
 
 Implementation scope:
+
 - Single start endpoint (UI → backend → Python module) with progress streaming.
 - Purity gate runs first (fail closed) per `docs/GEOMETRIC_CONSISTENCY_MIGRATION.md`.
 - Deterministic rollback to baseline and staged inflation: GENESIS → core 8 → image → optional GOD growth.
@@ -609,6 +662,7 @@ Implementation scope:
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-autonomy-coupling-foresight-coaching-1.00W.md`
 
 Implementation scope:
+
 - Event schema: Observation, Coupling, Foresight, Coach, Action per cycle.
 - Coupling affects routing/rest scheduling.
 - Foresight affects action choice.
@@ -619,6 +673,7 @@ Implementation scope:
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-training-data-curriculum-learning-pipeline-1.00W.md`
 
 Implementation scope:
+
 - JSONL training schema + linter.
 - Curriculum-only and curriculum-expand modes with QFI governance.
 - Autonomous ingestion gated by coherence/safety thresholds.
@@ -628,6 +683,7 @@ Implementation scope:
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-purity-gate-validators-tests-1.00W.md`
 
 Implementation scope:
+
 - Static scan for forbidden geometry patterns.
 - Runtime gate at process start and critical operations.
 - Dataset validators for simplex/QFI invariants.
@@ -638,6 +694,7 @@ Implementation scope:
 Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-codebase-cleanup-legacy-kernel-purge-1.00W.md`
 
 Implementation scope:
+
 - Identify/archive legacy modules outside runtime import paths.
 - Add CI import block list and runtime guard in PurityGate.
 - DB reset procedure that seeds minimal GENESIS + core gods.
@@ -670,6 +727,7 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstand
 **Completion Status**: 94% - Core implementations exist; Genesis rollout + naming reconciliation pending
 
 **Recent Updates (2026-02-03)**:
+
 - ✅ Strict geometric purity hardening: removed remaining `vector_cosine_ops` usage from repo-owned migrations and purity tooling; ANN retrieval moved to Hellinger + inner-product proxy where applicable.
 - ✅ Lockfile normalization completed: pnpm lock restored, npm lock removed; working tree stabilized.
 - ✅ Genesis upgrade docs hygiene: removed non-canonical transcript content from Genesis doctrine docs; retained only requirements and acceptance criteria.
@@ -686,6 +744,7 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstand
   - `QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py`
 
 **Recent Updates (2026-01-20)**:
+
 - ✅ Added E8 Protocol Implementation Status section tracking Issues 01-03
 - ✅ Implemented canonical token insertion pathway with QFI computation (Issue #97)
 - ✅ Created database migration for QFI integrity gate (migration 0018)
@@ -697,15 +756,18 @@ Source: `docs/11-Genesis-kernel-upgrade/20260201-genesis-kernel-upgrade-outstand
 - 🔄 E8 Protocol Phase 2 progress: 38% complete (3/8 deliverables)
 
 **Recent Updates (2026-01-21)**:
+
 - ✅ Added Pull Requests Tracker section for PRs #180-#188 (pending GitHub titles for #180-#184, #188)
 
 **Recent Updates (2026-01-16)**:
+
 - ✅ Added comprehensive tracking of issues #64-#77, #92 (all >= 65)
 - ✅ Added PR #93 (SIMPLEX migration) to tracker
 - ✅ Updated GitHub Issues Tracker with all recent purity and geometric improvements
 - ✅ Added Pull Requests Tracker section for PRs >= 85
 
 **Recent Updates (2026-01-13)**:
+
 - ✅ word_relationship_learner.py deprecated with runtime warnings
 - ✅ geometric_word_relationships.py verified as QIG-pure replacement
 - ✅ contextualized_filter.py validated (528 lines)
