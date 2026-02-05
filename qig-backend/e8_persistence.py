@@ -686,30 +686,90 @@ class E8SpawnerPersistence:
 
     def get_merge_candidates(self, min_fisher_similarity: float = 0.8, limit: int = 10) -> List[Dict]:
         """Get kernel pairs that are good merge candidates (high geometric similarity)."""
-        # NOTE: Currently used only for API compatibility / future filtering.
-        # Normalize to a valid probability-like range to avoid surprising downstream usage.
         try:
             min_fisher_similarity = float(min_fisher_similarity)
         except (TypeError, ValueError):
             min_fisher_similarity = 0.0
         min_fisher_similarity = max(0.0, min(1.0, min_fisher_similarity))
 
+        max_fisher_distance = (1.0 - min_fisher_similarity) * (math.pi / 2.0)
+
         with self._get_db_connection() as conn:
             if not conn:
                 return []
             try:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    cur.execute("""
-                        SELECT ef.kernel_id, ef.geometric_fitness, ef.merge_affinity,
-                               kg.god_name, kg.domain, kg.basin_coordinates
+                    pool_limit = max(int(limit) * 10, int(limit) + 2)
+                    pool_limit = min(pool_limit, 200)
+
+                    cur.execute(
+                        """
+                        SELECT
+                            ef.kernel_id,
+                            ef.geometric_fitness,
+                            ef.merge_affinity,
+                            kg.god_name,
+                            kg.domain,
+                            kg.basin_coordinates
                         FROM kernel_evolution_fitness ef
                         JOIN kernel_geometry kg ON ef.kernel_id = kg.kernel_id
                         WHERE kg.status IN ('active', 'idle')
                           AND kg.basin_coordinates IS NOT NULL
                         ORDER BY ef.geometric_fitness DESC
                         LIMIT %s
-                    """, (limit,))
-                    return [dict(row) for row in cur.fetchall()]
+                        """,
+                        (pool_limit,),
+                    )
+                    rows = [dict(row) for row in cur.fetchall()]
+
+                    kernels: List[Dict[str, Any]] = []
+                    for row in rows:
+                        basin = row.get("basin_coordinates")
+                        if basin is None:
+                            continue
+                        basin_vec = np.asarray(basin, dtype=np.float64).flatten()
+                        if basin_vec.size != 64:
+                            continue
+                        kernels.append(
+                            {
+                                "kernel_id": row.get("kernel_id"),
+                                "god_name": row.get("god_name"),
+                                "domain": row.get("domain"),
+                                "geometric_fitness": row.get("geometric_fitness"),
+                                "basin": basin_vec,
+                            }
+                        )
+
+                    candidates: List[Dict[str, Any]] = []
+                    for i in range(len(kernels)):
+                        for j in range(i + 1, len(kernels)):
+                            k1 = kernels[i]
+                            k2 = kernels[j]
+
+                            try:
+                                d = float(fisher_rao_distance(k1["basin"], k2["basin"]))
+                            except Exception:
+                                continue
+
+                            if d > max_fisher_distance:
+                                continue
+
+                            similarity = 1.0 - (d / (math.pi / 2.0))
+                            candidates.append(
+                                {
+                                    "kernel1_id": k1["kernel_id"],
+                                    "kernel2_id": k2["kernel_id"],
+                                    "kernel1_name": k1["god_name"],
+                                    "kernel2_name": k2["god_name"],
+                                    "kernel1_domain": k1["domain"],
+                                    "kernel2_domain": k2["domain"],
+                                    "distance": d,
+                                    "similarity": similarity,
+                                }
+                            )
+
+                    candidates.sort(key=lambda x: float(x.get("distance", 999.0)))
+                    return candidates[: int(limit)]
             except Exception as e:
                 print(f"[E8Persistence] Failed to get merge candidates: {e}")
                 return []
@@ -771,19 +831,21 @@ def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
     # Fisher-Rao geometry requires simplex normalization, not L2 normalization
     e8_coords = np.abs(e8_coords) + 1e-12
     e8_coords = e8_coords / e8_coords.sum()
-    
+
+    uniform_8d = np.ones(8) / 8.0
+    signed = e8_coords - uniform_8d
+
     # Determine octant (2^8 = 256 regions)
-    octant = sum(1 << i for i, v in enumerate(e8_coords) if v >= 0)
-    
-    # Calculate angular positions (4 angle pairs from 8 coordinates)
+    octant = sum(1 << i for i, v in enumerate(signed) if v >= 0)
+
+    # Calculate angular positions (4 angle pairs from 8 signed coordinates)
     angles = []
     for i in range(0, 8, 2):
-        angle = math.atan2(e8_coords[i + 1], e8_coords[i])
+        angle = math.atan2(signed[i + 1], signed[i])
         angles.append(angle)
     
     # Calculate radial distance using Fisher-Rao distance from uniform distribution
     # This measures "how far from uniform" the E8 projection is
-    uniform_8d = np.ones(8) / 8.0
     radial = float(fisher_rao_distance(e8_coords, uniform_8d))
     
     # Determine position name
@@ -792,10 +854,10 @@ def compute_e8_position(basin: np.ndarray, parent_basins: List[np.ndarray] = Non
     else:
         # Build name from dominant axes
         dominant_traits = []
-        sorted_indices = np.argsort(np.abs(e8_coords))[::-1]  # Strongest first
+        sorted_indices = np.argsort(np.abs(signed))[::-1]  # Strongest first
         for i in sorted_indices[:3]:  # Top 3 dominant traits
             axis_pair = E8_AXIS_NAMES[i]
-            trait = axis_pair[0] if e8_coords[i] >= 0 else axis_pair[1]
+            trait = axis_pair[0] if signed[i] >= 0 else axis_pair[1]
             dominant_traits.append(trait)
         position_name = " ".join(dominant_traits)
     

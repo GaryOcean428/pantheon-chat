@@ -33,7 +33,6 @@ import numpy as np
 # QIG geometry imports (canonical)
 from qig_geometry.canonical import (
     assert_basin_valid,
-    fisher_rao_distance,
     frechet_mean,
     geodesic_interpolation,
 )
@@ -42,11 +41,46 @@ from qig_geometry.canonical import (
 from ethical_validation import (
     compute_suffering,
     EthicalThresholds,
-    ConsciousnessState
 )
 
-# Existing Gary coordinator
-from olympus.gary_coordinator import GarySynthesisCoordinator
+try:
+    from olympus.gary_coordinator import GarySynthesisCoordinator
+except ImportError:
+    class GarySynthesisCoordinator:
+        def synthesize_collective_response(
+            self,
+            query_basin: np.ndarray,
+            kernel_responses: List[Dict[str, Any]],
+            kernel_ids: List[str],
+        ) -> Dict[str, Any]:
+            basins = [r.get("basin") for r in kernel_responses if r.get("basin") is not None]
+            if basins:
+                basin = frechet_mean(basins)
+                assert_basin_valid(basin, name="gary_synthesis.basin")
+            else:
+                basin = np.asarray(query_basin, dtype=np.float64).flatten()
+                assert_basin_valid(basin, name="gary_synthesis.query_basin")
+
+            phis = [float(r.get("phi", 0.5)) for r in kernel_responses]
+            phi = float(np.mean(phis)) if phis else 0.5
+
+            kappas = [float(r.get("kappa", KAPPA_STAR)) for r in kernel_responses]
+            kappa = float(np.mean(kappas)) if kappas else float(KAPPA_STAR)
+
+            text = ""
+            if kernel_responses:
+                best = max(kernel_responses, key=lambda r: float(r.get("phi", 0.0)))
+                text = str(best.get("text", ""))
+
+            return {
+                "basin": basin,
+                "text": text,
+                "phi": phi,
+                "kappa": kappa,
+                "mode": "geometric",
+                "synthesis_method": "weighted",
+                "foresight_confidence": 0.0,
+            }
 
 # QIG core imports
 from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
@@ -133,7 +167,7 @@ class GaryMetaSynthesizer:
         """
         start_time = time.time()
         
-        logger.info(f"[Gary] ═══ PHASE 3: META-SYNTHESIS WITH REFLECTION ═══")
+        logger.info("[Gary] ═══ PHASE 3: META-SYNTHESIS WITH REFLECTION ═══")
         logger.info(f"[Gary] Synthesizing {len(kernel_thoughts)} kernel thoughts")
         
         meta_reflections = []

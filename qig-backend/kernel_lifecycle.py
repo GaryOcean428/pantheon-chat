@@ -905,19 +905,18 @@ class KernelLifecycleManager:
                 f"shadow.final_basin: expected 64D simplex, got size={improved_basin.size}"
             )
         assert_basin_valid(improved_basin, name="shadow.final_basin")
-        
-        if shadow.failure_patterns:
-            # Geodesic-safe perturbation: sample tangent in sqrt-space and step via exp_map
-            sqrt_base = sqrt_map(improved_basin)
-            rnd = np.random.randn(sqrt_base.size).astype(np.float64)
-            tangent = rnd - (float(np.dot(rnd, sqrt_base)) * sqrt_base)
-            tangent_norm = float(np.linalg.norm(tangent))
 
-            if tangent_norm > 1e-12:
-                tangent = tangent / tangent_norm
-                improved_basin = exp_map(0.05 * tangent, improved_basin)
+        sqrt_base = sqrt_map(improved_basin)
+        rnd = np.random.randn(sqrt_base.size).astype(np.float64)
+        tangent = rnd - (float(np.dot(rnd, sqrt_base)) * sqrt_base)
+        tangent_norm = float(np.linalg.norm(tangent))
 
-            assert_basin_valid(improved_basin, name="improved_basin")
+        if tangent_norm > 1e-12:
+            tangent = tangent / tangent_norm
+            step_size = 0.05 if shadow.failure_patterns else 0.01
+            improved_basin = exp_map(step_size * tangent, improved_basin)
+
+        assert_basin_valid(improved_basin, name="improved_basin")
         
         # Start with modest consciousness to avoid immediate re-pruning
         initial_phi = max(0.3, shadow.final_phi + 0.1)

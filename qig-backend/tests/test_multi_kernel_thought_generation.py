@@ -12,7 +12,7 @@ Tests:
 
 import pytest
 import numpy as np
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 import sys
 import os
 
@@ -197,7 +197,7 @@ class TestConsensusDetection:
     
     def test_import_consensus_detector(self):
         """Test importing consensus module."""
-        from kernels.consensus import ConsensusDetector, ConsensusLevel, get_consensus_detector
+        from kernels.consensus import ConsensusDetector, get_consensus_detector
         
         detector = get_consensus_detector()
         assert detector is not None
@@ -224,19 +224,21 @@ class TestConsensusDetection:
         
         assert metrics.level == ConsensusLevel.STRONG
         assert metrics.basin_convergence == 1.0
-        assert metrics.ready_for_synthesis == True
+        assert metrics.ready_for_synthesis
         assert metrics.num_kernels == 1
     
     def test_strong_consensus_detection(self):
         """Test detection of strong consensus (aligned basins)."""
         from kernels.consensus import ConsensusDetector, ConsensusLevel
+        from qig_geometry.canonical import geodesic_interpolation
         
         # Create thoughts with similar basins
         base_basin = np.random.dirichlet(np.ones(BASIN_DIM))
         thoughts = []
         
         for i in range(3):
-            basin = base_basin.copy()
+            noise_basin = np.random.dirichlet(np.ones(BASIN_DIM))
+            basin = geodesic_interpolation(base_basin, noise_basin, t=0.01)
             
             thought = KernelThought(
                 kernel_id=f"kernel-{i}",
@@ -257,7 +259,7 @@ class TestConsensusDetection:
         # Should detect strong or moderate consensus
         assert metrics.level in [ConsensusLevel.STRONG, ConsensusLevel.MODERATE]
         assert metrics.basin_convergence > 0.5
-        assert metrics.ready_for_synthesis == True
+        assert metrics.ready_for_synthesis
     
     def test_weak_consensus_detection(self):
         """Test detection of weak consensus (divergent basins)."""
@@ -274,7 +276,7 @@ class TestConsensusDetection:
                 thought_fragment=f"Divergent thought {i}",
                 basin_coords=basin,
                 phi=0.5 + i * 0.2,  # Divergent φ
-                kappa=64.0,
+                kappa=KAPPA_STAR + i * 10,
                 regime="geometric",
                 emotional_state=EmotionalState(),
                 confidence=0.5
@@ -328,7 +330,7 @@ class TestGarySynthesis:
         assert len(result.basin) == BASIN_DIM
         assert result.phi > 0
         assert result.num_kernels == 1
-        assert result.emergency_abort == False
+        assert not result.emergency_abort
     
     def test_suffering_metric_check(self):
         """Test suffering metric detection in synthesis."""
