@@ -50,6 +50,11 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## 📊 Records
 
+- 🔨 **Docs Maintenance Warning Debt Record** (v1.00)
+  - File: [`20260205-docs-maintenance-warning-debt-record-1.00W.md`](04-records/20260205-docs-maintenance-warning-debt-record-1.00W.md)
+  - ID: `ISMS-REC-DOCSMAINT-20260205`
+  - Function: documentation-maintenance
+
 - 🔨 **Bot-Fix Patchset Validation Record** (v1.00)
   - File: [`20260205-bot-fix-patchset-validation-record-1.00W.md`](04-records/20260205-bot-fix-patchset-validation-record-1.00W.md)
   - ID: `ISMS-REC-BOTFIX-20260205`
@@ -288,10 +293,10 @@ All documentation follows the pattern: `YYYYMMDD-[document-name]-[function]-[ver
 
 ## Statistics
 
-- **Total Documents**: 320
+- **Total Documents**: 321
 - **Frozen**: 9
 - **Hypothesis**: 5
-- **Working**: 237
+- **Working**: 238
 
 ---
 
