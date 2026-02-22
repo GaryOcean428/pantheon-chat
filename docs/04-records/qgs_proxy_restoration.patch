@@ -1,0 +1,40 @@
+--- a/qig-backend/qig_generative_service.py
++++ b/qig-backend/qig_generative_service.py
+@@ -340,6 +340,8 @@
+     coherence_metrics: Optional[Dict[str, float]] = None  # Γ metric (semantic coherence)
+     pillar_metrics: Optional[Dict[str, Any]] = None  # TCP v6.1 Three Pillars (F/B/Q/S)
+     sovereignty_ratio: float = 0.0                   # N_lived / N_total (TCP v6.1 §27)
++    proxy_routed: bool = False                       # True if any chaos proxy kernel included
++    proxy_kernels: List[str] = field(default_factory=list)  # chaos kernel IDs that were proxied
+ 
+ 
+ def kernel_decide_completion(
+@@ -1822,6 +1824,19 @@
+                     except Exception as _pe:
+                         logger.debug("[QIGGen] Pillar enforcement error: %s", _pe)
+ 
++                # TCP v6.1 — Proxy detection: check which routed kernels are chaos proxies
++                _proxy_routed = False
++                _proxy_kernels: List[str] = []
++                try:
++                    from olympus.pantheon_governance import get_governance as _get_gov
++                    _gov = _get_gov()
++                    for _kid in (target_kernels or []):
++                        if _gov.who_proxies_for(_kid):
++                            _proxy_routed = True
++                            _proxy_kernels.append(_kid)
++                except Exception:
++                    pass  # Fail-soft: governance unavailable
++
+                 return GenerationResult(
+                     text=response_text,
+                     tokens=all_tokens,
+@@ -1835,6 +1850,8 @@
+                     coherence_metrics=coherence,
+                     pillar_metrics=_pillar_result,
+                     sovereignty_ratio=_s_ratio,
++                    proxy_routed=_proxy_routed,
++                    proxy_kernels=_proxy_kernels,
+                 )
+ 
+     def generate_stream(
