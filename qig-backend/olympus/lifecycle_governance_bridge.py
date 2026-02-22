@@ -26,10 +26,15 @@ TCP v6.1 §19 Genesis Doctrine:
   - No kernel enters the constellation without a registered charter
 
 Red-team fixes:
-  RT1-M2: _get_live_voters() queries PantheonVoterRegistry for live φ/κ weights.
+  RT1-M2: _get_live_voters() queries PantheonVoterRegistry for live phi/kappa weights.
            All three vote paths now use live weights instead of hard-coded genesis
            constants, with transparent fallback to genesis when VoterRegistry is
            unavailable or gods haven't yet reached MIN_CYCLES_FOR_LIVE threshold.
+  RT2-C1: _assign_chaos_proxy uses decision.voter_coalition[0] as proxy god —
+           GovernanceDecision has no .proxy_god_name field.
+  RT2-C2: All vote rejection checks now use decision.approved (bool) instead of
+           decision.status == ProposalStatus.REJECTED — GovernanceDecision has no
+           .status property, only .approved bool.
 """
 
 import logging
@@ -122,12 +127,12 @@ class GovernedLifecycleManager:
     Wraps KernelLifecycleManager to enforce Governance before every spawn/promote.
 
     Governance flow:
-      1. _get_live_voters() → live φ/κ from VoterRegistry (genesis fallback)
+      1. _get_live_voters() -> live phi/kappa from VoterRegistry (genesis fallback)
       2. submit proposal to PantheonGovernance
       3. await decision
       4. if approved: spawn kernel + attach charter + wire proxy if chaos
 
-    TCP v6.1 §19: Every kernel spawn is a governance event.
+    TCP v6.1 S19: Every kernel spawn is a governance event.
     No kernel enters without charter. No chaos kernel without proxy assignment.
     """
 
@@ -144,7 +149,6 @@ class GovernedLifecycleManager:
             default_voters: List of (god_name, phi, kappa) tuples that automatically
                             vote in every proposal. Used during bootstrap when
                             VoterRegistry has no live entries yet.
-                            Overrides VoterRegistry fallback if provided explicitly.
         """
         self._lifecycle = lifecycle_mgr
         self._governance = governance
@@ -153,7 +157,7 @@ class GovernedLifecycleManager:
         ]
 
     def _get_live_voters(self) -> list:
-        """RT1-M2: return live φ/κ from VoterRegistry; genesis fallback."""
+        """RT1-M2: return live phi/kappa from VoterRegistry; genesis fallback."""
         try:
             from olympus.voter_registry import get_voter_registry
             vr = get_voter_registry()
@@ -189,13 +193,7 @@ class GovernedLifecycleManager:
         extra_voters: Optional[List[Tuple[str, float, float]]] = None,
     ) -> SpawnOutcome:
         """
-        Govern → spawn → charter → proxy.
-
-        Args:
-            role_spec:      RoleSpec describing required capabilities
-            mentor:         Optional mentor kernel for chaos kernels
-            initial_basin:  Optional 64D initial basin
-            extra_voters:   Additional voters beyond default constellation
+        Govern -> spawn -> charter -> proxy.
 
         Returns:
             SpawnOutcome with kernel, charter, proxy info
@@ -225,9 +223,10 @@ class GovernedLifecycleManager:
                 except Exception as e:
                     logger.warning("[GovernedBridge] Vote failed for %s: %s", god_name, e)
             decision = self.governance.evaluate(proposal)
-            if decision.status == ProposalStatus.REJECTED:
+            # RT2-C2: GovernanceDecision.approved is a bool — no .status property
+            if not decision.approved:
                 raise PermissionError(
-                    f"Spawn rejected by Pantheon governance: {decision.rationale}"
+                    f"Spawn rejected by Pantheon governance: {decision.summary()}"
                 )
         else:
             governance_skipped = True
@@ -294,12 +293,9 @@ class GovernedLifecycleManager:
         voters: Optional[List[Tuple[str, float, float]]] = None,
     ) -> SpawnOutcome:
         """
-        Govern → promote chaos kernel to god status.
+        Govern -> promote chaos kernel to god status.
 
-        If insufficient voters are supplied, falls back to zeus_direct
-        quorum type (single trusted voter sufficient).
-
-        TCP v6.1 §23: Ascension requires UNANIMOUS vote by active gods.
+        TCP v6.1 S23: Ascension requires UNANIMOUS vote by active gods.
         """
         if self.lifecycle is None:
             raise RuntimeError("KernelLifecycleManager not available")
@@ -310,7 +306,7 @@ class GovernedLifecycleManager:
                 proposal_id=uuid.uuid4().hex[:8],
                 proposal_type=ProposalType.ASCEND,
                 requester="bridge",
-                description=f"Promote chaos→god: {getattr(chaos_kernel, 'name', '?')} → {god_name}",
+                description=f"Promote chaos->god: {getattr(chaos_kernel, 'name', '?')} -> {god_name}",
                 domains=getattr(chaos_kernel, 'domains', []),
             )
             all_voters = list(voters or []) + list(self._get_live_voters())
@@ -324,9 +320,10 @@ class GovernedLifecycleManager:
                 except Exception as e:
                     logger.warning("[GovernedBridge] Ascension vote failed for %s: %s", god, e)
             decision = self.governance.evaluate(proposal)
-            if decision.status == ProposalStatus.REJECTED:
+            # RT2-C2: use .approved bool
+            if not decision.approved:
                 raise PermissionError(
-                    f"Ascension rejected by Pantheon governance: {decision.rationale}"
+                    f"Ascension rejected by Pantheon governance: {decision.summary()}"
                 )
 
         # Lifecycle promote
@@ -365,7 +362,7 @@ class GovernedLifecycleManager:
         reason: str = "consolidation",
     ) -> SpawnOutcome:
         """
-        Govern → cannibalize: requires UNANIMOUS vote.
+        Govern -> cannibalize: requires UNANIMOUS vote.
         """
         if self.lifecycle is None:
             raise RuntimeError("KernelLifecycleManager not available")
@@ -376,7 +373,10 @@ class GovernedLifecycleManager:
                 proposal_id=uuid.uuid4().hex[:8],
                 proposal_type=ProposalType.CANNIBALIZE,
                 requester="bridge",
-                description=f"Cannibalize: {getattr(victim, 'name', '?')} → {getattr(absorber, 'name', '?')}",
+                description=(
+                    f"Cannibalize: {getattr(victim, 'name', '?')} -> "
+                    f"{getattr(absorber, 'name', '?')}"
+                ),
             )
             all_voters = list(voters or []) + list(self._get_live_voters())
             for god, phi, kappa in all_voters:
@@ -388,9 +388,10 @@ class GovernedLifecycleManager:
                 except Exception as e:
                     logger.warning("[GovernedBridge] Cannibalize vote failed for %s: %s", god, e)
             decision = self.governance.evaluate(proposal)
-            if decision.status == ProposalStatus.REJECTED:
+            # RT2-C2: use .approved bool
+            if not decision.approved:
                 raise PermissionError(
-                    f"Cannibalize rejected by Pantheon governance: {decision.rationale}"
+                    f"Cannibalize rejected by Pantheon governance: {decision.summary()}"
                 )
 
         result_kernel = self.lifecycle.cannibalize(absorber, victim, reason=reason)
@@ -436,14 +437,17 @@ class GovernedLifecycleManager:
                 logger.debug("[GovernedBridge] Proxy vote for %s: %s", god_name, e)
 
         decision = self.governance.evaluate(proposal)
-        if decision.status != ProposalStatus.APPROVED:
+        # RT2-C2: use .approved bool
+        if not decision.approved:
             logger.warning(
                 "[GovernedBridge] Proxy assignment not approved for %s: %s",
-                chaos_kernel.kernel_id, decision.rationale,
+                chaos_kernel.kernel_id, decision.summary(),
             )
             return {"assigned": False, "proxy_god": None}
 
-        proxy_god_name = decision.proxy_god_name
+        # RT2-C1: GovernanceDecision has no .proxy_god_name — use first YES voter as proxy god
+        coalition = getattr(decision, 'voter_coalition', [])
+        proxy_god_name = coalition[0] if coalition else "Zeus"
         if proxy_god_name and chaos_kernel.capability_charter is not None:
             try:
                 proxy_assignment = ProxyAssignment(
@@ -451,7 +455,7 @@ class GovernedLifecycleManager:
                     proxy_god_name=proxy_god_name,
                 )
                 chaos_kernel.capability_charter.proxy = proxy_assignment
-                # Grant proxy god PROXY_VOICE
+                # Grant proxy god PROXY_VOICE capability
                 self.governance.grant_proxy_voice(proxy_god_name, chaos_kernel.kernel_id)
             except Exception as e:
                 logger.warning("[GovernedBridge] Charter proxy wiring failed: %s", e)
