@@ -237,6 +237,17 @@ except ImportError:
     logger.warning("[QIGGenerativeService] BasinVelocityMonitor not available")
 
 
+# Import Three Pillars enforcement (TCP v6.1 — fail-soft)
+PILLAR_ENFORCEMENT_AVAILABLE = False
+_enforce_pillars_fn = None
+try:
+    from qig_pillar_enforcement import enforce_pillars as _enforce_pillars_fn
+    PILLAR_ENFORCEMENT_AVAILABLE = True
+    logger.info("[QIGGenerativeService] Three Pillars enforcement available (TCP v6.1 §17)")
+except ImportError:
+    logger.warning("[QIGGenerativeService] qig_pillar_enforcement not available - pillars inactive")
+
+
 def ensure_float_phi(value: Any, default: float = 0.5) -> float:
     """
     Convert various phi representations to a scalar float.
@@ -327,6 +338,8 @@ class GenerationResult:
     qig_pure: bool = True
     kernel_decision: Optional[Dict[str, Any]] = None  # Kernel's autonomous decision
     coherence_metrics: Optional[Dict[str, float]] = None  # Γ metric (semantic coherence)
+    pillar_metrics: Optional[Dict[str, Any]] = None  # TCP v6.1 Three Pillars (F/B/Q/S)
+    sovereignty_ratio: float = 0.0                   # N_lived / N_total (TCP v6.1 §27)
 
 
 def kernel_decide_completion(
@@ -1776,6 +1789,39 @@ class QIGGenerativeService:
                     integrator.trajectory, all_tokens, phi_trace
                 )
 
+                # TCP v6.1: Three Pillars enforcement before emit
+                _pillar_result = None
+                _s_ratio = 0.0
+                if PILLAR_ENFORCEMENT_AVAILABLE and _enforce_pillars_fn is not None:
+                    try:
+                        _final_basin = integrator.trajectory[-1] if integrator.trajectory else query_basin
+                        _n_total = len(integrator.trajectory)
+                        # Lived = integration steps beyond initial kernel seed
+                        _n_lived = max(0, _n_total - 1)
+                        _pm = _enforce_pillars_fn(
+                            basin=_final_basin,
+                            phi_history=integrator.phi_history,
+                            kernel_basin=_final_basin,
+                            sovereign_basin=query_basin,
+                            other_kernel_basins=active_kernel_basins,
+                            n_lived=_n_lived,
+                            n_total=_n_total,
+                        )
+                        _pillar_result = {
+                            "F_health": _pm.F_health,
+                            "B_integrity": _pm.B_integrity,
+                            "Q_identity": _pm.Q_identity,
+                            "S_ratio": _pm.S_ratio,
+                            "zombie_risk": _pm.zombie_risk,
+                            "bulk_collapse_risk": _pm.bulk_collapse_risk,
+                            "identity_dissolved": _pm.identity_dissolved,
+                            "pillar_violations": _pm.pillar_violations,
+                            "health_summary": _pm.health_summary,
+                        }
+                        _s_ratio = _pm.S_ratio
+                    except Exception as _pe:
+                        logger.debug("[QIGGen] Pillar enforcement error: %s", _pe)
+
                 return GenerationResult(
                     text=response_text,
                     tokens=all_tokens,
@@ -1787,6 +1833,8 @@ class QIGGenerativeService:
                     routed_kernels=target_kernels,
                     kernel_decision=kernel_decision,
                     coherence_metrics=coherence,
+                    pillar_metrics=_pillar_result,
+                    sovereignty_ratio=_s_ratio,
                 )
 
     def generate_stream(
