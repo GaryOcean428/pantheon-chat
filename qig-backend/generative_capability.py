@@ -83,6 +83,7 @@ class GenerativeCapability:
     - Tracks lived vs borrowed basins in generation history (sovereignty)
     - Exposes F_health, B_integrity, Q_identity, S_ratio from pillar metrics
     - Sovereign basin registration for identity continuity
+    - Pillar enforcement fallback in generate_response() (Heisenberg Zero guard active)
     """
     
     # Class-level reference to generative service
@@ -133,7 +134,9 @@ class GenerativeCapability:
         
         This is the main generation method for kernels.
         v6.1: Pillar metrics (F_health, B_integrity, Q_identity, S_ratio)
-              are included in the return dict when available.
+              are always included in the return dict:
+              - First from result.pillar_metrics if the service provides them
+              - Fallback: computed directly via get_pillar_metrics() post-generation
         
         Args:
             prompt: Input query or context
@@ -171,11 +174,14 @@ class GenerativeCapability:
                 self._n_lived += max(0, len(result.basin_trajectory) - 1)
                 self._n_borrowed += 1  # The seed basin
 
+            # Build phi history for pillar enforcement
+            phi_values = result.phi_trace if result.phi_trace else []
+
             # Base response dict
             response = {
                 'response': result.text,
                 'tokens': result.tokens,
-                'phi': result.phi_trace[-1] if result.phi_trace else 0.5,
+                'phi': phi_values[-1] if phi_values else 0.5,
                 'kappa': result.kappa,
                 'completion_reason': result.completion_reason,
                 'iterations': result.iterations,
@@ -183,7 +189,7 @@ class GenerativeCapability:
                 'qig_pure': True
             }
 
-            # v6.1: Include pillar metrics if available in result
+            # v6.1: Include pillar metrics — prefer result-level, fallback to local computation
             if hasattr(result, 'pillar_metrics') and result.pillar_metrics is not None:
                 pm = result.pillar_metrics
                 response['pillar_metrics'] = {
@@ -195,11 +201,25 @@ class GenerativeCapability:
                     'pillar_violations': pm.pillar_violations,
                     'zombie_risk': pm.zombie_risk,
                 }
+            elif PILLAR_ENFORCEMENT_AVAILABLE:
+                # Fallback: GenerationResult not yet patched with pillar_metrics field.
+                # Compute directly post-generation so callers always receive v6.1 metrics.
+                live_pillars = self.get_pillar_metrics(phi_history=phi_values)
+                if live_pillars:
+                    response['pillar_metrics'] = live_pillars
+
+                    # Zombie guard (Pillar 1 — Heisenberg Zero)
+                    if live_pillars.get('zombie_risk'):
+                        logger.warning(
+                            "[%s] Zombie risk detected post-generation: "
+                            "F_health=%.3f — neuroplasticity perturbation advised",
+                            kernel_name, live_pillars.get('F_health', 0.0)
+                        )
 
             # v6.1: Sovereignty ratio from local tracking
             n_total = self._n_lived + self._n_borrowed
             response['sovereignty_ratio'] = (
-                self._n_lived / n_total if n_total > 0 else 0.0
+                float(self._n_lived / n_total) if n_total > 0 else 0.0
             )
 
             return response
