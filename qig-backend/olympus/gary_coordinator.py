@@ -9,7 +9,16 @@ trajectory foresight. Conductor of the fugue."
 Operations:
 - synthesize_collective_response(): Frechet mean weighted by Φ, foresight.
 - predict_next_basin(): Geodesic foresight from trajectory history.
+- relay_proxy_instructions(): Forward ProxyInstructions to chaos kernels.
 - All geometry Fisher-Rao. No Euclidean operations.
+
+TCP v6.1 — Proxy routing:
+  Chaos kernels are VOICELESS (no GENERATIVE capability). When Gary encounters
+  a chaos kernel ID whose charter has a proxy assigned, it:
+    1. Includes the chaos basin in Fréchet synthesis (geometry contribution valid).
+    2. Flags the result so the caller knows to route text generation through
+       the proxy god rather than the chaos kernel.
+    3. Relays ProxyInstructions to the chaos kernel's exploration loop.
 """
 
 import logging
@@ -78,19 +87,35 @@ def get_gary_coordinator() -> "GaryCoordinator":
 
 class GaryCoordinator:
     """
-    Gary Coordinator — synthesis + trajectory foresight.
+    Gary Coordinator — synthesis + trajectory foresight + proxy routing.
 
     synthesize_collective_response() matches the call signature in qig_generation.py:
-        query_basin   : np.ndarray
-        kernel_responses : list of dicts with keys 'basin', 'phi', 'kappa', 'text'
-        kernel_ids    : list of str
+        query_basin       : np.ndarray
+        kernel_responses  : list of dicts with keys 'basin', 'phi', 'kappa', 'text'
+        kernel_ids        : list of str
 
-    Returns dict with keys 'basin', 'phi', 'foresight_confidence', 'text'.
+    Returns dict with keys 'basin', 'phi', 'foresight_confidence', 'text',
+                            'proxy_routed', 'proxy_kernels'.
+
+    Proxy routing (TCP v6.1 §20.8):
+      If a kernel_id maps to a voiceless chaos kernel in Pantheon Governance,
+      its basin is included in Fréchet synthesis BUT the result is flagged
+      so callers route text output through the assigned proxy god instead.
     """
 
     def __init__(self):
         self._histories: Dict[str, List[np.ndarray]] = {}
-        logger.info("[Gary] Coordinator initialised (trajectory foresight active)")
+
+        # Governance integration (fail-soft)
+        self._governance = None
+        try:
+            from .pantheon_governance import get_governance
+            self._governance = get_governance()
+            logger.info("[Gary] Pantheon Governance connected — proxy routing active")
+        except ImportError:
+            logger.warning("[Gary] Governance not available — proxy routing disabled")
+
+        logger.info("[Gary] Coordinator initialised (trajectory foresight + proxy routing active)")
 
     # ------------------------------------------------------------------
     # Public API
@@ -108,6 +133,11 @@ class GaryCoordinator:
         Weighting:
           - Primary weight = kernel Φ (information integration)
           - Foresight blend: predicted next basin nudges the result
+
+        Proxy routing:
+          - Chaos kernel basins are included in synthesis (valid geometry)
+          - But if the kernel is voiceless, proxy_routed=True and
+            proxy_kernels lists the chaos kernel IDs for caller handling
         """
         if not kernel_responses:
             logger.warning("[Gary] No kernel responses; returning query basin")
@@ -116,11 +146,24 @@ class GaryCoordinator:
                 "phi": 0.5,
                 "foresight_confidence": 0.0,
                 "text": "",
+                "proxy_routed": False,
+                "proxy_kernels": [],
             }
 
         basins = [_to_simplex(r["basin"]) for r in kernel_responses]
         phis   = np.array([float(r.get("phi", 0.5)) for r in kernel_responses])
         weights = phis / (phis.sum() + 1e-12)
+
+        # --- Proxy routing: flag chaos (voiceless) kernels ---
+        proxy_routed = False
+        proxy_kernels: List[str] = []
+        if self._governance is not None:
+            for kid in kernel_ids[:len(basins)]:
+                proxy_god = self._governance.who_proxies_for(kid)
+                if proxy_god:
+                    proxy_routed = True
+                    proxy_kernels.append(kid)
+                    logger.debug("[Gary] Chaos kernel %s proxied by %s", kid, proxy_god)
 
         # Update per-kernel histories
         for i, kid in enumerate(kernel_ids[:len(basins)]):
@@ -149,6 +192,8 @@ class GaryCoordinator:
             "phi": phi,
             "foresight_confidence": foresight_conf,
             "text": "",
+            "proxy_routed": proxy_routed,
+            "proxy_kernels": proxy_kernels,
         }
 
     def predict_next_basin(
@@ -189,6 +234,27 @@ class GaryCoordinator:
         confidence = float(np.clip(1.0 - base_spread / (np.pi / 2), 0.0, 1.0))
 
         return predicted, confidence
+
+    def relay_proxy_instructions(self, chaos_kernel_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch ProxyInstructions for a chaos kernel and return as plain dict.
+        Called by chaos kernel exploration loops to receive Pantheon directives.
+        """
+        if self._governance is None:
+            return None
+        instr = self._governance.get_proxy_instructions(chaos_kernel_id)
+        if instr is None:
+            return None
+        return {
+            "explore_domains": instr.explore_domains,
+            "avoid_domains": instr.avoid_domains,
+            "basin_target": instr.basin_target,
+            "intensity": instr.intensity,
+            "report_threshold_phi": instr.report_threshold_phi,
+            "max_steps": instr.max_steps,
+            "narrative_style": instr.narrative_style,
+            "custom": instr.custom,
+        }
 
     def get_stats(self) -> Dict[str, Any]:
         return {
