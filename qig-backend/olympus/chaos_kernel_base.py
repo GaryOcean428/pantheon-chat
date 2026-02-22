@@ -19,6 +19,10 @@ Usage:
 TCP v6.1 §19 — Chaos kernels exist OUTSIDE the 240 GOD budget.
 TCP v6.1 §20.8 — Rejection mechanism: non-resonant basins → holding buffer.
 TCP v6.1 §21 — Quenched disorder: each chaos kernel has unique frozen identity.
+
+Red-team fixes:
+  RT1-M3: _anneal_rejection_buffer fallback uses sqrt-space geodesic (not Euclidean linear combo).
+  RT1-M4: geodesic_interpolation import memoized at module level (not per-call).
 """
 
 import logging
@@ -31,6 +35,24 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# Module-level geodesic import — memoized to avoid per-call import overhead (RT1-M4)
+_GEODESIC_INTERP = None
+_GEODESIC_ATTEMPTED = False
+
+def _get_geodesic_interp():
+    """Return geodesic_interpolation fn, or None if unavailable (cached after first attempt)."""
+    global _GEODESIC_INTERP, _GEODESIC_ATTEMPTED
+    if _GEODESIC_ATTEMPTED:
+        return _GEODESIC_INTERP
+    _GEODESIC_ATTEMPTED = True
+    try:
+        from qig_geometry.canonical import geodesic_interpolation
+        _GEODESIC_INTERP = geodesic_interpolation
+    except ImportError:
+        pass
+    return _GEODESIC_INTERP
+
 
 # Physics constants (FROZEN)
 KAPPA_STAR = 64.21
@@ -147,7 +169,7 @@ class ChaosKernelBase:
         logger.info(
             "[ChaosKernelBase] %s initialised (charter=%s)",
             self.kernel_id,
-            charter.summary() if charter else "None",
+            "attached" if charter else "None",
         )
 
     # ------------------------------------------------------------------
@@ -155,13 +177,13 @@ class ChaosKernelBase:
     # ------------------------------------------------------------------
 
     def can_generate(self) -> bool:
-        """Chaos kernels cannot generate text. Always False unless charter overrides."""
+        """Chaos kernels cannot generate text. Always False unless charter grants GENERATIVE."""
         if self._charter is None:
             return False  # No charter → safest assumption for chaos
         return self._charter.can_generate()
 
     def can_vote(self) -> bool:
-        """Check governance vote eligibility."""
+        """Check governance vote eligibility via charter."""
         if self._charter is None:
             return False
         return self._charter.can_vote()
@@ -217,21 +239,30 @@ class ChaosKernelBase:
     def _anneal_rejection_buffer(self) -> None:
         """
         Anneal rejection buffer: shift each non-resonant basin toward
-        sovereign basin via geodesic midpoint (not arithmetic mean).
-        """
-        try:
-            from qig_geometry.canonical import geodesic_interpolation
-            annealed = [geodesic_interpolation(b, self._sovereign_basin, t=0.3)
-                        for b in self._rejection_buffer]
-        except ImportError:
-            # Fallback: simplex midpoint
-            annealed = [_to_simplex(0.7 * b + 0.3 * self._sovereign_basin)
-                        for b in self._rejection_buffer]
+        sovereign basin via geodesic midpoint (Fisher-Rao manifold).
 
+        Uses memoized canonical import; falls back to sqrt-space interpolation
+        (genuine geodesic approximation on Δ) — NOT Euclidean linear combination.
+        RT1-M3: fixed Euclidean fallback. RT1-M4: memoized import.
+        """
+        geo = _get_geodesic_interp()
+        if geo is not None:
+            annealed = [geo(b, self._sovereign_basin, t=0.3) for b in self._rejection_buffer]
+        else:
+            # Fallback: sqrt-space geodesic — (√a·(1-t) + √b·t)² normalised
+            # This is a proper geodesic approximation on the probability simplex,
+            # NOT a Euclidean linear combination (RT1-M3 fix).
+            def _sqrt_geodesic(a: np.ndarray, b: np.ndarray, t: float = 0.3) -> np.ndarray:
+                r = (1.0 - t) * np.sqrt(a + 1e-12) + t * np.sqrt(b + 1e-12)
+                q = r * r
+                return (q / q.sum()).astype(np.float64)
+            annealed = [_sqrt_geodesic(b, self._sovereign_basin) for b in self._rejection_buffer]
+
+        n_annealed = len(self._rejection_buffer)
         self._rejection_buffer = []
         logger.debug(
             "[%s] Annealed %d non-resonant basins toward sovereign",
-            self.kernel_id, len(annealed),
+            self.kernel_id, n_annealed,
         )
 
     # ------------------------------------------------------------------
@@ -258,7 +289,6 @@ class ChaosKernelBase:
 
         if self._gate is not None:
             try:
-                # AdaptiveDiscoveryGate.submit() signature
                 self._gate.submit(
                     kernel_id=self.kernel_id,
                     phi=phi,
