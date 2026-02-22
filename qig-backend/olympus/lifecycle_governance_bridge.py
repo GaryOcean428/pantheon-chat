@@ -46,6 +46,7 @@ try:
         GovernanceVote,
         GovernanceDecision,
         ProposalType,
+        ProposalStatus,
         get_governance,
     )
     from .capability_charter import (
@@ -59,6 +60,7 @@ try:
     GOVERNANCE_AVAILABLE = True
 except ImportError:
     GOVERNANCE_AVAILABLE = False
+    ProposalStatus = None
     logger.warning("[LifecycleBridge] Governance not available — charters disabled")
 
 # Default proxy gods by domain (fallback when no specific proxy is requested)
@@ -280,9 +282,7 @@ class GovernedLifecycleManager:
 
         # Execute lifecycle promotion (geometry mechanics)
         god_kernel = self._lcm.promote(chaos_kernel, god_name)
-        decision.proposal.status = __import__("olympus.pantheon_governance",
-                                              fromlist=["ProposalStatus"]
-                                              ).ProposalStatus.EXECUTED
+        decision.proposal.status = ProposalStatus.EXECUTED
 
         if decision.charter:
             self._gov.register_charter(decision.charter)
