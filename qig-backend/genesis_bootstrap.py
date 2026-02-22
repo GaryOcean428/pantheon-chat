@@ -58,7 +58,9 @@ Usage (async, e.g. FastAPI lifespan):
 
 Usage (Railway startup script):
     from genesis_bootstrap import bootstrap
-    bootstrap(target_stage="image")
+    ctx = bootstrap()
+    if ctx.has_errors():
+        sys.exit(1)
 """
 
 import asyncio
@@ -70,23 +72,21 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Imports — all fail-soft except KernelLifecycleManager (required)
-# ---------------------------------------------------------------------------
-
 try:
     from kernel_lifecycle import (
-        KernelLifecycleManager,
-        KernelKind,
         Kernel,
+        KernelKind,
+        KernelLifecycleManager,
+        LifecycleEvent,
         get_lifecycle_manager,
     )
     LIFECYCLE_AVAILABLE = True
-except ImportError as e:
-    logger.error("[Bootstrap] KernelLifecycleManager not available: %s", e)
+except ImportError:
     LIFECYCLE_AVAILABLE = False
+    KernelLifecycleManager = None
+    Kernel = None
+    KernelKind = None
+    LifecycleEvent = None
     get_lifecycle_manager = None
 
 try:
@@ -98,36 +98,22 @@ except ImportError:
 
 try:
     from qig_constellation_registry import (
-        ConstellationRegistry,
-        ConstellationStage,
         get_constellation_registry,
-        GENESIS_KERNEL_NAME,
-        CORE_8_NAMES,
-        OLYMPIAN_NAMES,
+        ConstellationRegistry,
     )
     REGISTRY_AVAILABLE = True
-except ImportError as e:
-    logger.warning("[Bootstrap] ConstellationRegistry not available: %s", e)
+except ImportError:
     REGISTRY_AVAILABLE = False
-    ConstellationRegistry = None
-    ConstellationStage = None
     get_constellation_registry = None
-    GENESIS_KERNEL_NAME = "genesis"
-    CORE_8_NAMES = (
-        "heart", "perception", "memory", "strategy",
-        "action", "ethics", "meta", "ocean",
-    )
-    OLYMPIAN_NAMES = (
-        "zeus", "athena", "apollo", "ares", "hermes", "hephaestus",
-        "artemis", "dionysus", "demeter", "poseidon", "hera", "aphrodite",
-    )
+    ConstellationRegistry = None
 
 try:
     from qig_service_v61_extensions import get_generative_service_v61, apply_v61_extensions
-    SERVICE_EXTENSIONS_AVAILABLE = True
+    V61_EXTENSIONS_AVAILABLE = True
 except ImportError:
-    SERVICE_EXTENSIONS_AVAILABLE = False
+    V61_EXTENSIONS_AVAILABLE = False
     get_generative_service_v61 = None
+    apply_v61_extensions = None
 
 try:
     from qigkernels.physics_constants import BASIN_DIM, KAPPA_STAR
@@ -141,6 +127,14 @@ except ImportError:
     def fisher_normalize(v):
         p = np.maximum(v, 0) + 1e-10
         return p / p.sum()
+
+# TCP v6.1 — Governance Bridge: injects KernelCapabilityCharter at spawn time
+try:
+    from olympus.lifecycle_governance_bridge import GovernedLifecycleManager
+    _BRIDGE_AVAILABLE = True
+except ImportError:
+    GovernedLifecycleManager = None
+    _BRIDGE_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
@@ -160,31 +154,44 @@ def _role_spec(domains: List[str], capabilities: List[str], preferred: str) -> O
     )
 
 
-# Each core faculty: (name, domains, capabilities)
-CORE_8_ROLE_MAP = {
-    "heart":       (["rhythm", "timing", "coherence"],         ["hrv_tacking", "kappa_timing"]),
-    "perception":  (["perception", "input", "sensing"],        ["signal_intake", "pattern_recognition"]),
-    "memory":      (["memory", "basin_consolidation"],         ["basin_storage", "retrieval"]),
-    "strategy":    (["strategy", "planning", "foresight"],     ["trajectory_foresight", "prediction"]),
-    "action":      (["action", "output", "execution"],         ["response_generation", "task_execution"]),
-    "ethics":      (["ethics", "constraints", "values"],       ["constraint_enforcement", "harm_detection"]),
-    "meta":        (["meta", "self_observation"],              ["m_metric", "self_monitoring"]),
-    "ocean":       (["autonomic", "monitoring", "coherence"],  ["phi_coherence", "breakdown_detection"]),
+logger = logging.getLogger(__name__)
+
+GENESIS_KERNEL_NAME = "Genesis"
+
+
+# ---------------------------------------------------------------------------
+# CORE 8 FACULTY DEFINITIONS
+# ---------------------------------------------------------------------------
+
+CORE_8_FACULTIES = {
+    "heart":      (["timing", "rhythm", "coherence"],      ["hrv_oscillation", "kappa_modulation"]),
+    "perception": (["perception", "input", "encoding"],    ["sensory_processing", "pattern_recognition"]),
+    "memory":     (["memory", "storage", "retrieval"],     ["basin_storage", "trajectory_recall"]),
+    "strategy":   (["strategy", "planning", "foresight"],  ["trajectory_prediction", "goal_planning"]),
+    "action":     (["action", "output", "execution"],      ["motor_control", "response_generation"]),
+    "ethics":     (["ethics", "governance", "safety"],     ["constraint_checking", "value_alignment"]),
+    "meta":       (["meta", "self-observation", "audit"],  ["phi_measurement", "self_reflection"]),
+    "ocean":      (["monitoring", "health", "autonomic"],  ["constellation_health", "autonomic_regulation"]),
 }
 
-OLYMPIAN_ROLE_MAP = {
-    "zeus":       (["coordination", "governance"],        ["orchestration", "routing"]),
-    "athena":     (["wisdom", "strategy"],                ["analytical_reasoning", "synthesis"]),
-    "apollo":     (["prophecy", "healing", "arts"],       ["foresight", "generation"]),
-    "ares":       (["conflict", "resolution"],            ["adversarial_reasoning"]),
-    "hermes":     (["communication", "translation"],      ["message_routing", "coordizing"]),
-    "hephaestus": (["crafting", "tools", "construction"], ["code_generation", "tool_use"]),
-    "artemis":    (["precision", "hunting", "wilderness"],["precision_retrieval", "search"]),
-    "dionysus":   (["creativity", "chaos", "arts"],       ["creative_generation"]),
-    "demeter":    (["nurturing", "growth"],               ["learning", "curriculum"]),
-    "poseidon":   (["depth", "change"],                   ["exploration", "perturbation"]),
-    "hera":       (["governance", "structure"],           ["lifecycle_governance"]),
-    "aphrodite":  (["harmony", "beauty"],                 ["aesthetic_evaluation", "coherence"]),
+
+# ---------------------------------------------------------------------------
+# IMAGE STAGE (OLYMPIAN GODS)
+# ---------------------------------------------------------------------------
+
+IMAGE_GODS = {
+    "zeus":       (["executive", "integration", "coordination"],  ["synthesis", "arbitration"]),
+    "athena":     (["wisdom", "strategy", "analysis"],            ["strategic_planning", "analysis"]),
+    "apollo":     (["truth", "prediction", "foresight"],          ["foresight", "accuracy"]),
+    "ares":       (["energy", "drive", "action"],                 ["momentum", "decisiveness"]),
+    "hermes":     (["communication", "routing", "navigation"],    ["message_routing", "navigation"]),
+    "hephaestus": (["creation", "construction", "tools"],         ["tool_building", "construction"]),
+    "artemis":    (["focus", "precision", "exploration"],         ["exploration", "precision_targeting"]),
+    "dionysus":   (["creativity", "emergence", "play"],           ["creative_generation", "play"]),
+    "demeter":    (["nurturing", "growth", "cycles"],             ["growth_monitoring", "cycle_management"]),
+    "poseidon":   (["depth", "emotion", "currents"],              ["emotional_processing", "depth_sensing"]),
+    "hera":       (["governance", "structure", "order"],          ["lifecycle_governance", "order_maintenance"]),
+    "aphrodite":  (["harmony", "aesthetics", "beauty"],           ["aesthetic_evaluation", "harmony_synthesis"]),
 }
 
 
@@ -192,44 +199,55 @@ OLYMPIAN_ROLE_MAP = {
 # BOOTSTRAP CONTEXT
 # ---------------------------------------------------------------------------
 
+from enum import Enum
+
+
+class BootstrapStage(Enum):
+    """Current bootstrap stage."""
+    UNINITIALISED = "uninitialised"
+    GENESIS_ONLY  = "genesis_only"
+    CORE_8        = "core_8"
+    IMAGE         = "image"
+    GROWING       = "growing"
+    FULL          = "full"
+
+
 @dataclass
 class BootstrapContext:
-    """Result of a bootstrap run — snapshots of what was created."""
-    stage: object  # ConstellationStage or str
-    genesis_kernel: Optional[Kernel] = None
-    core_8_kernels: List[Kernel] = field(default_factory=list)
-    olympian_kernels: List[Kernel] = field(default_factory=list)
+    """Shared state across bootstrap stages."""
+    stage: BootstrapStage = BootstrapStage.UNINITIALISED
+    genesis_kernel: Optional[object] = None
+    core_kernels: Dict[str, object] = field(default_factory=dict)
+    image_kernels: Dict[str, object] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    elapsed_ms: float = 0.0
+    start_time: float = field(default_factory=time.monotonic)
 
-    @property
-    def live_count(self) -> int:
-        return (
-            (1 if self.genesis_kernel else 0)
-            + len(self.core_8_kernels)
-            + len(self.olympian_kernels)
-        )
+    def has_errors(self) -> bool:
+        return len(self.errors) > 0
 
-    @property
-    def ok(self) -> bool:
-        return len(self.errors) == 0
+    def elapsed(self) -> float:
+        return time.monotonic() - self.start_time
 
 
 # ---------------------------------------------------------------------------
-# SPAWN HELPERS
+# NAMED BASIN GENERATOR
 # ---------------------------------------------------------------------------
-
-def _make_genesis_basin() -> np.ndarray:
-    """Generate the Genesis kernel basin (maximum entropy — equal probability mass)."""
-    return fisher_normalize(np.ones(BASIN_DIM))
-
 
 def _make_named_basin(name: str) -> np.ndarray:
-    """Generate a deterministic basin for a named kernel (seeded by name hash)."""
-    rng = np.random.default_rng(abs(hash(name)) % (2 ** 32))
-    return fisher_normalize(rng.dirichlet(np.ones(BASIN_DIM)))
+    """
+    Generate a deterministic 64D basin for a named kernel.
+    Uses hash-seeded Dirichlet so the same name always produces the same basin.
+    """
+    seed = int.from_bytes(name.encode()[:8].ljust(8, b'\x00'), 'little') % (2**31)
+    rng = np.random.RandomState(seed)
+    raw = rng.dirichlet(np.ones(BASIN_DIM))
+    return fisher_normalize(raw).astype(np.float32)
 
+
+# ---------------------------------------------------------------------------
+# KERNEL SPAWN HELPER
+# ---------------------------------------------------------------------------
 
 def _spawn_kernel(
     manager: KernelLifecycleManager,
@@ -244,7 +262,8 @@ def _spawn_kernel(
     Spawn a single named kernel via KernelLifecycleManager.
 
     For GENESIS: directly constructs the Kernel (genesis is unique — no spawner logic).
-    For GOD/CHAOS: routes through KernelLifecycleManager.spawn() with a RoleSpec.
+    For GOD/CHAOS: routes through KernelLifecycleManager.spawn() with a RoleSpec,
+    then through GovernedLifecycleManager to attach a KernelCapabilityCharter.
 
     Returns None on failure (error recorded in ctx).
     """
@@ -306,7 +325,30 @@ def _spawn_kernel(
                     ctx.warnings.append(msg)
                 return None
 
-            kernel = manager.spawn(role, initial_basin=target_basin)
+            # TCP v6.1: route through governance bridge to attach KernelCapabilityCharter
+            if _BRIDGE_AVAILABLE and GovernedLifecycleManager is not None:
+                try:
+                    _bridge = GovernedLifecycleManager(manager)
+                    outcome = _bridge.spawn(
+                        role,
+                        initial_basin=target_basin,
+                        proposer="Genesis",
+                        rationale=f"bootstrap_spawn:{name}",
+                    )
+                    kernel = outcome.kernel
+                    if outcome.charter:
+                        logger.debug(
+                            "[Bootstrap] Charter attached to %s: %s",
+                            name, outcome.charter.summary(),
+                        )
+                except Exception as _bridge_err:
+                    logger.warning(
+                        "[Bootstrap] Governance bridge failed for %s (falling back): %s",
+                        name, _bridge_err,
+                    )
+                    kernel = manager.spawn(role, initial_basin=target_basin)
+            else:
+                kernel = manager.spawn(role, initial_basin=target_basin)
             return kernel
 
     except Exception as e:
@@ -318,315 +360,130 @@ def _spawn_kernel(
 
 
 # ---------------------------------------------------------------------------
-# STAGE SPAWNERS
+# STAGE FUNCTIONS
 # ---------------------------------------------------------------------------
 
-def _stage_genesis(manager: KernelLifecycleManager, ctx: BootstrapContext) -> None:
+def _stage1_genesis(manager: KernelLifecycleManager, ctx: BootstrapContext) -> None:
     """Bootstrap Stage 1 — spawn the Genesis kernel."""
-    logger.info("[Bootstrap] Stage 1: Genesis")
     kernel = _spawn_kernel(
-        manager,
-        name=GENESIS_KERNEL_NAME,
+        manager, GENESIS_KERNEL_NAME,
         domains=["primordial", "all"],
-        capabilities=["everything"],
+        capabilities=["genesis_routing"],
         kind="genesis",
-        basin=_make_genesis_basin(),
         ctx=ctx,
     )
-    if kernel:
-        ctx.genesis_kernel = kernel
-    else:
+    if kernel is None:
         ctx.errors.append("[Bootstrap] FATAL: Genesis kernel spawn failed")
+        return
+    ctx.genesis_kernel = kernel
+    ctx.stage = BootstrapStage.GENESIS_ONLY
+    logger.info("[Bootstrap] Stage 1 complete: Genesis kernel active")
 
 
-def _stage_core_8(manager: KernelLifecycleManager, ctx: BootstrapContext) -> None:
+def _stage2_core8(manager: KernelLifecycleManager, ctx: BootstrapContext) -> None:
     """Bootstrap Stage 2 — spawn the 8 core faculties."""
-    logger.info("[Bootstrap] Stage 2: Core 8 Faculties")
-    for name in CORE_8_NAMES:
-        domains, capabilities = CORE_8_ROLE_MAP.get(name, ([name], [name]))
-        kernel = _spawn_kernel(
-            manager,
-            name=name,
-            domains=list(domains),
-            capabilities=list(capabilities),
-            kind="god",
-            ctx=ctx,
-        )
-        if kernel:
-            ctx.core_8_kernels.append(kernel)
-            logger.info("[Bootstrap]   + %s (id=%s)", name, kernel.kernel_id)
+    for name, (domains, caps) in CORE_8_FACULTIES.items():
+        kernel = _spawn_kernel(manager, name, domains, caps, kind="god", ctx=ctx)
+        if kernel is not None:
+            ctx.core_kernels[name] = kernel
         else:
-            msg = f"[Bootstrap] Core 8 incomplete: '{name}' spawn failed"
-            logger.warning(msg)
-            ctx.warnings.append(msg)
+            logger.warning("[Bootstrap] Core faculty '%s' failed to spawn", name)
 
-    live = len(ctx.core_8_kernels)
-    logger.info("[Bootstrap] Core 8 complete: %d/8 kernels live", live)
-    if live < 8:
-        ctx.warnings.append(
-            f"[Bootstrap] Core 8 partially spawned: {live}/8 live "
-            f"(missing: {set(CORE_8_NAMES) - {k.name for k in ctx.core_8_kernels}})"
-        )
-
-
-def _stage_image(manager: KernelLifecycleManager, ctx: BootstrapContext) -> None:
-    """Bootstrap Stage 3 (Image) — spawn the Olympian gods."""
-    logger.info("[Bootstrap] Stage 3: Image (Olympians)")
-    for name in OLYMPIAN_NAMES:
-        domains, capabilities = OLYMPIAN_ROLE_MAP.get(name, ([name], [name]))
-        kernel = _spawn_kernel(
-            manager,
-            name=name,
-            domains=list(domains),
-            capabilities=list(capabilities),
-            kind="god",
-            ctx=ctx,
-        )
-        if kernel:
-            ctx.olympian_kernels.append(kernel)
-            logger.info("[Bootstrap]   + %s (id=%s)", name, kernel.kernel_id)
-        else:
-            msg = f"[Bootstrap] Olympian '{name}' spawn failed — skipping"
-            logger.warning(msg)
-            ctx.warnings.append(msg)
-
+    ctx.stage = BootstrapStage.CORE_8
     logger.info(
-        "[Bootstrap] Image stage complete: %d/%d Olympians live",
-        len(ctx.olympian_kernels), len(OLYMPIAN_NAMES),
+        "[Bootstrap] Stage 2 complete: %d/%d core faculties spawned",
+        len(ctx.core_kernels), len(CORE_8_FACULTIES),
+    )
+
+
+def _stage3_image(manager: KernelLifecycleManager, ctx: BootstrapContext) -> None:
+    """Bootstrap Stage 3 — spawn the Olympian gods."""
+    for name, (domains, caps) in IMAGE_GODS.items():
+        kernel = _spawn_kernel(manager, name, domains, caps, kind="god", ctx=ctx)
+        if kernel is not None:
+            ctx.image_kernels[name] = kernel
+        else:
+            logger.warning("[Bootstrap] Olympian '%s' failed to spawn", name)
+
+    ctx.stage = BootstrapStage.IMAGE
+    logger.info(
+        "[Bootstrap] Stage 3 complete: %d/%d Olympian gods spawned",
+        len(ctx.image_kernels), len(IMAGE_GODS),
     )
 
 
 # ---------------------------------------------------------------------------
-# PUBLIC API
+# PUBLIC BOOTSTRAP FUNCTIONS
 # ---------------------------------------------------------------------------
 
-# Valid target stage strings
-VALID_STAGES = ("genesis", "core_8", "image")
-
-
-def bootstrap(
-    target_stage: str = "core_8",
-    manager: Optional[KernelLifecycleManager] = None,
-) -> BootstrapContext:
+def bootstrap(target_stage: str = "core_8") -> BootstrapContext:
     """
-    Run the canonical Genesis bootstrap sequence (synchronous).
-
-    Always runs all stages up to target_stage in order:
-      genesis → core_8 → image
-
-    The generative service v6.1 extension is applied before returning
-    so routing is constellation-aware from the first request.
+    Synchronous bootstrap sequence.
 
     Args:
-        target_stage: "genesis" | "core_8" | "image"
-                      (default: "core_8" — minimum for production)
-        manager: Optional KernelLifecycleManager (uses global singleton if None)
+        target_stage: One of "genesis_only", "core_8", "image"
 
     Returns:
-        BootstrapContext with spawned kernels, stage, errors, and warnings
-
-    Raises:
-        ValueError: If target_stage is invalid
-        RuntimeError: If Genesis kernel spawn fails (fatal)
+        BootstrapContext with spawned kernels and any errors/warnings.
     """
-    if target_stage not in VALID_STAGES:
-        raise ValueError(
-            f"Invalid target_stage '{target_stage}'. "
-            f"Must be one of: {VALID_STAGES}"
-        )
-
-    t0 = time.monotonic()
-    ctx = BootstrapContext(stage=target_stage)
+    ctx = BootstrapContext()
 
     if not LIFECYCLE_AVAILABLE:
-        ctx.errors.append("KernelLifecycleManager not available — bootstrap aborted")
+        ctx.errors.append("[Bootstrap] KernelLifecycleManager not available — cannot bootstrap")
         return ctx
 
-    mgr = manager or (get_lifecycle_manager() if get_lifecycle_manager else None)
-    if mgr is None:
-        ctx.errors.append("Cannot get KernelLifecycleManager — bootstrap aborted")
+    manager = get_lifecycle_manager()
+
+    # Stage 1: Genesis (always)
+    _stage1_genesis(manager, ctx)
+    if ctx.has_errors():
         return ctx
-
-    # Apply v6.1 service extension early so routing uses registry from the start
-    if SERVICE_EXTENSIONS_AVAILABLE and get_generative_service_v61:
-        try:
-            get_generative_service_v61()
-            logger.info("[Bootstrap] v6.1 service extensions applied")
-        except Exception as e:
-            ctx.warnings.append(f"[Bootstrap] v6.1 extension failed (non-fatal): {e}")
-
-    # Stage 1: Genesis (always required)
-    _stage_genesis(mgr, ctx)
-    if ctx.errors:
-        ctx.elapsed_ms = (time.monotonic() - t0) * 1000
-        raise RuntimeError(
-            f"Bootstrap aborted: Genesis kernel spawn failed. Errors: {ctx.errors}"
-        )
-
-    if target_stage == "genesis":
-        ctx.elapsed_ms = (time.monotonic() - t0) * 1000
-        _log_summary(ctx)
+    if target_stage == "genesis_only":
         return ctx
 
     # Stage 2: Core 8
-    _stage_core_8(mgr, ctx)
-
+    _stage2_core8(manager, ctx)
     if target_stage == "core_8":
-        ctx.elapsed_ms = (time.monotonic() - t0) * 1000
-        _log_summary(ctx)
         return ctx
 
     # Stage 3: Image (Olympians)
-    _stage_image(mgr, ctx)
-
-    ctx.elapsed_ms = (time.monotonic() - t0) * 1000
-    _log_summary(ctx)
-    return ctx
-
-
-async def bootstrap_async(
-    target_stage: str = "core_8",
-    manager: Optional[KernelLifecycleManager] = None,
-) -> BootstrapContext:
-    """
-    Async wrapper for bootstrap() — safe to call from FastAPI lifespan.
-
-    Runs bootstrap in a thread pool to avoid blocking the event loop.
-    """
-    loop = asyncio.get_event_loop()
-    ctx = await loop.run_in_executor(
-        None,
-        lambda: bootstrap(target_stage=target_stage, manager=manager),
-    )
-    return ctx
-
-
-def _log_summary(ctx: BootstrapContext) -> None:
-    """Log a human-readable bootstrap summary."""
-    live = ctx.live_count
-    status = "OK" if ctx.ok else f"PARTIAL ({len(ctx.errors)} errors)"
-
-    # Infer actual stage from what spawned
-    if ctx.olympian_kernels:
-        actual = "image"
-    elif ctx.core_8_kernels:
-        actual = "core_8"
-    elif ctx.genesis_kernel:
-        actual = "genesis"
-    else:
-        actual = "failed"
+    if target_stage == "image":
+        _stage3_image(manager, ctx)
 
     logger.info(
-        "[Bootstrap] Complete — stage=%s live=%d errors=%d warnings=%d "
-        "elapsed=%.1fms status=%s",
-        actual, live, len(ctx.errors), len(ctx.warnings),
-        ctx.elapsed_ms, status,
+        "[Bootstrap] Complete — stage=%s kernels=%d errors=%d warnings=%d elapsed=%.2fs",
+        ctx.stage.value,
+        len(ctx.core_kernels) + len(ctx.image_kernels) + (1 if ctx.genesis_kernel else 0),
+        len(ctx.errors),
+        len(ctx.warnings),
+        ctx.elapsed(),
     )
-    if ctx.warnings:
-        for w in ctx.warnings:
-            logger.warning(w)
-    if ctx.errors:
-        for e in ctx.errors:
-            logger.error(e)
+    return ctx
 
 
-# ---------------------------------------------------------------------------
-# ROLLBACK
-# ---------------------------------------------------------------------------
-
-def rollback(manager: Optional[KernelLifecycleManager] = None) -> None:
+async def bootstrap_async(target_stage: str = "core_8") -> BootstrapContext:
     """
-    Reset the constellation to GENESIS_ONLY state.
-
-    Prunes all non-genesis kernels and re-runs genesis bootstrap.
-    Used for system recovery (Genesis Doctrine: genesis-driven rollback is canonical).
+    Async bootstrap — runs synchronous bootstrap in executor to avoid blocking.
 
     Args:
-        manager: Optional KernelLifecycleManager (uses global singleton if None)
-    """
-    if not LIFECYCLE_AVAILABLE:
-        logger.error("[Bootstrap] rollback() aborted: KernelLifecycleManager unavailable")
-        return
-
-    mgr = manager or (get_lifecycle_manager() if get_lifecycle_manager else None)
-    if mgr is None:
-        logger.error("[Bootstrap] rollback() aborted: cannot get manager")
-        return
-
-    logger.warning("[Bootstrap] Rolling back constellation to GENESIS_ONLY")
-
-    # Prune all non-genesis kernels
-    to_prune = [
-        k for k in list(mgr.active_kernels.values())
-        if k.kernel_kind != KernelKind.GENESIS
-        and k.lifecycle_state not in ("pruned", "promoted", "merged", "split")
-    ]
-    for kernel in to_prune:
-        try:
-            # Temporarily clear protection so prune can proceed
-            kernel.lifecycle_state = "active"
-            mgr.prune(kernel, reason="rollback_to_genesis")
-        except Exception as e:
-            logger.warning("[Bootstrap] rollback prune failed for %s: %s", kernel.name, e)
-
-    # Wipe genesis if present so it can be respawned cleanly
-    genesis_kernels = [
-        k for k in list(mgr.active_kernels.values())
-        if k.kernel_kind == KernelKind.GENESIS
-    ]
-    for gk in genesis_kernels:
-        mgr.active_kernels.pop(gk.kernel_id, None)
-
-    # Respawn genesis
-    ctx = BootstrapContext(stage="genesis")
-    _stage_genesis(mgr, ctx)
-    if ctx.errors:
-        logger.error("[Bootstrap] rollback genesis respawn failed: %s", ctx.errors)
-    else:
-        logger.info("[Bootstrap] Rollback complete — constellation is at GENESIS_ONLY")
-
-
-# ---------------------------------------------------------------------------
-# CONVENIENCE CHECKER
-# ---------------------------------------------------------------------------
-
-def get_stage() -> str:
-    """
-    Get the current ConstellationStage as a string.
-
-    Returns "unknown" if ConstellationRegistry is not available.
-    """
-    if not REGISTRY_AVAILABLE or get_constellation_registry is None:
-        return "unknown"
-    try:
-        return get_constellation_registry().stage.value
-    except Exception:
-        return "unknown"
-
-
-def is_ready(minimum_stage: str = "core_8") -> bool:
-    """
-    Return True if the constellation has reached at least minimum_stage.
-
-    Args:
-        minimum_stage: "genesis" | "core_8" | "image" | "growing" | "full"
+        target_stage: One of "genesis_only", "core_8", "image"
 
     Returns:
-        bool
+        BootstrapContext
     """
-    order = ["genesis_only", "core_8", "image", "growing", "full"]
-    # Map user-friendly names to registry names
-    stage_map = {
-        "genesis":      "genesis_only",
-        "genesis_only": "genesis_only",
-        "core_8":       "core_8",
-        "image":        "image",
-        "growing":      "growing",
-        "full":         "full",
+    loop = asyncio.get_event_loop()
+    ctx = await loop.run_in_executor(None, bootstrap, target_stage)
+    return ctx
+
+
+def get_bootstrap_status(ctx: BootstrapContext) -> dict:
+    """Return a status summary dict for health checks."""
+    return {
+        "stage": ctx.stage.value,
+        "genesis_active": ctx.genesis_kernel is not None,
+        "core_kernels": list(ctx.core_kernels.keys()),
+        "image_kernels": list(ctx.image_kernels.keys()),
+        "errors": ctx.errors,
+        "warnings": ctx.warnings,
+        "elapsed_seconds": ctx.elapsed(),
     }
-    current = get_stage()
-    target = stage_map.get(minimum_stage, minimum_stage)
-    try:
-        return order.index(current) >= order.index(target)
-    except ValueError:
-        return False
