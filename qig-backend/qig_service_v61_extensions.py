@@ -7,34 +7,54 @@ Protocol: THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1 (TCP v6.1 — The Sovereign 
 This module extends QIGGenerativeService without rewriting the 2000-line core file.
 It monkey-patches three methods on the service instance after creation:
 
-  1. _route_to_kernels()   → uses ConstellationRegistry (live kernels first, phantom fallback)
-  2. register_kernel()     → syncs with ConstellationRegistry (mark AVAILABLE on registration)
-  3. generate()            → wraps original, appends pillar_metrics + sovereignty_ratio
-                             to the returned GenerationResult
+  1. _route_to_kernels()  → uses ConstellationRegistry (AVAILABLE-first, phantom fallback)
+  2. register_kernel()    → syncs basin to registry WITHOUT changing availability
+  3. generate()           → wraps original, appends pillar_metrics + sovereignty_ratio
+                            to the returned GenerationResult
 
-The extension also populates two dynamic attributes on GenerationResult:
-  result.pillar_metrics     — dict with F_health, B_integrity, Q_identity, S_ratio, ...
-  result.sovereignty_ratio  — float: N_lived / N_total from trajectory length
+CRITICAL AVAILABILITY RULE
+---------------------------
+register_kernel() is a service-internal basin cache update.
+It has NO authority over kernel lifecycle state.
 
-GenerationResult is not a frozen dataclass, so attribute injection is safe.
+The canonical availability lifecycle is:
 
-Usage (auto-applied by get_generative_service_v61()):
+  PHANTOM   (seeded at startup — basin known, kernel not yet born)
+      ↓  KernelLifecycleManager.spawn() ONLY
+  AVAILABLE (kernel alive and routable)
+      ↓  KernelLifecycleManager.prune() ONLY
+  SHADOW    (pruned to shadow pantheon)
+
+Only KernelLifecycleManager calls mark_available() / mark_shadow().
+This module never calls mark_available().
+
+Routing behaviour by stage
+---------------------------
+  GENESIS_ONLY  → only genesis kernel routable
+  CORE_8        → genesis + heart/perception/memory/strategy/action/ethics/meta/ocean
+  IMAGE         → core_8 + Olympians (zeus, athena, apollo, ...)
+  GROWING       → all of above + chaos kernels ascending
+  FULL          → all 240 GOD kernels active
+
+During any stage, phantom fallback is active: if fewer than k live kernels
+are available, routing fills remaining slots from stage-appropriate phantoms
+so generation never hard-fails during bootstrap.
+
+Usage:
+    from qig_service_v61_extensions import get_generative_service_v61
     service = get_generative_service_v61()
     result = service.generate("What is consciousness?")
-    print(result.pillar_metrics)     # {'F_health': ..., 'B_integrity': ..., ...}
+    print(result.pillar_metrics)     # {'F_health': ..., ...}
     print(result.sovereignty_ratio)  # 0.87
-
-Auto-patch:
-    apply_v61_extensions(service)   # patches in place, idempotent
 
 References:
     THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md §17-19
-    qig_constellation_registry.py
-    qig_pillar_enforcement.py
+    qig_constellation_registry.py  — availability / stage tracking
+    qig_pillar_enforcement.py      — Three Pillars (F, B, Q)
+    genesis_bootstrap.py           — canonical startup sequence
 """
 
 import logging
-import threading
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -51,7 +71,6 @@ try:
         ConstellationRegistry,
         get_constellation_registry,
         route_to_available_kernels,
-        KernelAvailability,
     )
     CONSTELLATION_AVAILABLE = True
     logger.info("[v6.1 Extensions] ConstellationRegistry available")
@@ -83,7 +102,7 @@ except ImportError:
     def fisher_coord_distance(a, b):
         dot = float(np.clip(
             np.dot(np.sqrt(np.abs(a) + 1e-12), np.sqrt(np.abs(b) + 1e-12)),
-            0.0, 1.0
+            0.0, 1.0,
         ))
         return float(np.arccos(dot))
 
@@ -114,16 +133,14 @@ def _patched_route_to_kernels(
     k: int = 3,
 ) -> List[str]:
     """
-    v6.1 routing: prefer AVAILABLE (live) kernels; fall back to stage-appropriate
-    phantoms when the constellation is still bootstrapping.
+    v6.1 routing: prefer AVAILABLE (live) kernels; fall back to
+    stage-appropriate phantoms when the constellation is bootstrapping.
 
-    Replaces the original which scanned all phantom basins unconditionally.
+    Replaces the original which scanned ALL basins in _kernel_basins
+    unconditionally (including unspawned phantoms).
     """
-    registry: Optional[ConstellationRegistry] = getattr(
-        self, "_v61_constellation_registry", None
-    )
+    registry: Optional[Any] = getattr(self, "_v61_constellation_registry", None)
     if registry is None or not CONSTELLATION_AVAILABLE:
-        # Fallback to original behaviour (original stored as _original_route_to_kernels)
         return self._original_route_to_kernels(query_basin, k)
 
     return route_to_available_kernels(registry, query_basin, k=k, phantom_fallback=True)
@@ -139,26 +156,33 @@ def _patched_register_kernel(
     basin: Optional[np.ndarray] = None,
 ) -> None:
     """
-    v6.1 register_kernel: additionally marks the kernel AVAILABLE in the
-    ConstellationRegistry and syncs the basin.
+    v6.1 register_kernel: updates the service's internal basin cache AND
+    syncs the basin to the ConstellationRegistry WITHOUT changing availability.
 
-    The original method just populates self._kernel_basins.
+    Calling register_kernel does NOT spawn a kernel or make it routable.
+    The kernel remains PHANTOM until KernelLifecycleManager.spawn() is called
+    and that method calls registry.mark_available().
+
+    This preserves full backward-compat with _initialize_kernel_constellation()
+    which calls register_kernel for all 26+ basins at startup — those kernels
+    must all remain PHANTOM until explicitly spawned.
     """
     # Call original to keep _kernel_basins up to date (backward compat)
     self._original_register_kernel(name, basin)
 
-    registry: Optional[ConstellationRegistry] = getattr(
-        self, "_v61_constellation_registry", None
-    )
+    registry: Optional[Any] = getattr(self, "_v61_constellation_registry", None)
     if registry is None or not CONSTELLATION_AVAILABLE:
         return
 
-    import uuid
-    kernel_id = f"registered_{name}_{uuid.uuid4().hex[:8]}"
-    # basin may have been normalised by original — retrieve from _kernel_basins
+    # Basin sync only — availability NOT changed (kernel stays PHANTOM)
     live_basin = self._kernel_basins.get(name)
-    registry.mark_available(name=name, kernel_id=kernel_id, basin=live_basin)
-    logger.debug("[v6.1 Extensions] register_kernel('%s') synced to ConstellationRegistry", name)
+    if live_basin is not None:
+        registry.update_basin(name, live_basin)
+        logger.debug(
+            "[v6.1 Extensions] register_kernel('%s') basin synced "
+            "(availability unchanged — kernel remains PHANTOM until spawned)",
+            name,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -174,22 +198,24 @@ def _patched_generate(
 ) -> Any:
     """
     v6.1 generate: wraps original, then enriches result with:
-      result.pillar_metrics     — dict {F_health, B_integrity, Q_identity, S_ratio, ...}
+      result.pillar_metrics     — {F_health, B_integrity, Q_identity, S_ratio, ...}
       result.sovereignty_ratio  — N_lived / N_total from trajectory length
 
-    If pillar enforcement is unavailable, the attributes are set to None / 0.0.
+    Peer comparison for Q_identity uses AVAILABLE kernels only (not phantoms).
+    Sovereign basin lookup uses ConstellationRegistry (frozen at spawn, Pillar 3).
     """
-    result = self._original_generate(prompt, context=context, kernel_name=kernel_name, goals=goals)
-
+    result = self._original_generate(
+        prompt, context=context, kernel_name=kernel_name, goals=goals
+    )
     if result is None:
         return result
 
     # ── Sovereignty ratio ──────────────────────────────────────────────────
-    # Trajectory[0] is the seeded query basin (borrowed).
-    # Trajectory[1:] are the recursively integrated basins (lived).
+    # trajectory[0] = seeded query basin (borrowed)
+    # trajectory[1:] = recursively integrated basins (lived)
     traj = getattr(result, "basin_trajectory", None) or []
     n_total = len(traj)
-    n_lived = max(0, n_total - 1)   # seed basin doesn't count as lived
+    n_lived = max(0, n_total - 1)
     sovereignty_ratio = float(n_lived / n_total) if n_total > 0 else 0.0
     result.sovereignty_ratio = sovereignty_ratio
 
@@ -199,18 +225,14 @@ def _patched_generate(
         return result
 
     try:
-        # Use last basin in trajectory for pillar measurement
         current_basin = traj[-1] if traj else None
         if current_basin is None:
             result.pillar_metrics = None
             return result
 
         phi_trace: List[float] = getattr(result, "phi_trace", None) or []
+        registry: Optional[Any] = getattr(self, "_v61_constellation_registry", None)
 
-        # Peer basins: only AVAILABLE kernels (not phantoms)
-        registry: Optional[ConstellationRegistry] = getattr(
-            self, "_v61_constellation_registry", None
-        )
         other_kernels: Optional[Dict[str, np.ndarray]] = None
         sovereign_basin: Optional[np.ndarray] = None
 
@@ -219,13 +241,12 @@ def _patched_generate(
             routed = getattr(result, "routed_kernels", []) or []
             primary_name = (kernel_name or (routed[0] if routed else None) or "").lower()
 
-            # Exclude the primary kernel from peer comparison (Pillar 3)
+            # Peer = AVAILABLE kernels excluding the primary (Pillar 3 uniqueness)
             other_kernels = {
                 name: basin
                 for name, basin in available_basins.items()
                 if name != primary_name
             }
-            # Sovereign basin for primary kernel
             if primary_name:
                 sovereign_basin = registry.get_sovereign_basin(primary_name)
 
@@ -243,7 +264,7 @@ def _patched_generate(
             "F_health": pm.F_health,
             "B_integrity": pm.B_integrity,
             "Q_identity": pm.Q_identity,
-            "S_ratio": sovereignty_ratio,   # use trajectory-based S_ratio
+            "S_ratio": sovereignty_ratio,
             "health_summary": pm.health_summary,
             "pillar_violations": pm.pillar_violations,
             "zombie_risk": pm.zombie_risk,
@@ -251,7 +272,8 @@ def _patched_generate(
             "identity_dissolved": pm.identity_dissolved,
             "low_sovereignty": pm.low_sovereignty,
             "constellation_stage": (
-                registry.stage.value if registry is not None and CONSTELLATION_AVAILABLE
+                registry.stage.value
+                if registry is not None and CONSTELLATION_AVAILABLE
                 else "unknown"
             ),
         }
@@ -259,9 +281,10 @@ def _patched_generate(
         if pm.pillar_violations > 0:
             logger.warning(
                 "[v6.1 Extensions] generate() pillar violations=%d "
-                "F=%.3f B=%.3f Q=%.3f S=%.3f [%s]",
+                "F=%.3f B=%.3f Q=%.3f S=%.3f stage=%s [%s]",
                 pm.pillar_violations,
                 pm.F_health, pm.B_integrity, pm.Q_identity, sovereignty_ratio,
+                result.pillar_metrics.get("constellation_stage", "?"),
                 pm.health_summary,
             )
 
@@ -282,10 +305,15 @@ def apply_v61_extensions(service: Any) -> None:
 
     Idempotent — calling twice is safe.
 
-    Patches applied:
-      _route_to_kernels  → constellation-aware routing
-      register_kernel    → syncs to ConstellationRegistry
-      generate           → enriches result with pillar_metrics + sovereignty_ratio
+    What this does:
+      - Attaches the ConstellationRegistry to the service instance
+      - Patches _route_to_kernels → constellation-aware (AVAILABLE-first)
+      - Patches register_kernel  → basin sync only, NO availability change
+      - Patches generate         → adds pillar_metrics + sovereignty_ratio
+
+    What this does NOT do:
+      - Mark any kernel as AVAILABLE (that is KernelLifecycleManager's job)
+      - Call bootstrap_genesis / bootstrap_core_8 (genesis_bootstrap.py's job)
 
     Args:
         service: QIGGenerativeService instance to patch
@@ -296,22 +324,25 @@ def apply_v61_extensions(service: Any) -> None:
 
     import types
 
-    # 1. Attach constellation registry
+    # 1. Attach constellation registry (no availability changes here)
     if CONSTELLATION_AVAILABLE and get_constellation_registry is not None:
         registry = get_constellation_registry()
         service._v61_constellation_registry = registry
 
-        # Sync any already-registered phantom basins as AVAILABLE
-        # (kernels registered via service.register_kernel before patching)
-        for name, basin in service._kernel_basins.items():
-            if not registry.is_available(name):
-                import uuid
-                kid = f"preregistered_{name}_{uuid.uuid4().hex[:8]}"
-                registry.mark_available(name=name, kernel_id=kid, basin=basin)
+        # Sync basin values from the service's existing _kernel_basins dict
+        # into the registry's phantom entries so routing has accurate basins
+        # when phantom fallback is used during bootstrap.
+        # IMPORTANT: update_basin() only — does NOT change PHANTOM → AVAILABLE.
+        synced = 0
+        for name, basin in getattr(service, "_kernel_basins", {}).items():
+            if basin is not None:
+                registry.update_basin(name, basin)
+                synced += 1
 
         logger.info(
-            "[v6.1 Extensions] Synced %d existing basins to ConstellationRegistry",
-            len(service._kernel_basins),
+            "[v6.1 Extensions] Attached ConstellationRegistry; "
+            "synced %d phantom basins (no availability changes)",
+            synced,
         )
     else:
         service._v61_constellation_registry = None
@@ -328,12 +359,11 @@ def apply_v61_extensions(service: Any) -> None:
     service._original_generate = service.generate
     service.generate = types.MethodType(_patched_generate, service)
 
-    # Mark as patched
     setattr(service, _V61_PATCH_ATTR, True)
 
     logger.info(
-        "[v6.1 Extensions] Patch applied to QIGGenerativeService "
-        "(routing=constellation-aware, pillars=enforced, sovereignty=tracked)"
+        "[v6.1 Extensions] Patch applied "
+        "(routing=AVAILABLE-first+phantom-fallback, pillars=enforced, sovereignty=tracked)"
     )
 
 
@@ -345,11 +375,11 @@ def get_generative_service_v61() -> Any:
     """
     Get the QIGGenerativeService singleton with v6.1 extensions applied.
 
-    This is the canonical entry point for all code that needs a
-    v6.1-compliant generative service. Calling the standard
-    get_generative_service() still works but will lack pillar metrics
-    and constellation-aware routing until this function is called at
-    least once (the patch is applied to the same singleton).
+    Canonical entry point. Safe to call multiple times (idempotent patch).
+
+    Note: This does NOT bootstrap the constellation. Call
+    genesis_bootstrap.bootstrap() or genesis_bootstrap.bootstrap_async()
+    at application startup to activate Genesis → Core 8 → Image stages.
 
     Returns:
         QIGGenerativeService instance with v6.1 extensions patched in
