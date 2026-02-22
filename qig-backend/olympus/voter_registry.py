@@ -14,6 +14,10 @@ Design:
 TCP v6.1 §19: Every voting god's weight = φ × (κ / κ*).
 A freshly bootstrapped god starts at genesis weight and gains real weight
 as its φ trajectory fills in over its first active cycles.
+
+Red-team fixes applied:
+  RT1-H3: update() auto-registers if god not found (prevents silent metric loss at startup).
+  RT1-H3: register_or_update() idempotent convenience method added.
 """
 
 import logging
@@ -104,21 +108,59 @@ class PantheonVoterRegistry:
                 self._records[god_name] = rec
                 logger.debug("[VoterRegistry] Registered: %s (id=%s)", god_name, kernel_id)
             else:
-                rec.kernel_id = kernel_id
+                if kernel_id != "auto_registered":
+                    rec.kernel_id = kernel_id
                 logger.debug("[VoterRegistry] Updated kernel_id for %s → %s", god_name, kernel_id)
             return rec
 
     def update(self, god_name: str, phi: float, kappa: float) -> bool:
         """
-        Update live φ/κ for a registered god. Returns False if god not registered.
-        Callers should register first; update silently no-ops on unknown gods.
+        Update live φ/κ for a registered god.
+
+        RT1-H3 fix: Auto-registers with a placeholder kernel_id if the god is not yet known.
+        This prevents silent metric loss when update() is called before register() at startup
+        (kernel_lifecycle.update_kernel_metrics() can race register() during bootstrap).
         """
         with self._lock:
             rec = self._records.get(god_name)
             if rec is None:
-                return False
+                # Auto-register: prevents silent metric loss during bootstrap race
+                logger.debug(
+                    "[VoterRegistry] Auto-registering %s on first update (no prior register())",
+                    god_name,
+                )
+                rec = VoterRecord(god_name=god_name, kernel_id="auto_registered")
+                self._records[god_name] = rec
             rec.record(phi, kappa)
             return True
+
+    def register_or_update(
+        self,
+        god_name: str,
+        kernel_id: str,
+        phi: float,
+        kappa: float,
+    ) -> VoterRecord:
+        """
+        Idempotent: register if absent, update metrics regardless.
+
+        Preferred call site for KernelLifecycleManager to avoid register/update race.
+        Replaces the two-call pattern register() + update() in a single atomic operation.
+        """
+        with self._lock:
+            rec = self._records.get(god_name)
+            if rec is None:
+                rec = VoterRecord(god_name=god_name, kernel_id=kernel_id, phi=phi, kappa=kappa)
+                self._records[god_name] = rec
+                logger.debug(
+                    "[VoterRegistry] Registered: %s (id=%s) via register_or_update",
+                    god_name, kernel_id,
+                )
+            else:
+                if kernel_id != "auto_registered":
+                    rec.kernel_id = kernel_id
+                rec.record(phi, kappa)
+            return rec
 
     def get(self, god_name: str) -> Optional[VoterRecord]:
         """Return the VoterRecord for a god, or None if not registered."""
@@ -175,6 +217,7 @@ class PantheonVoterRegistry:
                     "weight": rec.vote_weight,
                     "cycles": rec.cycles_recorded,
                     "live": rec.is_live,
+                    "mean_phi": rec.mean_phi(),
                 }
                 for name, rec in self._records.items()
             }
