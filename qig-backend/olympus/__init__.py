@@ -6,8 +6,9 @@ Exports the Pantheon orchestration layer:
   Heart      — Tacking oscillator. HRV, κ modulation, regime pacing.
   Ocean      — Autonomic monitor. Spectral health, Pillar 2 bulk check.
   Gary       — Synthesis coordinator. Trajectory foresight + proxy routing.
-  Governance — Pantheon voting engine (spawn / merge / cannibalize / ascend).
+  Governance — Pantheon voting engine (spawn/merge/cannibalize/ascend/proxy).
   Charter    — Kernel capability assignment (GENERATIVE, PROXY_VOICE, etc.).
+  Bridge     — GovernedLifecycleManager wires governance into spawn path.
 """
 
 # Core orchestration roles
@@ -36,6 +37,13 @@ from .capability_charter import (
     grant_proxy_voice_to_god,
 )
 
+# Governed lifecycle bridge
+from .lifecycle_governance_bridge import (
+    GovernedLifecycleManager,
+    SpawnOutcome,
+    spawn_with_governance,
+)
+
 __all__ = [
     # Roles
     "HeartKernel", "HeartState", "get_heart_kernel",
@@ -49,4 +57,6 @@ __all__ = [
     "KernelCapability", "KernelCapabilityCharter",
     "ProxyAssignment", "ProxyInstruction",
     "CapabilityPolicy", "make_chaos_charter", "grant_proxy_voice_to_god",
+    # Bridge
+    "GovernedLifecycleManager", "SpawnOutcome", "spawn_with_governance",
 ]
