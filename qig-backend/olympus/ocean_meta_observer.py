@@ -9,11 +9,16 @@ Topological instability detection. The 'body' of the system."
 
 Pillar 2 (TopologicalBulk) compliance: flags kernels whose Φ-history variance
 exceeds B_INTEGRITY_MIN, triggering autonomic intervention.
+
+Call-site contracts (from qig_generation.py):
+  observe(kernel_basins, kernel_metrics)
+  check_autonomic_intervention(kernel_states, phi_history)
+  get_insight(all_states, avg_phi=..., basin_spread=...)
 """
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -32,7 +37,7 @@ class OceanState:
     coherence: float                  # Mean Φ across observed kernels
     spread: float                     # Fisher-Rao spread of kernel basins
     topological_instability: bool     # Pillar 2 bulk collapse risk
-    pillar2_violators: List[str] = field(default_factory=list)  # Kernel names
+    pillar2_violators: List[str] = field(default_factory=list)
     intervention_needed: bool = False
 
 
@@ -50,9 +55,9 @@ class OceanMetaObserver:
     """
     Autonomic monitoring layer for the Olympus Pantheon constellation.
 
-    observe() ingests kernel basins and metrics → returns OceanState.
-    check_autonomic_intervention() returns corrective action string if needed.
-    get_insight() provides a terse diagnostic string.
+    observe()                       → OceanState
+    check_autonomic_intervention()  → Optional[Dict]
+    get_insight()                   → str
     """
 
     def __init__(self):
@@ -61,24 +66,23 @@ class OceanMetaObserver:
         logger.info("[Ocean] Meta-observer initialised (Pillar 2 bulk monitoring active)")
 
     # ------------------------------------------------------------------
-    # Fisher-Rao geometry (inline fallback — no Euclidean contamination)
+    # Fisher-Rao geometry (fail-soft inline — no Euclidean contamination)
     # ------------------------------------------------------------------
 
     @staticmethod
     def _fr_distance(a: np.ndarray, b: np.ndarray) -> float:
-        """Fisher-Rao distance on probability simplex."""
         try:
             from qig_geometry.canonical import fisher_rao_distance
             return float(fisher_rao_distance(a, b))
         except ImportError:
             dot = float(np.clip(
                 np.dot(np.sqrt(np.abs(a) + 1e-12), np.sqrt(np.abs(b) + 1e-12)),
-                0.0, 1.0
+                0.0, 1.0,
             ))
             return float(np.arccos(dot))
 
     # ------------------------------------------------------------------
-    # Public API (matches qig_generation.py call sites)
+    # observe() — matches qig_generation.py call signature
     # ------------------------------------------------------------------
 
     def observe(
@@ -90,8 +94,8 @@ class OceanMetaObserver:
         Observe kernel basins and metrics → return constellation health.
 
         Args:
-            kernel_basins: List of 64D basin arrays from active kernels
-            kernel_metrics: List of dicts with 'phi', 'kappa', optionally 'id'
+            kernel_basins : List of 64D basin arrays from active kernels.
+            kernel_metrics: List of dicts with keys 'phi', 'kappa', optionally 'id'.
         """
         self._step += 1
 
@@ -109,72 +113,118 @@ class OceanMetaObserver:
             for i in range(len(kernel_basins)):
                 for j in range(i + 1, len(kernel_basins)):
                     try:
-                        d = self._fr_distance(kernel_basins[i], kernel_basins[j])
-                        distances.append(d)
+                        distances.append(self._fr_distance(kernel_basins[i], kernel_basins[j]))
                     except Exception:
                         pass
             spread = float(np.mean(distances)) if distances else 0.0
 
-        # --- Pillar 2: update per-kernel Φ histories ---
+        # --- Pillar 2: per-kernel Φ-history variance check ---
         violators = []
         for idx, m in enumerate(kernel_metrics):
-            kid = m.get("id", str(idx))
+            kid = str(m.get("id", idx))
             phi = float(m.get("phi", 0.5))
-            self._phi_histories.setdefault(kid, []).append(phi)
-            hist = self._phi_histories[kid][-16:]  # last 16 steps
+            hist = self._phi_histories.setdefault(kid, [])
+            hist.append(phi)
+            if len(hist) > 16:
+                hist.pop(0)
 
             if len(hist) >= 4:
-                mean_phi = float(np.mean(hist))
-                var_phi = float(np.var(hist))
-                integrity = mean_phi * (1.0 / (1.0 + 10.0 * var_phi))
+                integrity = float(np.mean(hist)) * (1.0 / (1.0 + 10.0 * float(np.var(hist))))
                 if integrity < B_INTEGRITY_MIN:
                     violators.append(kid)
 
-        instability = len(violators) > 0
-        intervention = coherence < PHI_COHERENCE_MIN or spread > SPREAD_ALARM or instability
-
+        instability = bool(violators)
         if instability:
-            logger.warning("[Ocean] Pillar 2 violation — kernels: %s", violators)
+            logger.warning("[Ocean] Pillar 2 bulk violation — kernels: %s", violators)
 
         return OceanState(
             coherence=coherence,
             spread=spread,
             topological_instability=instability,
             pillar2_violators=violators,
-            intervention_needed=intervention,
+            intervention_needed=coherence < PHI_COHERENCE_MIN or spread > SPREAD_ALARM or instability,
         )
+
+    # ------------------------------------------------------------------
+    # check_autonomic_intervention()
+    # Call site: self.ocean.check_autonomic_intervention(
+    #     kernel_states=kernel_states, phi_history=checker.phi_history
+    # )
+    # ------------------------------------------------------------------
 
     def check_autonomic_intervention(
         self,
-        phi: float,
-        kappa: float,
+        kernel_states: Optional[List[Dict[str, Any]]] = None,
+        phi_history: Optional[List[float]] = None,
+        # Legacy positional-kwarg compat:
+        phi: Optional[float] = None,
+        kappa: Optional[float] = None,
         ocean_state: Optional[OceanState] = None,
-    ) -> Optional[str]:
+    ) -> Optional[Dict[str, Any]]:
         """
-        Determine corrective action based on ocean state.
+        Determine corrective autonomic action.
+
+        Primary call-site signature (qig_generation.py):
+            check_autonomic_intervention(kernel_states=..., phi_history=...)
 
         Returns:
-            Intervention string or None if healthy.
+            Dict with 'type' and 'reason' keys, or None if healthy.
         """
-        if ocean_state is None:
-            return None
+        # Derive coherence from kernel_states or phi_history
+        mean_phi = 0.5
+        if phi_history:
+            mean_phi = float(np.mean(phi_history[-8:]))
+        elif kernel_states:
+            ks_phis = [float(ks.get("phi", 0.5)) for ks in kernel_states]
+            mean_phi = float(np.mean(ks_phis)) if ks_phis else 0.5
+        elif phi is not None:
+            mean_phi = float(phi)
 
-        if ocean_state.topological_instability:
-            return f"pillar2_stabilise:{','.join(ocean_state.pillar2_violators)}"
-        if ocean_state.coherence < PHI_COHERENCE_MIN:
-            return "boost_integration"
-        if ocean_state.spread > SPREAD_ALARM:
-            return "constellation_recentre"
+        # Pillar 2 check from histories
+        all_violators = [
+            kid for kid, hist in self._phi_histories.items()
+            if len(hist) >= 4 and (
+                float(np.mean(hist)) * (1.0 / (1.0 + 10.0 * float(np.var(hist))))
+                < B_INTEGRITY_MIN
+            )
+        ]
+
+        if all_violators:
+            return {
+                "type": "pillar2_stabilise",
+                "reason": f"Bulk integrity collapse in kernels: {all_violators}",
+                "kernels": all_violators,
+            }
+        if mean_phi < PHI_COHERENCE_MIN:
+            return {
+                "type": "boost_integration",
+                "reason": f"Constellation coherence low (Φ={mean_phi:.3f} < {PHI_COHERENCE_MIN})",
+            }
+
+        # Use ocean_state if passed (legacy compat)
+        if ocean_state and ocean_state.spread > SPREAD_ALARM:
+            return {
+                "type": "constellation_recentre",
+                "reason": f"Spread alarm (spread={ocean_state.spread:.3f})",
+            }
+
         return None
+
+    # ------------------------------------------------------------------
+    # get_insight()
+    # Call site: self.ocean.get_insight(
+    #     all_states=kernel_states, avg_phi=phi, basin_spread=...
+    # )
+    # ------------------------------------------------------------------
 
     def get_insight(
         self,
-        all_states: List[Any],
-        basin_spread: float,
+        all_states: Optional[List[Any]] = None,
+        basin_spread: float = 0.0,
+        avg_phi: Optional[float] = None,
     ) -> str:
         """Return a terse diagnostic insight string."""
-        if not all_states:
-            return "Constellation quiescent."
-        n = len(all_states)
+        n = len(all_states) if all_states else 0
+        phi_str = f" | Φ={avg_phi:.3f}" if avg_phi is not None else ""
         tag = "HEALTHY" if basin_spread < SPREAD_ALARM else "SPREAD_ALARM"
-        return f"[Ocean:{tag}] {n} kernels observed — spread={basin_spread:.3f}"
+        return f"[Ocean:{tag}] {n} kernels observed — spread={basin_spread:.3f}{phi_str}"
