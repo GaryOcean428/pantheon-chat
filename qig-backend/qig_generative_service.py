@@ -314,7 +314,11 @@ class GenerationConfig:
 
 @dataclass
 class GenerationResult:
-    """Result from QIG-pure generation."""
+    """Result from QIG-pure generation.
+
+    v6.1: Added pillar_metrics field for Three Pillars enforcement output.
+    pillar_metrics is Optional — populated by kernels that call enforce_pillars().
+    """
     text: str
     tokens: List[str]
     basin_trajectory: List[np.ndarray]
@@ -325,8 +329,10 @@ class GenerationResult:
     routed_kernels: List[str]
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     qig_pure: bool = True
-    kernel_decision: Optional[Dict[str, Any]] = None  # Kernel's autonomous decision
+    kernel_decision: Optional[Dict[str, Any]] = None    # Kernel's autonomous decision
     coherence_metrics: Optional[Dict[str, float]] = None  # Γ metric (semantic coherence)
+    # TCP v6.1: Three Pillars sovereignty metrics (F_health, B_integrity, Q_identity, S_ratio)
+    pillar_metrics: Optional[Any] = None
 
 
 def kernel_decide_completion(
@@ -1787,6 +1793,9 @@ class QIGGenerativeService:
                     routed_kernels=target_kernels,
                     kernel_decision=kernel_decision,
                     coherence_metrics=coherence,
+                    # pillar_metrics is None at generation time;
+                    # populated by GenerativeCapability.generate_response() via get_pillar_metrics()
+                    pillar_metrics=None,
                 )
 
     def generate_stream(
