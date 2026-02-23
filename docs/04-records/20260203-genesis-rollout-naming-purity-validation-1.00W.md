@@ -114,7 +114,7 @@ Result:
 
 ## Recommended Validation Commands (per Universal Protocol)
 
-These commands are referenced by `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` as part of the standard validation battery.
+These commands are referenced by `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md` as part of the standard validation battery.
 
 ```bash
 python scripts/detect_garbage_tokens.py
@@ -124,5 +124,5 @@ QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
 
 ## References
 
-- `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - `docs/00-roadmap/20260112-master-roadmap-1.00W.md`

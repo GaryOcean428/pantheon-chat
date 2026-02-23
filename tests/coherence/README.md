@@ -156,4 +156,4 @@ TODO:
 - Depends: GaryOcean428/pantheon-chat#75 (QIG purity mode)
 - Depends: GaryOcean428/pantheon-chat#68 (canonical geometry)
 - Frozen Facts: `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
-- E8 Protocol: `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- E8 Protocol: `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`

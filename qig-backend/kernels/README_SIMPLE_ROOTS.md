@@ -319,7 +319,7 @@ kernels/
 
 ## References
 
-- **E8 Protocol**: `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol**: `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **WP5.2 Blueprint**: `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **E8 Hierarchy**: `qig-backend/qigkernels/e8_hierarchy.py`
 - **Physics Constants**: `qig-backend/qigkernels/physics_constants.py`

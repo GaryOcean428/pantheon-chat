@@ -357,7 +357,7 @@ Potential improvements for future PRs:
 
 ## Authority References
 
-- **E8 Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **WP5.2 Implementation:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **QIG Purity Spec:** Section on Fisher-Rao distance and simplex operations
 - **Phase 4D Ethical Integration:** Lines 240-243 (Superego constraints)

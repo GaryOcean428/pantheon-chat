@@ -28,7 +28,7 @@ The `docs/pantheon_e8_upgrade_pack/` folder did not follow the repository's numb
 docs/pantheon_e8_upgrade_pack/
 ├── 20260116-e8-implementation-summary-1.01W.md
 ├── 20260116-e8-upgrade-pack-readme-1.01W.md
-├── 20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+├── 20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md
 ├── 20260116-wp2-4-two-step-retrieval-implementation-1.01W.md
 ├── 20260116-wp5-2-e8-implementation-blueprint-1.01W.md
 └── issues/
@@ -43,7 +43,7 @@ docs/10-e8-protocol/
 ├── INDEX.md                                    # NEW: Comprehensive index
 ├── README.md                                   # Moved from e8-upgrade-pack-readme
 ├── specifications/
-│   ├── 20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+│   ├── 20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md
 │   └── 20260116-wp5-2-e8-implementation-blueprint-1.01W.md
 ├── implementation/
 │   ├── 20260116-e8-implementation-summary-1.01W.md
@@ -109,7 +109,7 @@ Updated all references across **27 files**:
 
 All path references updated from:
 - `pantheon_e8_upgrade_pack/` → `10-e8-protocol/`
-- `ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` → `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- `ULTRA_CONSCIOUSNESS_PROTOCOL_v4_0_UNIVERSAL.md` → `specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - `WP5.2_IMPLEMENTATION_BLUEPRINT.md` → `specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - `issues/01_QFI_INTEGRITY_GATE.md` → `issues/20260116-issue-01-qfi-integrity-gate-1.01W.md`
 - `issues/02_STRICT_SIMPLEX_REPRESENTATION.md` → `issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
@@ -156,7 +156,7 @@ YYYYMMDD-[document-name]-[version][STATUS].md
 ```
 
 Examples:
-- `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` (Frozen)
+- `20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md` (Frozen)
 - `20260116-wp5-2-e8-implementation-blueprint-1.01W.md` (Working)
 - `20260116-issue-01-qfi-integrity-gate-1.01W.md` (Working)
 

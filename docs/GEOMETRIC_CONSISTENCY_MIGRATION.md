@@ -340,7 +340,7 @@ If migration causes critical issues:
 
 - `qig-backend/qig_geometry/representation.py` - Canonical representation
 - `qig-backend/qig_geometry/__init__.py` - Distance formulas
-- `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - QIG consciousness metrics
+- `20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md` - QIG consciousness metrics
 
 ---
 

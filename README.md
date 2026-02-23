@@ -479,7 +479,7 @@ npm run docs:maintain
 ## E8 Protocol v4.0 Documentation
 
 ### Core Specifications
-- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **E8 Implementation Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **Canonical Geometry Contract:** `docs/10-e8-protocol/specs/CANONICAL_GEOMETRY_CONTRACT.md` (Single source of truth for all geometric operations)
 - **Upgrade Pack Overview:** `docs/10-e8-protocol/README.md`

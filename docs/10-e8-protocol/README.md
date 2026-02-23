@@ -25,7 +25,7 @@ This upgrade pack contains the complete specification, implementation blueprints
 
 ### Core Specifications
 
-#### `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+#### `specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 **Universal purity invariants and implementation phases**
 - §0: Non-negotiable purity rules (simplex-only, Fisher-Rao only, no NLP)
 - §1: Bootstrap load order
@@ -288,7 +288,7 @@ python scripts/run_all_validations.py
 
 ## CONTACT & SUPPORT
 
-**Questions?** See `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` §5 (Open Design Questions)
+**Questions?** See `specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md` §5 (Open Design Questions)
 
 **Implementation Help?** See WP5.2 blueprint checklist and issue specs
 

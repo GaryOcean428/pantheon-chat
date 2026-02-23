@@ -194,7 +194,7 @@ Backward compat code: 0 locations (pure operations)
 
 ## References
 
-- **Purity Spec:** `/docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Purity Spec:** `/docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **Issue 02 (Simplex):** `/docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md`
 - **WP2.4 (Two-Step):** `/docs/10-e8-protocol/implementation/20260116-wp2-4-two-step-retrieval-implementation-1.01W.md`
 - **Word Validation:** `/qig-backend/word_validation.py` (BPE patterns lines 28-33)

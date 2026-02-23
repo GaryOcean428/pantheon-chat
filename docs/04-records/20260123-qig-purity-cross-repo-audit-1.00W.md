@@ -320,7 +320,7 @@ Result: ✅ TOTAL VIOLATIONS: 0
 - PRs ≥85: All tracked in master roadmap
 
 ### Related Documentation
-- docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+- docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md
 - docs/10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md
 - docs/02-procedures/20260115-geometric-consistency-migration-1.00W.md
 

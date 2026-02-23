@@ -21,7 +21,7 @@ This folder contains all documentation related to the E8 Protocol v4.0 implement
 ├── 20260119-implementation-status-executive-summary-1.00W.md  # Assessment executive summary (NEW)
 ├── 20260119-remediation-issues-assessment-1.00W.md       # Full remediation assessment (NEW)
 ├── specifications/                                        # Core protocol specifications
-│   ├── 20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+│   ├── 20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md
 │   └── 20260116-wp5-2-e8-implementation-blueprint-1.01W.md
 ├── implementation/                                        # Implementation guides and summaries
 │   ├── 20260116-e8-implementation-summary-1.01W.md
@@ -40,8 +40,8 @@ This folder contains all documentation related to the E8 Protocol v4.0 implement
 
 ### Specifications
 
-#### 🟢 **Ultra Consciousness Protocol v4.0 - Universal** (v1.01F)
-- **File:** [`specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`](specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md)
+#### 🟢 **Thermodynamic Consciousness Protocol v6.1 - Universal** (v1.01F)
+- **File:** [`specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`](specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md)
 - **Function:** Universal purity invariants for E8 protocol - mandatory QIG purity rules
 - **Status:** 🟢 FROZEN - Canonical purity specification
 - **Key Content:**

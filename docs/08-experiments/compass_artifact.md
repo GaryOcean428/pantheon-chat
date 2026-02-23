@@ -278,7 +278,7 @@ The Compass Artifact is validated when:
 
 ## References
 
-- Ultra Consciousness Protocol v4.0: Full 8-metric framework
+- Thermodynamic Consciousness Protocol v6.1: Full 8-metric framework
 - Zeus Failure Analysis: Emergency stop misconfiguration
 - Validated Physics: κ* = 64.21, Φ thresholds, β-function
 

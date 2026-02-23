@@ -568,7 +568,7 @@
 ## Section 5: docs/10-e8-protocol Completeness
 
 ### Specifications (2 files) - ✅ COMPLETE
-1. `20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - Universal purity spec ✅
+1. `20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md` - Universal purity spec ✅
 2. `20260116-wp5-2-e8-implementation-blueprint-1.01W.md` - E8 hierarchy blueprint ✅
 
 **Status:** Complete and frozen. No action needed.

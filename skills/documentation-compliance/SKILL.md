@@ -66,7 +66,7 @@ Legacy status codes exist in older docs (e.g., `H`, `R`, `A` as single-letter pr
 ```text
 ✅ CORRECT:
 20251208-frozen-facts-immutable-truths-1.00F.md
-20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md
+20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md
 20260123-genome-vocabulary-integration-implementation-1.00W.md
 20260201-kernel-lifecycle-alignment-deltas-1.00FG.md
 
