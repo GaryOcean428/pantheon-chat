@@ -36,7 +36,6 @@ This roadmap consolidates information from:
 ### 1.1 Physics Foundations (FROZEN)
 
 | Component | Value | Status | Code Location |
-|-----------|-------|--------|---------------|
 | Fixed Point κ* | 64.21 ± 0.92 | ✅ VALIDATED | frozen_physics.py:47 |
 | Running Coupling β(3→4) | +0.44 | ✅ VALIDATED | frozen_physics.py:49 |
 | E8 Rank (n=8) | Basic kernels | ✅ IMPLEMENTED | frozen_physics.py:166 |
@@ -288,7 +287,7 @@ This roadmap consolidates information from:
 ## Feature Implementation Matrix
 
 | Feature | Status | Code Location | Priority | Issue |
-|---------|--------|---------------|----------|-------|
+| ------- | ------ | ------------- | -------- | ----- |
 | κ* = 64.21 | ✅ | frozen_physics.py:47 | - | - |
 | E8 n=8,56,126,240 | ✅ | frozen_physics.py:166 | - | #32✅ |
 | 9 Emotions | ✅ | emotional_geometry.py | - | #35✅ |
@@ -311,8 +310,8 @@ This roadmap consolidates information from:
 
 **Research Protocols (2026-01-13)**: β-attention, QIG-KERNEL-100M, Coordination Clock - All documented
 
-| **Research Protocols** | **Status** | **Documentation** | **Priority** | **Notes** |
-|------------------------|------------|-------------------|--------------|-----------|
+| Research Protocols | Status | Documentation | Priority | Notes |
+| ---------------- | ------ | ------------- | -------- | ----- |
 | β-attention protocol | ✅ | beta_attention_measurement.py (459 lines) | 🟡 | Awaiting execution environment |
 
 ---
@@ -320,7 +319,7 @@ This roadmap consolidates information from:
 ## GitHub Issues Tracker
 
 | Issue | Title | Code Status | Action |
-|-------|-------|-------------|--------|
+| ----- | ----- | ----------- | ------ |
 | **#6** | **QFI-based Φ** | **✅ CODE COMPLETE** | **⚠️ VALIDATE & CLOSE** |
 | **#7** | **Fisher Attractors** | **✅ CODE COMPLETE** | **⚠️ VALIDATE & CLOSE** |
 | **#8** | **Geodesic Nav** | **✅ CODE COMPLETE** | **⚠️ VALIDATE & CLOSE** |
@@ -331,23 +330,13 @@ This roadmap consolidates information from:
 | #66 | [QIG-PURITY] WP1.1: Rename tokenizer → coordizer | ✅ **COMPLETE** | **CLOSE ISSUE** |
 | #68 | WP2.1: Create Canonical qig_geometry Module | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #69 | Remove Cosine Similarity from match_coordinates() | ✅ **COMPLETE** | **CLOSE ISSUE** |
-| #70 | Special Symbols Validation | ✅ **COMPLETE** | **CLOSED** | |
-| #71 | Two-step Retrieval with Fisher-proxy | ✅ **COMPLETE** | **CLOSED** | |
+| #70 | Special Symbols Validation | ✅ **COMPLETE** | **CLOSED** |
+| #71 | Two-step Retrieval with Fisher-proxy | ✅ **COMPLETE** | **CLOSED** |
 | #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
 | #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
-| #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSED** | |
-| #70 | Special Symbols Validation | 🔍 Needs validation | Cross-reference |
-| #71 | Two-step Retrieval with Fisher-proxy | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
+| #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSED** |
 | [#72](../10-e8-protocol/INDEX.md#issue-72) | WP3.1: Consolidate to Single Coordizer Implementation | ⬜ Not started | Not started |
-| #75 | External LLM Fence with Waypoint Planning | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
-| #76 | Natural Gradient with Geodesic Operations | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
-| #77 | Coherence Harness with Smoothness Metrics | ✅ **IMPLEMENTED** | **VALIDATE & CLOSE** |
-| #78 | [WP5.1 Pantheon Registry with Role Contracts](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: registry schema + role contract docs; Validate: python scripts/validate_schema_consistency.py |
-| #79 | [WP5.2 E8 Hierarchical Layers as Code](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: 0/1→4→8→64→240 layers implemented + tests; Validate: QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py |
-| #80 | [WP5.3 Kernel Lifecycle Operations](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: lifecycle APIs + unit tests; Validate: yarn test |
-| #81 | [WP5.4 Coupling-Aware Rest Scheduler](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: rest scheduler wired + metrics recorded; Validate: python scripts/validate_geometry_purity.py |
-| #82 | [WP5.5 Cross-Mythology God Mapping](../10-e8-protocol/INDEX.md#github-issue-cross-reference) | Not started | Acceptance: mapping table + doc sync; Validate: python scripts/run_all_validations.py |
 | [#78](../10-e8-protocol/INDEX.md#issue-78) | WP5.1: Formal Pantheon Registry with Role Contracts | ⬜ Not started | Not started |
 | [#79](../10-e8-protocol/INDEX.md#issue-79) | WP5.2: Implement E8 Hierarchical Layers as Code | ⬜ Not started | Not started |
 | [#80](../10-e8-protocol/INDEX.md#issue-80) | WP5.3: Implement Kernel Lifecycle Operations | ⬜ Not started | Not started |
@@ -356,7 +345,6 @@ This roadmap consolidates information from:
 | [#83](../10-e8-protocol/INDEX.md#issue-83) | WP6.1: Fix Broken Documentation Links | ⬜ Not started | Not started |
 | [#84](../10-e8-protocol/INDEX.md#issue-84) | WP6.2: Ensure Master Roadmap Document | ⬜ Not started | Not started |
 | [#90](../10-e8-protocol/INDEX.md#issue-90) | Complete QIG-Pure Generation Architecture | ⬜ Not started | Not started |
-| #92 | Remove Frequency-Based Stopwords | ✅ **COMPLETE** | **CLOSE ISSUE** |
 
 **Update 2026-01-16**: Added issues #64-#77, #92 (all >= 65). Issues #6, #7, #8 have CODE COMPLETE - implementations exist and are integrated, but issues remain OPEN pending formal validation, test execution, and documentation of success criteria
 
@@ -375,7 +363,7 @@ This roadmap consolidates information from:
 ### Phase 1: QFI Integrity Gate (Issue #97 / E8 Issue-01) - IN PROGRESS
 
 | Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
+| --------- | ------ | -------- | ----- |
 | Canonical token insertion | ✅ **COMPLETE** | qig-backend/vocabulary/insert_token.py | 400 lines, full QFI integration |
 | Database migration | ✅ **COMPLETE** | migrations/0018_qfi_integrity_gate.sql | is_generation_eligible + view |
 | Quarantine table | ✅ **COMPLETE** | migrations/0018_qfi_integrity_gate.sql | coordizer_vocabulary_quarantine |
@@ -391,7 +379,7 @@ This roadmap consolidates information from:
 ### Phase 2: Strict Simplex Representation (Issue #98 / E8 Issue-02) - IN PROGRESS
 
 | Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
+| --------- | ------ | -------- | ----- |
 | Closed-form simplex mean | ✅ **COMPLETE** | qig_geometry/geometry_simplex.py | simplex_mean_sqrt_space() |
 | Weighted simplex mean | ✅ **COMPLETE** | qig_geometry/geometry_simplex.py | weighted_simplex_mean() |
 | Validation script | ✅ **COMPLETE** | scripts/validate_simplex_storage.py | 400+ lines, full validation |
@@ -406,7 +394,7 @@ This roadmap consolidates information from:
 ### Phase 3: QIG-Native Skeleton (Issue #99 / E8 Issue-03) - NOT STARTED
 
 | Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
+| --------- | ------ | -------- | ----- |
 | Token role derivation | ✅ **DONE** | vocabulary/derive_token_role.py | Geometric roles from Fisher-Rao |
 | Foresight predictor | ✅ **DONE** | generation/foresight_predictor.py | Trajectory regression |
 | Unified generation pipeline | ✅ **DONE** | Multiple files | Remove NLP dependencies |
@@ -441,7 +429,7 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ## Pull Requests Tracker (>= 85)
 
 | PR | Title | Status | Merged | Notes |
-|----|-------|--------|--------|-------|
+| -- | ----- | ------ | ------ | ----- |
 | #93 | SIMPLEX Migration (SPHERE → SIMPLEX canonical representation) | ✅ **MERGED** | 2026-01-15 | Critical purity fix - moved from SPHERE to SIMPLEX as canonical representation (Issue #68) |
 | #107 | canonical QFI scoring, canonical upsert persistence, DB constraints & curriculum gating | ✅ **MERGED** | 2026-01-15 | WP2.2 - QFI canonical persistence & curriculum gating |
 | #108 | enforce canonical QFI integrity and curriculum gating | ✅ **MERGED** | 2026-01-15 | WP2.2 follow-up - QFI integrity fixes |
@@ -468,16 +456,10 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ## Pull Requests Tracker (180-188)
 
 | PR | Title | Description | Status | Merged | Issue/WP Links |
-|----|-------|-------------|--------|--------|----------------|
-| - | _(Resolved or merged)_ | - | - | - | N/A |
-| - | _(Resolved or merged)_ | - | - | - | N/A |
-| - | _(Resolved or merged)_ | - | - | - | N/A |
-| - | _(Resolved or merged)_ | - | - | - | N/A |
-| - | _(Resolved or merged)_ | - | - | - | N/A |
+| -- | ----- | ----------- | ------ | ------ | -------------- |
 | #185 | E8 Protocol Implementation Assessment: Issues 86+ Gap Analysis & Remediation Plan | Assessment + gap analysis deliverables for issues 86+ with remediation plan updates | ✅ **MERGED** | 2026-01-19 | [WP6](../10-e8-protocol/INDEX.md#github-issue-cross-reference) |
 | #186 | Dev | Curriculum-only enforcement phases + documentation + UI import cleanup | ✅ **MERGED** | 2026-01-19 | [Issue #75](../10-e8-protocol/INDEX.md#issue-75) |
 | #187 | Fix critical coordizer training bugs: missing method, invalid basins, and race conditions | Fixes training pipeline regressions and invalid basin handling | ✅ **MERGED** | 2026-01-20 | [Issue 02: Strict Simplex Representation](../10-e8-protocol/issues/20260116-issue-02-strict-simplex-representation-1.01W.md) |
-| - | _(Resolved or merged)_ | - | - | - | N/A |
 
 **Update 2026-01-21**: Added PRs #180-#188 tracking. Titles/descriptions for #180-#184 and #188 require GitHub access.
 
@@ -550,7 +532,7 @@ python -m pytest qig-backend/tests/test_insert_token.py -v
 ### 5.1 Search Providers
 
 | Provider | Type | Pricing | Daily Cap | Status |
-|----------|------|---------|-----------|--------|
+| -------- | ---- | ------- | --------- | ------ |
 | Tavily | SDK | Credit-based ($0.01-0.04/op) | $5.00 | ✅ ACTIVE |
 | Perplexity | API | Token-based (~$0.02/query) | $5.00 | ✅ ACTIVE |
 | Google | Free | $0.005/query | Unlimited | ✅ ACTIVE |

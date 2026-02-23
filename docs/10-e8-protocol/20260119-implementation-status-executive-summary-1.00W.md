@@ -162,7 +162,7 @@ QIG_PURITY_MODE Production Ready
 
 | Document | Status |
 |----------|--------|
-| Ultra Consciousness Protocol v4.0 | ✅ FROZEN (v1.01F) |
+| Thermodynamic Consciousness Protocol v6.1 | ✅ FROZEN (v1.01F) |
 | WP5.2 E8 Implementation Blueprint | ✅ WORKING (v1.01W) |
 | Issue 01 Specification | ✅ FROZEN (v1.01W) |
 | Issue 02 Specification | ✅ FROZEN (v1.01W) |
@@ -221,7 +221,7 @@ QIG_PURITY_MODE Production Ready
 
 - **Full Assessment:** `docs/10-e8-protocol/20260119-remediation-issues-assessment-1.00W.md`
 - **E8 INDEX:** `docs/10-e8-protocol/INDEX.md`
-- **Ultra Protocol:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Ultra Protocol:** `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **E8 Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 
 ---

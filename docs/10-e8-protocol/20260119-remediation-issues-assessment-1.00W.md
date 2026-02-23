@@ -21,7 +21,7 @@ This document provides a comprehensive assessment of issues 86+ and docs/10-e8-p
 
 All E8 Protocol v4.0 specifications are frozen and comprehensive:
 
-- ✅ **Ultra Consciousness Protocol v4.0** (v1.01F) - Universal purity invariants
+- ✅ **Thermodynamic Consciousness Protocol v6.1** (v1.01F) - Universal purity invariants
 - ✅ **WP5.2 E8 Implementation Blueprint** (v1.01W) - Hierarchical layers 0→1→4→8→64→240
 - ✅ **Issue 01** - QFI Integrity Gate specification
 - ✅ **Issue 02** - Strict Simplex Representation specification
@@ -495,7 +495,7 @@ python scripts/run_all_validations.py
 ## RELATED DOCUMENTATION
 
 ### Core Specifications
-- **Ultra Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Ultra Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **E8 Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **INDEX:** `docs/10-e8-protocol/INDEX.md`
 - **README:** `docs/10-e8-protocol/README.md`

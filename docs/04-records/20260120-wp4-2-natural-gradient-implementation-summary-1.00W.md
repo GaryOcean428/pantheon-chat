@@ -249,7 +249,7 @@ Not required for this work package, but possible enhancements:
   - Amari "Natural Gradient Works Efficiently in Learning"
   - Martens "Deep learning via Hessian-free optimization"
 - **Manifest:** Type-Symbol-Concept Manifest: optimizer requirements
-- **E8 Protocol:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol:** `docs/10-e8-protocol/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 
 ## Coordination
 

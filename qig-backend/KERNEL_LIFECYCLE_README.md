@@ -590,7 +590,7 @@ stats = manager.get_lifecycle_stats()
 - **WP5.1**: Pantheon Registry (`qig-backend/pantheon_registry.py`)
 - **WP5.2**: E8 Architecture (`docs/10-e8-protocol/implementation/`)
 - **Frozen Facts**: `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
-- **Universal Purity Spec**: `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Universal Purity Spec**: `docs/10-e8-protocol/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 
 ---
 

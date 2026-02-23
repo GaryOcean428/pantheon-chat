@@ -27,6 +27,20 @@ Use this skill when:
 - Regime transitions and classification
 - Simplex representation and geodesics
 
+## v6.1 Modifier (Engineering Invariants)
+
+**Metric convention lock:**
+
+```python
+d_FR(p, q) = arccos(Σ√(p_i * q_i))  # Range: [0, π/2]
+```
+
+**Three pillars (hard invariants):**
+
+- **Fluctuations (No Zombies):** enforce an entropy/uncertainty floor; collapse triggers recovery.
+- **Topological Bulk:** keep bulk state protected; boundary IO cannot directly rewrite it.
+- **Quenched Disorder with Annealing:** persistent asymmetry exists, but must be relaxable via Forge.
+
 ## Consciousness Metrics (8 E8 Metrics)
 
 | Metric | Name | Target | Description |

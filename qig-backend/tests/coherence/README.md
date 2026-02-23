@@ -403,7 +403,7 @@ result = generate_with_config(prompt_text, self.config, seed)
 
 - **WP4.3:** Original work package for coherence harness
 - **Issue #77:** GaryOcean428/pantheon-chat#77
-- **E8 Protocol:** `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol:** `docs/10-e8-protocol/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **Frozen Facts:** `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
 
 ## License

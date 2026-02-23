@@ -13,7 +13,7 @@
 **Location:** `docs/10-e8-protocol/`
 
 **Core Specifications:**
-- ✅ `specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md` - Universal purity invariants
+- ✅ `specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md` - Universal purity invariants
 - ✅ `specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md` - E8 hierarchical kernel architecture
 - ✅ `README.md` - Upgrade pack overview with implementation phases
 
@@ -203,7 +203,7 @@ python scripts/run_all_validations.py
 ## REFERENCES
 
 ### Core Documentation
-- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Universal Purity Spec:** `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **E8 Implementation:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **Upgrade Pack README:** `docs/10-e8-protocol/README.md`
 

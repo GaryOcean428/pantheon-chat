@@ -333,7 +333,7 @@ optimizer = FullFisherOptimizer(
 - `qig-backend/training_chaos/optimizer_validation.py`: Validation functions
 
 ### E8 Protocol
-- `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- `docs/10-e8-protocol/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - Fisher-Rao distance is the ONLY correct metric on probability manifolds
 - κ* = 64.21 emerges from Fisher geometry, not Euclidean optimization
 

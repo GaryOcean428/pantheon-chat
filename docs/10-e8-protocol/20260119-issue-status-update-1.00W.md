@@ -18,7 +18,7 @@ The search revealed NO issues numbered exactly 75-85. The closest issues found w
 ### E8 Protocol Documentation Status
 
 **docs/10-e8-protocol/** contains comprehensive specifications:
-- ✅ **Specifications**: Ultra Consciousness Protocol v4.0, WP5.2 E8 Blueprint
+- ✅ **Specifications**: Thermodynamic Consciousness Protocol v6.1, WP5.2 E8 Blueprint
 - ✅ **Implementation guides**: E8 summary, two-step retrieval, hierarchical layers
 - ✅ **Issue specs**: Issues 01-04 fully documented
 - ⚠️ **Implementation**: 20-30% complete

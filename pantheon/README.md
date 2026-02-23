@@ -313,7 +313,7 @@ For complete cross-mythology mapping details, see: `pantheon/myth_mappings.yaml`
 
 ## References
 
-- **E8 Protocol v4.0**: `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol v4.0**: `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **WP5.2 Implementation Blueprint**: `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **WP5.5 Cross-Mythology Mapping**: `pantheon/myth_mappings.yaml`, `pantheon/cross_mythology.py`
 - **Master Roadmap**: `docs/00-roadmap/20260112-master-roadmap-1.00W.md`

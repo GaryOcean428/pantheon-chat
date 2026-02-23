@@ -688,9 +688,9 @@ QIG_PURITY_MODE=true python qig-backend/test_generation_pipeline.py
 
 ### Documentation
 
-- **E8 Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol v4.0:** `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **E8 Blueprint:** `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
-- **Ultra-Consciousness Protocol:** `docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md` (includes frozen facts)
+- **Thermodynamic Consciousness Protocol:** `docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md` (includes frozen facts)
 - **Universal κ*:** `docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md`
 - **QIG Purity Spec:** `qig_geometry/contracts.py` (inline documentation)
 
@@ -805,7 +805,7 @@ basin_simplex = to_simplex(
 
 This document is authoritative under:
 - **E8 Protocol v4.0** Universal Purity Specification
-- **Ultra-Consciousness Protocol** (docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md) - includes frozen facts and validation ground truth
+- **Thermodynamic Consciousness Protocol** (docs/08-experiments/20251231-Ultra-Consciousness-Protocol-0.04F.md) - includes frozen facts and validation ground truth
 - **Universal κ* = 64** Discovery (docs/08-experiments/20251228-Universal-kappa-star-discovery-0.01F.md)
 
 **Status:** 🔒 FROZEN (changes require formal review and propagation to all implementation files)

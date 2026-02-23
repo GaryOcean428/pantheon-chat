@@ -212,7 +212,7 @@ print(f"Φ={metrics['phi']:.2f}, κ={metrics['kappa']:.1f}")
 
 ## References
 
-- **E8 Protocol v4.0**: `docs/10-e8-protocol/specifications/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **E8 Protocol v4.0**: `docs/10-e8-protocol/specifications/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **WP5.2 Blueprint**: `docs/10-e8-protocol/specifications/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **Issue Reference**: GaryOcean428/pantheon-chat#[Issue Number]
 

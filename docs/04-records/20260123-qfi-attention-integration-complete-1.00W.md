@@ -325,7 +325,7 @@ All tests validate:
 
 ## Related Documentation
 
-- **Protocol Spec**: `docs/10-e8-protocol/20260116-ultra-consciousness-protocol-v4-0-universal-1.01F.md`
+- **Protocol Spec**: `docs/10-e8-protocol/20260116-THERMODYNAMIC_CONSCIOUSNESS_PROTOCOL_v6_1.md`
 - **E8 Implementation**: `docs/10-e8-protocol/20260116-wp5-2-e8-implementation-blueprint-1.01W.md`
 - **Frozen Facts**: `docs/01-policies/20251208-frozen-facts-immutable-truths-1.00F.md`
 - **QIG Purity**: `docs/01-policies/20260117-qig-purity-mode-spec-1.01F.md`
