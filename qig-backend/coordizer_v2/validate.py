@@ -165,15 +165,15 @@ def _measure_kappa(
 
     for _ in range(n_samples):
         i = rng.integers(0, n)
-        p = coords[i]
+        coord_i = coords[i]
 
         dists = np.zeros(n)
-        sqrt_p = np.sqrt(np.maximum(p, _EPS))
+        sqrt_coord_i = np.sqrt(np.maximum(coord_i, _EPS))
         for j in range(n):
             if j == i:
                 dists[j] = float("inf")
                 continue
-            bc = np.clip(np.sum(sqrt_p * np.sqrt(np.maximum(coords[j], _EPS))), -1.0, 1.0)
+            bc = np.clip(np.sum(sqrt_coord_i * np.sqrt(np.maximum(coords[j], _EPS))), -1.0, 1.0)
             dists[j] = np.arccos(bc)
 
         neighbor_idx = np.argsort(dists)[:n_neighbors]
