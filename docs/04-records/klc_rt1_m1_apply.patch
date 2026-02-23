@@ -1,0 +1,77 @@
+--- a/qig-backend/kernel_lifecycle.py
++++ b/qig-backend/kernel_lifecycle.py
+@@ -36,7 +36,8 @@
+ 
+ import logging
++import threading
+ from dataclasses import dataclass, field
+ from datetime import datetime
+ from typing import Dict, List, Optional, Tuple, Any
+@@ -57,15 +58,24 @@
+ 
+ # TCP v6.1 — VoterRegistry: live φ/κ for governance vote weighting
+ _VOTER_REGISTRY = None
+ _VOTER_REGISTRY_ATTEMPTED = False
++_VR_LOCK = threading.Lock()          # RT1-M1: thread-safe lazy init
++
++logger = logging.getLogger(__name__)   # defined here so _vr() can reference it
+ 
+ 
+ def _vr():
+-    global _VOTER_REGISTRY, _VOTER_REGISTRY_ATTEMPTED
++    """
++    Get VoterRegistry singleton.
++    Thread-safe double-checked locking (RT1-M1: TOCTOU fix).
++    """
++    global _VOTER_REGISTRY, _VOTER_REGISTRY_ATTEMPTED    
+     if _VOTER_REGISTRY is not None:
+         return _VOTER_REGISTRY
+-    if _VOTER_REGISTRY_ATTEMPTED:
+-        return None
+-    _VOTER_REGISTRY_ATTEMPTED = True
+-    try:
+-        from olympus.voter_registry import get_voter_registry
+-        _VOTER_REGISTRY = get_voter_registry()
+-    except ImportError:
+-        pass
+-    return _VOTER_REGISTRY
++    with _VR_LOCK:
++        if _VOTER_REGISTRY_ATTEMPTED:
++            return _VOTER_REGISTRY
++        _VOTER_REGISTRY_ATTEMPTED = True
++        try:
++            from olympus.voter_registry import get_voter_registry
++            _VOTER_REGISTRY = get_voter_registry()
++            logger.info("[KernelLifecycle] VoterRegistry connected (TCP v6.1)")
++        except ImportError as e:
++            logger.warning(
++                "[KernelLifecycle] VoterRegistry not available: %s", e
++            )
++        return _VOTER_REGISTRY
+ 
+ from kernel_spawner import RoleSpec
+ 
+-logger = logging.getLogger(__name__)
++
+@@ -480,10 +490,10 @@
+             _vr_inst = _vr()
+             if _vr_inst is not None:
+                 try:
+-                    _vr_inst.register(
++                    _vr_inst.register_or_update(
+                         god_name=kernel.god_name.capitalize(),
+                         kernel_id=kernel_id,
+                         phi=kernel.phi,
+                         kappa=kernel.kappa,
+                     )
+@@ -635,10 +645,10 @@
+         _vr_inst = _vr()
+         if _vr_inst is not None:
+             try:
+-                _vr_inst.register(
++                _vr_inst.register_or_update(
+                     god_name=god_name.capitalize(),
+                     kernel_id=god_kernel_id,
+                     phi=god_kernel.phi,
+                     kappa=god_kernel.kappa,
+                 )
